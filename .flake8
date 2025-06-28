@@ -11,4 +11,7 @@ exclude =
     .venv,
     cache,
     models,
-    *.egg-info
+    *.egg-info,
+    src/webgui/backend-legacy,
+    *legacy*
+

@@ -184,6 +184,11 @@ sample_audio/
 test_output/
 benchmark_results/
 
+# Legacy development files
+src/webgui/backend-legacy/
+*.legacy.py
+dev-server.log
+
 # Container and VM files
 *.qcow2
 *.img

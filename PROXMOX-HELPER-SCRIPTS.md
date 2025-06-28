@@ -8,7 +8,15 @@ WhisperS2T includes **Proxmox VE Helper Scripts** inspired by the popular [commu
 
 ### **Instant Deployment**
 ```bash
-bash -c "$(wget -qLO - https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/scripts/proxmox-oneliner.sh)"
+# Download and run standalone script:
+wget https://github.com/GaboCapo/whisper-appliance/raw/main/scripts/proxmox-standalone.sh
+chmod +x proxmox-standalone.sh
+./proxmox-standalone.sh
+```
+
+**Alternative (if raw URLs work in your environment):**
+```bash
+bash -c "$(wget -qLO - https://github.com/GaboCapo/whisper-appliance/raw/main/scripts/proxmox-oneliner.sh)"
 ```
 
 **That's it!** This single command will:

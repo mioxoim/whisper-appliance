@@ -196,7 +196,7 @@ function install_script() {
     $DISABLEIP6
     "
     
-    bash -c "$(wget -qLO - https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/scripts/proxmox-install.sh)" || exit
+    bash -c "$(wget -qLO - https://github.com/GaboCapo/whisper-appliance/raw/main/scripts/proxmox-install.sh)" || exit
     
     if [ "$CT_TYPE" == "0" ]; then
         PCT_OPTIONS="-template"
@@ -208,7 +208,7 @@ function install_script() {
     pct start $CTID
     msg_ok "Started LXC Container"
     
-    lxc-attach -n $CTID -- bash -c "$(wget -qLO - https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/install-container.sh)" || exit
+    lxc-attach -n $CTID -- bash -c "$(wget -qLO - https://github.com/GaboCapo/whisper-appliance/raw/main/install-container.sh)" || exit
 }
 
 function update_script() {

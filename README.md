@@ -8,9 +8,12 @@
 
 ### ⚡ One-Liner Installation (Easiest)
 
-**For Proxmox VE users:**
+**For Proxmox VE users - Working Standalone Version:**
 ```bash
-bash -c "$(wget -qLO - https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/scripts/proxmox-oneliner.sh)"
+# Copy and save this script, then run on Proxmox:
+wget https://github.com/GaboCapo/whisper-appliance/raw/main/scripts/proxmox-standalone.sh
+chmod +x proxmox-standalone.sh
+./proxmox-standalone.sh
 ```
 **⏱️ Total time: 10-15 minutes** - Creates container, installs everything, ready to use!
 

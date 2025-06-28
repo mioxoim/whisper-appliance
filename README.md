@@ -10,10 +10,8 @@
 
 **For Proxmox VE users - Working Standalone Version:**
 ```bash
-# Copy and save this script, then run on Proxmox:
-wget https://github.com/GaboCapo/whisper-appliance/raw/main/scripts/proxmox-standalone.sh
-chmod +x proxmox-standalone.sh
-./proxmox-standalone.sh
+# One command setup - run on Proxmox host as root:
+bash <(curl -s https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/scripts/proxmox-standalone.sh)
 ```
 **⏱️ Total time: 10-15 minutes** - Creates container, installs everything, ready to use!
 

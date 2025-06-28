@@ -94,16 +94,16 @@ msg_ok "Container started"
 msg_info "Installing WhisperS2T (this will take 10-15 minutes)..."
 
 # Create installation script inside container
-pct exec $CTID -- bash -c 'cat > /root/install-whisper.sh << "INSTALL_EOF"
+cat > /tmp/install-whisper.sh << 'INSTALL_EOF'
 #!/bin/bash
 set -e
 
 # Colors for output
-RED='\''\\033[0;31m'\''
-GREEN='\''\\033[0;32m'\''
-YELLOW='\''\\033[1;33m'\''
-BLUE='\''\\033[0;34m'\''
-NC='\''\\033[0m'\''
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+NC='\033[0m'
 
 print_status() { echo -e "${BLUE}[INFO]${NC} $1"; }
 print_success() { echo -e "${GREEN}[SUCCESS]${NC} $1"; }
@@ -235,8 +235,8 @@ HTML_TEMPLATE = """
     <div class="container">
         <h1>🎤 WhisperS2T Appliance</h1>
         
-        <div class="status {{ 'running' if whisper_available else 'error' }}">
-            Status: {{ 'Whisper Model Ready' if whisper_available else 'Whisper Model Loading...' }}
+        <div class="status {{ \"running\" if whisper_available else \"error\" }}">
+            Status: {{ \"Whisper Model Ready\" if whisper_available else \"Whisper Model Loading...\" }}
         </div>
         
         {% if whisper_available %}
@@ -411,7 +411,9 @@ fi
 print_success "WhisperS2T installation completed!"
 INSTALL_EOF
 
-chmod +x /root/install-whisper.sh'
+# Copy script to container and make executable
+pct push $CTID /tmp/install-whisper.sh /root/install-whisper.sh
+pct exec $CTID -- chmod +x /root/install-whisper.sh
 
 # Run installation
 msg_info "Executing installation inside container..."

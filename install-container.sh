@@ -138,7 +138,47 @@ if [ -d "./src" ]; then
     cp -r ./templates/* /opt/whisper-appliance/templates/ 2>/dev/null || true
     cp -r ./static/* /opt/whisper-appliance/static/ 2>/dev/null || true
     cp -r ./config/* /opt/whisper-appliance/config/ 2>/dev/null || true
+    
+    # Use enhanced app with update functionality if available
+    if [ -f "./src/enhanced_app.py" ]; then
+        print_status "Installing enhanced app with update management"
+        cp ./src/enhanced_app.py /opt/whisper-appliance/src/app.py
+    fi
+    
+    # Copy auto-updater script
+    if [ -f "./auto-update.sh" ]; then
+        print_status "Installing auto-updater script"
+        cp ./auto-update.sh /opt/whisper-appliance/
+        chmod +x /opt/whisper-appliance/auto-update.sh
+    fi
+    
     chown -R whisper:whisper /opt/whisper-appliance
+fi
+
+# Setup Git repository for updates (if we're in a git repo)
+if [ -d "./.git" ]; then
+    print_section "🔧 Setting up Update Management"
+    
+    # Copy git repository to application directory
+    print_status "Copying git repository for update management..."
+    cp -r ./.git /opt/whisper-appliance/
+    
+    # Copy deploy key if it exists
+    if [ -f "./deploy_key_whisper_appliance" ]; then
+        print_status "Copying deploy key for GitHub access..."
+        cp ./deploy_key_whisper_appliance /opt/whisper-appliance/
+        chmod 600 /opt/whisper-appliance/deploy_key_whisper_appliance
+        chown whisper:whisper /opt/whisper-appliance/deploy_key_whisper_appliance
+    fi
+    
+    # Set git ownership
+    chown -R whisper:whisper /opt/whisper-appliance/.git
+    
+    print_success "✅ Update management configured"
+    print_status "Updates can be managed via:"
+    print_status "  - Web interface: http://container-ip:5000 (Updates tab)"
+    print_status "  - Command line: /opt/whisper-appliance/auto-update.sh"
+    print_status "  - Dev script: ./dev.sh update [check|apply|rollback|status]"
 fi
 
 # Create systemd service
@@ -321,6 +361,172 @@ def health():
         'whisper_available': WHISPER_AVAILABLE,
         'version': '0.6.0'
     })
+
+@app.route('/update/status')
+def update_status():
+    """Check for available updates"""
+    try:
+        import subprocess
+        import os
+        
+        # Check if we're in a git repository
+        if not os.path.exists('/opt/whisper-appliance/.git'):
+            return jsonify({
+                'error': 'Not a git installation',
+                'message': 'Updates only available for git-cloned installations'
+            })
+        
+        # Get current commit
+        current_commit = subprocess.check_output(
+            ['git', 'rev-parse', 'HEAD'], 
+            cwd='/opt/whisper-appliance',
+            universal_newlines=True
+        ).strip()
+        
+        # Get current version
+        try:
+            current_version = subprocess.check_output(
+                ['git', 'describe', '--tags', '--always'], 
+                cwd='/opt/whisper-appliance',
+                universal_newlines=True
+            ).strip()
+        except:
+            current_version = current_commit[:8]
+        
+        # Fetch latest changes
+        subprocess.run(
+            ['git', 'fetch', 'origin', 'main'], 
+            cwd='/opt/whisper-appliance',
+            capture_output=True
+        )
+        
+        # Get remote commit
+        remote_commit = subprocess.check_output(
+            ['git', 'rev-parse', 'origin/main'], 
+            cwd='/opt/whisper-appliance',
+            universal_newlines=True
+        ).strip()
+        
+        updates_available = current_commit != remote_commit
+        
+        if updates_available:
+            # Get number of commits behind
+            commits_behind = subprocess.check_output(
+                ['git', 'rev-list', '--count', f'{current_commit}..origin/main'], 
+                cwd='/opt/whisper-appliance',
+                universal_newlines=True
+            ).strip()
+        else:
+            commits_behind = "0"
+        
+        return jsonify({
+            'current_version': current_version,
+            'current_commit': current_commit,
+            'latest_commit': remote_commit,
+            'updates_available': updates_available,
+            'commits_behind': int(commits_behind)
+        })
+        
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
+@app.route('/update/apply', methods=['POST'])
+def update_apply():
+    """Apply available updates"""
+    try:
+        import subprocess
+        import os
+        
+        if not os.path.exists('/opt/whisper-appliance/.git'):
+            return jsonify({
+                'error': 'Not a git installation',
+                'message': 'Updates only available for git-cloned installations'
+            })
+        
+        # Check if updates are available
+        current_commit = subprocess.check_output(
+            ['git', 'rev-parse', 'HEAD'], 
+            cwd='/opt/whisper-appliance',
+            universal_newlines=True
+        ).strip()
+        
+        subprocess.run(['git', 'fetch', 'origin', 'main'], cwd='/opt/whisper-appliance')
+        
+        remote_commit = subprocess.check_output(
+            ['git', 'rev-parse', 'origin/main'], 
+            cwd='/opt/whisper-appliance',
+            universal_newlines=True
+        ).strip()
+        
+        if current_commit == remote_commit:
+            return jsonify({
+                'success': True,
+                'message': 'System is already up to date',
+                'action': 'none'
+            })
+        
+        # Create backup
+        backup_name = f"backup-{current_commit[:8]}"
+        
+        # Apply updates
+        result = subprocess.run(
+            ['git', 'pull', 'origin', 'main'], 
+            cwd='/opt/whisper-appliance',
+            capture_output=True,
+            universal_newlines=True
+        )
+        
+        if result.returncode == 0:
+            # Update was successful
+            new_version = subprocess.check_output(
+                ['git', 'describe', '--tags', '--always'], 
+                cwd='/opt/whisper-appliance',
+                universal_newlines=True
+            ).strip()
+            
+            return jsonify({
+                'success': True,
+                'message': f'Updated to version {new_version}',
+                'old_version': current_commit[:8],
+                'new_version': new_version,
+                'backup_created': backup_name,
+                'restart_required': True
+            })
+        else:
+            return jsonify({
+                'error': 'Update failed',
+                'message': result.stderr
+            })
+            
+    except Exception as e:
+        return jsonify({'error': str(e)})
+
+@app.route('/system/restart', methods=['POST'])
+def system_restart():
+    """Restart the WhisperS2T service"""
+    try:
+        import subprocess
+        
+        # Restart the service
+        result = subprocess.run(
+            ['systemctl', 'restart', 'whisper-appliance'], 
+            capture_output=True,
+            universal_newlines=True
+        )
+        
+        if result.returncode == 0:
+            return jsonify({
+                'success': True,
+                'message': 'Service restart initiated'
+            })
+        else:
+            return jsonify({
+                'error': 'Failed to restart service',
+                'message': result.stderr
+            })
+            
+    except Exception as e:
+        return jsonify({'error': str(e)})
 
 @app.route('/transcribe', methods=['POST'])
 def transcribe():

@@ -886,6 +886,293 @@ docs_serve() {
     python3 -m http.server 8000
 }
 
+# Update functions
+update_check() {
+    print_section "🔍 Checking for Updates"
+    
+    if [ ! -d ".git" ]; then
+        print_error "Not a git repository. Cannot check for updates."
+        print_info "This command only works for git-cloned installations."
+        return 1
+    fi
+    
+    print_step "Fetching latest changes from GitHub..."
+    
+    # Configure SSH if deploy key exists
+    if [ -f "./deploy_key_whisper_appliance" ]; then
+        export GIT_SSH_COMMAND="ssh -i ./deploy_key_whisper_appliance -o IdentitiesOnly=yes"
+        print_info "Using deploy key for GitHub access"
+    fi
+    
+    # Fetch latest changes
+    if ! git fetch origin main; then
+        print_error "Failed to fetch updates from GitHub"
+        return 1
+    fi
+    
+    # Check if updates are available
+    LOCAL_COMMIT=$(git rev-parse HEAD)
+    REMOTE_COMMIT=$(git rev-parse origin/main)
+    
+    if [ "$LOCAL_COMMIT" = "$REMOTE_COMMIT" ]; then
+        print_success "✅ System is up to date!"
+        print_info "Current version: $(git describe --tags --always)"
+        return 0
+    fi
+    
+    print_warning "🔄 Updates available!"
+    print_info "Current commit:  $LOCAL_COMMIT"
+    print_info "Latest commit:   $REMOTE_COMMIT"
+    print_info ""
+    
+    # Show what will be updated
+    echo "Changes that will be applied:"
+    git log --oneline --decorate --color=always "$LOCAL_COMMIT..$REMOTE_COMMIT"
+    echo ""
+    
+    print_info "Run './dev.sh update apply' to install updates"
+    return 2  # Updates available
+}
+
+update_apply() {
+    print_section "⬇️ Applying Updates"
+    
+    if [ ! -d ".git" ]; then
+        print_error "Not a git repository. Cannot apply updates."
+        return 1
+    fi
+    
+    # Check if updates are available first
+    print_step "Checking for updates..."
+    update_check_result=$(update_check >/dev/null 2>&1; echo $?)
+    
+    if [ "$update_check_result" -eq 0 ]; then
+        print_success "System is already up to date!"
+        return 0
+    elif [ "$update_check_result" -eq 1 ]; then
+        print_error "Update check failed"
+        return 1
+    fi
+    
+    # Create backup before updating
+    print_step "Creating backup of current version..."
+    BACKUP_DIR="$ROOT_DIR/.backups"
+    BACKUP_NAME="backup-$(date +%Y%m%d-%H%M%S)-$(git rev-parse --short HEAD)"
+    
+    mkdir -p "$BACKUP_DIR"
+    
+    # Save current commit info
+    echo "$(git rev-parse HEAD)" > "$BACKUP_DIR/$BACKUP_NAME.commit"
+    echo "$(date)" > "$BACKUP_DIR/$BACKUP_NAME.timestamp"
+    
+    print_success "Backup created: $BACKUP_NAME"
+    
+    # Stop services before updating
+    print_step "Stopping services..."
+    if systemctl is-active --quiet whisper-appliance 2>/dev/null; then
+        systemctl stop whisper-appliance
+        RESTART_SERVICE=true
+        print_info "Stopped whisper-appliance service"
+    fi
+    
+    # Configure SSH if deploy key exists
+    if [ -f "./deploy_key_whisper_appliance" ]; then
+        export GIT_SSH_COMMAND="ssh -i ./deploy_key_whisper_appliance -o IdentitiesOnly=yes"
+    fi
+    
+    # Apply updates
+    print_step "Applying updates from GitHub..."
+    if git pull origin main; then
+        print_success "✅ Updates applied successfully!"
+        
+        # Update file permissions
+        print_step "Updating file permissions..."
+        chmod +x *.sh 2>/dev/null || true
+        
+        # Check if requirements changed
+        if git diff --name-only HEAD~1 HEAD | grep -q "requirements"; then
+            print_warning "Requirements files changed. You may need to update dependencies:"
+            print_info "  - For container: re-run install-container.sh"
+            print_info "  - For development: pip install -r requirements.txt"
+        fi
+        
+        # Restart services if they were running
+        if [ "$RESTART_SERVICE" = true ]; then
+            print_step "Restarting whisper-appliance service..."
+            systemctl start whisper-appliance
+            print_success "Service restarted"
+        fi
+        
+        # Show what was updated
+        NEW_VERSION=$(git describe --tags --always)
+        print_success "Updated to version: $NEW_VERSION"
+        
+        # Test installation
+        print_step "Testing installation..."
+        if [ -f "./test-container.sh" ]; then
+            if ./test-container.sh >/dev/null 2>&1; then
+                print_success "✅ Installation test passed"
+            else
+                print_warning "⚠️ Installation test failed - check logs"
+            fi
+        fi
+        
+    else
+        print_error "❌ Update failed!"
+        print_warning "You may need to resolve conflicts manually"
+        print_info "Run './dev.sh update rollback' to restore previous version"
+        return 1
+    fi
+}
+
+update_rollback() {
+    print_section "⏪ Rolling Back to Previous Version"
+    
+    if [ ! -d ".git" ]; then
+        print_error "Not a git repository. Cannot rollback."
+        return 1
+    fi
+    
+    BACKUP_DIR="$ROOT_DIR/.backups"
+    
+    if [ ! -d "$BACKUP_DIR" ]; then
+        print_error "No backups found. Cannot rollback."
+        return 1
+    fi
+    
+    # Find latest backup
+    LATEST_BACKUP=$(ls -t "$BACKUP_DIR"/*.commit 2>/dev/null | head -1)
+    
+    if [ -z "$LATEST_BACKUP" ]; then
+        print_error "No backup commits found. Cannot rollback."
+        return 1
+    fi
+    
+    BACKUP_COMMIT=$(cat "$LATEST_BACKUP")
+    BACKUP_NAME=$(basename "$LATEST_BACKUP" .commit)
+    
+    print_warning "This will rollback to backup: $BACKUP_NAME"
+    print_info "Backup commit: $BACKUP_COMMIT"
+    
+    if [ -f "$BACKUP_DIR/$BACKUP_NAME.timestamp" ]; then
+        print_info "Backup created: $(cat "$BACKUP_DIR/$BACKUP_NAME.timestamp")"
+    fi
+    
+    echo ""
+    read -p "Continue with rollback? [y/N]: " CONFIRM
+    if [[ ! "$CONFIRM" =~ ^[Yy]$ ]]; then
+        print_info "Rollback cancelled"
+        return 0
+    fi
+    
+    # Stop services
+    print_step "Stopping services..."
+    if systemctl is-active --quiet whisper-appliance 2>/dev/null; then
+        systemctl stop whisper-appliance
+        RESTART_SERVICE=true
+    fi
+    
+    # Rollback to backup commit
+    print_step "Rolling back to previous version..."
+    if git reset --hard "$BACKUP_COMMIT"; then
+        print_success "✅ Rollback successful!"
+        
+        # Restart services if they were running
+        if [ "$RESTART_SERVICE" = true ]; then
+            print_step "Restarting whisper-appliance service..."
+            systemctl start whisper-appliance
+            print_success "Service restarted"
+        fi
+        
+        # Remove used backup
+        rm -f "$LATEST_BACKUP" "$BACKUP_DIR/$BACKUP_NAME.timestamp"
+        print_info "Backup $BACKUP_NAME removed"
+        
+        CURRENT_VERSION=$(git describe --tags --always)
+        print_success "Rolled back to version: $CURRENT_VERSION"
+        
+    else
+        print_error "❌ Rollback failed!"
+        return 1
+    fi
+}
+
+update_status() {
+    print_section "📊 Update Status"
+    
+    if [ ! -d ".git" ]; then
+        print_error "Not a git repository."
+        print_info "This appears to be a manual installation."
+        return 1
+    fi
+    
+    # Current version
+    CURRENT_VERSION=$(git describe --tags --always)
+    CURRENT_COMMIT=$(git rev-parse HEAD)
+    CURRENT_BRANCH=$(git branch --show-current)
+    
+    print_info "Current version: $CURRENT_VERSION"
+    print_info "Current commit:  $CURRENT_COMMIT"
+    print_info "Current branch:  $CURRENT_BRANCH"
+    print_info ""
+    
+    # Check for updates
+    print_step "Checking for updates..."
+    
+    # Configure SSH if deploy key exists
+    if [ -f "./deploy_key_whisper_appliance" ]; then
+        export GIT_SSH_COMMAND="ssh -i ./deploy_key_whisper_appliance -o IdentitiesOnly=yes"
+    fi
+    
+    if git fetch origin main 2>/dev/null; then
+        REMOTE_COMMIT=$(git rev-parse origin/main)
+        
+        if [ "$CURRENT_COMMIT" = "$REMOTE_COMMIT" ]; then
+            print_success "✅ System is up to date"
+        else
+            print_warning "🔄 Updates available"
+            print_info "Latest commit: $REMOTE_COMMIT"
+            
+            # Count commits behind
+            COMMITS_BEHIND=$(git rev-list --count "$CURRENT_COMMIT..origin/main")
+            print_info "Commits behind: $COMMITS_BEHIND"
+        fi
+    else
+        print_warning "⚠️ Cannot check for updates (network/auth issue)"
+    fi
+    
+    # Show available backups
+    BACKUP_DIR="$ROOT_DIR/.backups"
+    if [ -d "$BACKUP_DIR" ] && [ "$(ls -A "$BACKUP_DIR")" ]; then
+        print_info ""
+        print_info "Available backups:"
+        for backup in "$BACKUP_DIR"/*.commit; do
+            if [ -f "$backup" ]; then
+                backup_name=$(basename "$backup" .commit)
+                if [ -f "$BACKUP_DIR/$backup_name.timestamp" ]; then
+                    timestamp=$(cat "$BACKUP_DIR/$backup_name.timestamp")
+                    print_info "  - $backup_name ($timestamp)"
+                else
+                    print_info "  - $backup_name"
+                fi
+            fi
+        done
+    fi
+    
+    # Installation type
+    print_info ""
+    if [ -f "/etc/systemd/system/whisper-appliance.service" ]; then
+        print_success "✅ Production installation (systemd service)"
+        if systemctl is-active --quiet whisper-appliance; then
+            print_success "✅ Service is running"
+        else
+            print_warning "⚠️ Service is not running"
+        fi
+    else
+        print_info "📦 Development installation"
+    fi
+}
+
 # Help function
 show_help() {
     print_header
@@ -926,6 +1213,13 @@ show_help() {
     echo "  clean build        Clean build artifacts"
     echo "  clean cache        Clean cache and temp files"
     echo "  docs serve         Serve documentation locally"
+    echo ""
+    
+    echo -e "${BOLD}UPDATE COMMANDS:${NC}"
+    echo "  update check       Check for available updates from GitHub"
+    echo "  update apply       Apply available updates (with backup)"
+    echo "  update rollback    Rollback to previous version"
+    echo "  update status      Show current version and update status"
     echo ""
     
     echo -e "${BOLD}EXAMPLES:${NC}"
@@ -985,6 +1279,15 @@ case "${1:-}" in
         case "${2:-}" in
             "serve") docs_serve ;;
             *) print_error "Unknown docs command: ${2:-}"; show_help ;;
+        esac
+        ;;
+    "update")
+        case "${2:-}" in
+            "check") update_check ;;
+            "apply") update_apply ;;
+            "rollback") update_rollback ;;
+            "status") update_status ;;
+            *) print_error "Unknown update command: ${2:-}"; show_help ;;
         esac
         ;;
     "help"|"-h"|"--help"|"")

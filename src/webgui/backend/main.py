@@ -4,25 +4,23 @@ WhisperS2T Appliance - FastAPI Backend MVP
 Minimal viable backend für testing und development
 """
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
-from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, JSONResponse
 import asyncio
 import json
-import sys
 import os
+import sys
 import traceback
 from datetime import datetime
 from typing import Dict, List, Optional
 
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
+
 # Add parent directory to path for imports
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-app = FastAPI(
-    title="WhisperS2T Appliance",
-    description="Self-contained Speech-to-Text Appliance",
-    version="0.1.0-mvp"
-)
+app = FastAPI(title="WhisperS2T Appliance", description="Self-contained Speech-to-Text Appliance", version="0.1.0-mvp")
+
 
 # Global state management
 class AppState:
@@ -33,13 +31,14 @@ class AppState:
         self.available_models = ["tiny", "base", "small", "medium"]
         self.connected_clients: List[WebSocket] = []
         self.system_status = "initializing"
-        
+
     async def initialize_whisper(self):
         """Initialize WhisperS2T in background"""
         try:
             # Try different import methods
             try:
                 from whispers2t import WhisperS2T
+
                 self.whisper_module = WhisperS2T
                 self.whisper_available = True
                 self.system_status = "ready"
@@ -47,6 +46,7 @@ class AppState:
             except ImportError:
                 try:
                     import whisper
+
                     self.whisper_module = whisper
                     self.whisper_available = True
                     self.system_status = "ready_fallback"
@@ -54,19 +54,22 @@ class AppState:
                 except ImportError:
                     self.system_status = "whisper_unavailable"
                     print("❌ No Whisper module available")
-                    
+
         except Exception as e:
             self.system_status = f"error: {str(e)}"
             print(f"❌ Whisper initialization failed: {e}")
 
+
 # Global app state
 state = AppState()
+
 
 @app.on_event("startup")
 async def startup_event():
     """Initialize system on startup"""
     print("🚀 Starting WhisperS2T Appliance...")
     await state.initialize_whisper()
+
 
 @app.get("/")
 async def root():
@@ -112,12 +115,14 @@ async def root():
     """
     return HTMLResponse(content=html_content)
 
+
 @app.get("/api/status")
 async def get_status():
     """Get system status and capabilities"""
     import platform
+
     import psutil
-    
+
     return {
         "timestamp": datetime.now().isoformat(),
         "version": "0.1.0-mvp",
@@ -125,94 +130,95 @@ async def get_status():
         "whisper": {
             "available": state.whisper_available,
             "current_model": state.current_model,
-            "available_models": state.available_models
+            "available_models": state.available_models,
         },
         "system": {
             "platform": platform.system(),
             "python_version": platform.python_version(),
             "cpu_count": psutil.cpu_count(),
             "memory_gb": round(psutil.virtual_memory().total / (1024**3), 1),
-            "memory_available_gb": round(psutil.virtual_memory().available / (1024**3), 1)
+            "memory_available_gb": round(psutil.virtual_memory().available / (1024**3), 1),
         },
-        "websocket": {
-            "connected_clients": len(state.connected_clients)
-        }
+        "websocket": {"connected_clients": len(state.connected_clients)},
     }
+
 
 @app.post("/api/models/{model_name}/load")
 async def load_model(model_name: str):
     """Load a specific Whisper model"""
     if model_name not in state.available_models:
         raise HTTPException(status_code=400, detail=f"Model {model_name} not available")
-    
+
     if not state.whisper_available:
         raise HTTPException(status_code=503, detail="Whisper not available")
-    
+
     try:
         # Simulate model loading (implement actual loading later)
         await asyncio.sleep(1)  # Simulate loading time
         state.current_model = model_name
-        
+
         # Broadcast to connected clients
-        message = {
-            "type": "model_changed",
-            "model": model_name,
-            "timestamp": datetime.now().isoformat()
-        }
+        message = {"type": "model_changed", "model": model_name, "timestamp": datetime.now().isoformat()}
         await broadcast_to_clients(json.dumps(message))
-        
-        return {
-            "status": "success",
-            "model": model_name,
-            "message": f"Model {model_name} loaded successfully"
-        }
+
+        return {"status": "success", "model": model_name, "message": f"Model {model_name} loaded successfully"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to load model: {str(e)}")
+
 
 @app.websocket("/ws/live-transcription")
 async def websocket_live_transcription(websocket: WebSocket):
     """WebSocket endpoint for live transcription"""
     await websocket.accept()
     state.connected_clients.append(websocket)
-    
+
     # Send welcome message
-    await websocket.send_text(json.dumps({
-        "type": "connected",
-        "message": "WebSocket connected successfully",
-        "timestamp": datetime.now().isoformat(),
-        "server_status": state.system_status
-    }))
-    
+    await websocket.send_text(
+        json.dumps(
+            {
+                "type": "connected",
+                "message": "WebSocket connected successfully",
+                "timestamp": datetime.now().isoformat(),
+                "server_status": state.system_status,
+            }
+        )
+    )
+
     try:
         while True:
             # Wait for client message
             data = await websocket.receive_text()
             message = json.loads(data)
-            
+
             if message.get("action") == "start":
                 # Start transcription simulation
-                await websocket.send_text(json.dumps({
-                    "type": "transcription_started",
-                    "message": "Starting live transcription...",
-                    "timestamp": datetime.now().isoformat()
-                }))
-                
+                await websocket.send_text(
+                    json.dumps(
+                        {
+                            "type": "transcription_started",
+                            "message": "Starting live transcription...",
+                            "timestamp": datetime.now().isoformat(),
+                        }
+                    )
+                )
+
                 # Simulate some transcription results
                 await simulate_transcription(websocket)
-                
+
             elif message.get("action") == "stop":
-                await websocket.send_text(json.dumps({
-                    "type": "transcription_stopped",
-                    "message": "Transcription stopped",
-                    "timestamp": datetime.now().isoformat()
-                }))
-                
+                await websocket.send_text(
+                    json.dumps(
+                        {
+                            "type": "transcription_stopped",
+                            "message": "Transcription stopped",
+                            "timestamp": datetime.now().isoformat(),
+                        }
+                    )
+                )
+
             elif message.get("action") == "ping":
-                await websocket.send_text(json.dumps({
-                    "type": "pong",
-                    "timestamp": datetime.now().isoformat()
-                }))
-                
+                await websocket.send_text(json.dumps({"type": "pong", "timestamp": datetime.now().isoformat()}))
+
     except WebSocketDisconnect:
         state.connected_clients.remove(websocket)
         print("Client disconnected")
@@ -221,6 +227,7 @@ async def websocket_live_transcription(websocket: WebSocket):
         if websocket in state.connected_clients:
             state.connected_clients.remove(websocket)
 
+
 async def simulate_transcription(websocket: WebSocket):
     """Simulate transcription results for testing"""
     test_phrases = [
@@ -228,19 +235,24 @@ async def simulate_transcription(websocket: WebSocket):
         "The WhisperS2T appliance is working correctly.",
         "Real-time speech recognition is functional.",
         "Audio processing pipeline is ready.",
-        "System integration test completed."
+        "System integration test completed.",
     ]
-    
+
     for i, phrase in enumerate(test_phrases):
         await asyncio.sleep(2)  # Simulate processing time
-        
-        await websocket.send_text(json.dumps({
-            "type": "transcription",
-            "text": phrase,
-            "confidence": 0.95 - (i * 0.05),  # Simulate decreasing confidence
-            "timestamp": datetime.now().isoformat(),
-            "segment": i + 1
-        }))
+
+        await websocket.send_text(
+            json.dumps(
+                {
+                    "type": "transcription",
+                    "text": phrase,
+                    "confidence": 0.95 - (i * 0.05),  # Simulate decreasing confidence
+                    "timestamp": datetime.now().isoformat(),
+                    "segment": i + 1,
+                }
+            )
+        )
+
 
 async def broadcast_to_clients(message: str):
     """Broadcast message to all connected WebSocket clients"""
@@ -251,10 +263,11 @@ async def broadcast_to_clients(message: str):
                 await client.send_text(message)
             except:
                 disconnected.append(client)
-        
+
         # Remove disconnected clients
         for client in disconnected:
             state.connected_clients.remove(client)
+
 
 @app.get("/api/test-websocket")
 async def test_websocket_page():
@@ -367,17 +380,13 @@ async def test_websocket_page():
     """
     return HTMLResponse(content=html_content)
 
+
 if __name__ == "__main__":
     import uvicorn
-    
+
     print("🎤 Starting WhisperS2T Appliance MVP Server...")
     print("📱 WebGUI: http://localhost:5000")
     print("📚 API Docs: http://localhost:5000/docs")
     print("🧪 WebSocket Test: http://localhost:5000/api/test-websocket")
-    
-    uvicorn.run(
-        app,
-        host="0.0.0.0",
-        port=5000,
-        log_level="info"
-    )
+
+    uvicorn.run(app, host="0.0.0.0", port=5000, log_level="info")

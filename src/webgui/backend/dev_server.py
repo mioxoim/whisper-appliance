@@ -4,12 +4,12 @@ Enhanced WhisperS2T Appliance - Development Server
 v0.5.0 - Lite Development Mode with proper UI structure
 """
 
-import os
-import sys
 import logging
+import os
 import socket
-from pathlib import Path
+import sys
 from datetime import datetime
+from pathlib import Path
 
 # Add the backend directory to Python path
 backend_dir = Path(__file__).parent
@@ -18,42 +18,34 @@ sys.path.insert(0, str(backend_dir))
 # Configure logging for development
 logging.basicConfig(
     level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler(backend_dir / 'dev-server.log')
-    ]
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout), logging.FileHandler(backend_dir / "dev-server.log")],
 )
 
 logger = logging.getLogger(__name__)
 
 try:
-    from fastapi import FastAPI, HTTPException, Request
-    from fastapi.staticfiles import StaticFiles
-    from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
-    import uvicorn
     import psutil
-    
+    import uvicorn
+    from fastapi import FastAPI, HTTPException, Request
+    from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+    from fastapi.staticfiles import StaticFiles
+
     # Create FastAPI app
     app = FastAPI(
         title="Enhanced WhisperS2T Appliance",
         description="Development server for Enhanced WhisperS2T Appliance v0.5.0",
-        version="0.5.0-dev"
+        version="0.5.0-dev",
     )
-    
+
     # Navigation template
     def get_nav_html(current_page=""):
-        nav_items = [
-            ("Home", "/", "🏠"),
-            ("Demo", "/demo", "🎤"),
-            ("Admin", "/admin", "🔧"),
-            ("API Docs", "/docs", "📚")
-        ]
-        
+        nav_items = [("Home", "/", "🏠"), ("Demo", "/demo", "🎤"), ("Admin", "/admin", "🔧"), ("API Docs", "/docs", "📚")]
+
         nav_html = "<nav style='background: #343a40; padding: 15px; margin-bottom: 20px; border-radius: 5px;'>"
         nav_html += "<div style='display: flex; gap: 15px; align-items: center;'>"
         nav_html += "<h2 style='color: white; margin: 0; margin-right: 20px;'>🎤 WhisperS2T v0.5.0</h2>"
-        
+
         for name, url, icon in nav_items:
             active = "background: #007bff;" if current_page == name.lower() else "background: #495057;"
             nav_html += f"""
@@ -62,10 +54,10 @@ try:
                     {icon} {name}
                 </a>
             """
-        
+
         nav_html += "</div></nav>"
         return nav_html
-    
+
     def get_base_html(title, content, current_page=""):
         return f"""
         <!DOCTYPE html>
@@ -127,7 +119,7 @@ try:
         </body>
         </html>
         """
-    
+
     # Root/Home page - Overview and status
     @app.get("/", response_class=HTMLResponse)
     async def home():
@@ -189,9 +181,9 @@ try:
             </div>
         </div>
         """
-        
+
         return get_base_html("Enhanced WhisperS2T Appliance - Home", content, "home")
-    
+
     # Demo page - Speech recognition interface
     @app.get("/demo", response_class=HTMLResponse)
     async def demo_page():
@@ -264,9 +256,9 @@ try:
             </div>
         </div>
         """
-        
+
         return get_base_html("Speech Recognition Demo", content, "demo")
-    
+
     # Admin page - System administration
     @app.get("/admin", response_class=HTMLResponse)
     async def admin_page():
@@ -274,10 +266,10 @@ try:
         try:
             memory = psutil.virtual_memory()
             cpu_percent = psutil.cpu_percent(interval=0.1)
-            disk = psutil.disk_usage('/')
+            disk = psutil.disk_usage("/")
         except:
             memory = cpu_percent = disk = None
-            
+
         content = f"""
         <div class="card">
             <h1>🔧 System Administration</h1>
@@ -346,9 +338,9 @@ try:
             </div>
         </div>
         """
-        
+
         return get_base_html("System Administration", content, "admin")
-    
+
     # API Endpoints
     @app.get("/health")
     async def health_check():
@@ -362,17 +354,17 @@ try:
                 "api_endpoints": True,
                 "ml_processing": False,
                 "gpu_acceleration": False,
-                "real_time_audio": False
-            }
+                "real_time_audio": False,
+            },
         }
-    
+
     @app.get("/admin/system/info")
     async def system_info():
         try:
             memory = psutil.virtual_memory()
             cpu_percent = psutil.cpu_percent(interval=1)
-            disk = psutil.disk_usage('/')
-            
+            disk = psutil.disk_usage("/")
+
             return {
                 "system": {
                     "cpu_usage": cpu_percent,
@@ -382,7 +374,7 @@ try:
                     "memory_percent": memory.percent,
                     "disk_total": disk.total,
                     "disk_used": disk.used,
-                    "disk_percent": disk.percent
+                    "disk_percent": disk.percent,
                 },
                 "application": {
                     "version": "0.5.0-dev",
@@ -393,26 +385,26 @@ try:
                         "gpu_acceleration": False,
                         "whisper_models": [],
                         "real_time_audio": False,
-                        "note": "Full ML features available in container mode"
-                    }
+                        "note": "Full ML features available in container mode",
+                    },
                 },
                 "development": {
                     "server_type": "uvicorn",
                     "environment": "development",
                     "hot_reload": False,
-                    "debug_mode": True
-                }
+                    "debug_mode": True,
+                },
             }
         except Exception as e:
             logger.error(f"Error getting system info: {e}")
             raise HTTPException(status_code=500, detail="Could not retrieve system information")
-    
+
     def find_available_port(start_port=5000, max_attempts=10):
         """Find an available port starting from start_port"""
         for port in range(start_port, start_port + max_attempts):
             try:
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                sock.bind(('localhost', port))
+                sock.bind(("localhost", port))
                 sock.close()
                 return port
             except OSError:
@@ -425,10 +417,10 @@ try:
         if port is None:
             logger.error("❌ No available ports found (tried 5000-5009)")
             sys.exit(1)
-        
+
         if port != 5000:
             logger.warning(f"⚠️ Port 5000 in use, using port {port} instead")
-        
+
         logger.info("🚀 Starting Enhanced WhisperS2T Appliance Development Server")
         logger.info("📍 Running in development mode")
         logger.info(f"🌐 Starting web server on http://localhost:{port}")
@@ -437,14 +429,8 @@ try:
         logger.info(f"🔧 Admin panel: http://localhost:{port}/admin")
         logger.info(f"📚 API docs: http://localhost:{port}/docs")
         logger.info("🛑 Press Ctrl+C to stop")
-        
-        uvicorn.run(
-            app,
-            host="0.0.0.0",
-            port=port,
-            log_level="info",
-            access_log=True
-        )
+
+        uvicorn.run(app, host="0.0.0.0", port=port, log_level="info", access_log=True)
 
 except ImportError as e:
     logger.error(f"❌ Missing dependencies: {e}")

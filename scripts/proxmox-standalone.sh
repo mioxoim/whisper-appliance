@@ -181,171 +181,20 @@ sudo -u whisper python3 -m pip install --user \
     requests \
     python-multipart \
     werkzeug \
-    psutil >/dev/null 2>&1
+    psutil \
+    sounddevice \
+    numpy >/dev/null 2>&1
 
 print_status "Creating WhisperS2T application..."
-cat > /opt/whisper-appliance/src/app.py << "PYTHON_EOF"
-#!/usr/bin/env python3
-import os
-import tempfile
-import logging
-import subprocess
-from flask import Flask, request, render_template_string, jsonify
-from werkzeug.utils import secure_filename
 
-app = Flask(__name__)
-app.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024
+# Download the enhanced app with live speech from GitHub
+curl -s https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/src/enhanced_app.py > /opt/whisper-appliance/src/app.py
 
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+# Download audio input manager
+mkdir -p /opt/whisper-appliance/src/whisper-service
+curl -s https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/src/whisper-service/audio_input_manager.py > /opt/whisper-appliance/src/whisper-service/audio_input_manager.py
 
-try:
-    import whisper
-    model = whisper.load_model("base")
-    WHISPER_AVAILABLE = True
-    logger.info("Whisper model loaded successfully")
-except Exception as e:
-    logger.warning(f"Whisper not available: {e}")
-    WHISPER_AVAILABLE = False
-    model = None
-
-HTML_TEMPLATE = """
-<!DOCTYPE html>
-<html>
-<head>
-    <title>WhisperS2T Appliance</title>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
-        .container { max-width: 800px; margin: 0 auto; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h1 { color: #333; text-align: center; }
-        .upload-area { border: 2px dashed #007bff; padding: 40px; text-align: center; margin: 20px 0; border-radius: 10px; background: #f8f9fa; }
-        .upload-area:hover { background: #e9ecef; }
-        .result { margin: 20px 0; padding: 20px; background: #e8f5e8; border-radius: 5px; border-left: 4px solid #28a745; }
-        .error { background: #f8d7da; border-left-color: #dc3545; }
-        button { background: #007bff; color: white; padding: 12px 24px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
-        button:hover { background: #0056b3; }
-        .status { text-align: center; margin: 20px 0; }
-        .status.running { color: #28a745; }
-        .status.error { color: #dc3545; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>🎤 WhisperS2T Appliance</h1>
-        
-        <div class="status {{ \"running\" if whisper_available else \"error\" }}">
-            Status: {{ \"Whisper Model Ready\" if whisper_available else \"Whisper Model Loading...\" }}
-        </div>
-        
-        {% if whisper_available %}
-        <p>Upload an audio file to transcribe it using OpenAI Whisper</p>
-        
-        <form id="uploadForm" enctype="multipart/form-data">
-            <div class="upload-area">
-                <input type="file" name="audio" accept="audio/*" required>
-                <p>Select an audio file (MP3, WAV, M4A, etc.)</p>
-                <p><small>Maximum file size: 100MB</small></p>
-            </div>
-            <button type="submit">🎵 Transcribe Audio</button>
-        </form>
-        
-        <div id="result" class="result" style="display:none;">
-            <h3>Transcription Result:</h3>
-            <div id="transcription"></div>
-        </div>
-        {% else %}
-        <div class="result error">
-            <h3>⚠️ Service Starting</h3>
-            <p>The Whisper model is currently loading. Please refresh the page in a few moments.</p>
-            <button onclick="location.reload()">🔄 Refresh Page</button>
-        </div>
-        {% endif %}
-    </div>
-
-    <script>
-        {% if whisper_available %}
-        document.getElementById("uploadForm").onsubmit = function(e) {
-            e.preventDefault();
-            const formData = new FormData(this);
-            
-            document.getElementById("result").style.display = "block";
-            document.getElementById("transcription").innerHTML = "🔄 Processing audio file, please wait...";
-            
-            fetch("/transcribe", {
-                method: "POST",
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    document.getElementById("result").className = "result error";
-                    document.getElementById("transcription").innerHTML = "❌ Error: " + data.error;
-                } else {
-                    document.getElementById("result").className = "result";
-                    document.getElementById("transcription").innerHTML = "📝 " + data.text;
-                }
-            })
-            .catch(error => {
-                document.getElementById("result").className = "result error";
-                document.getElementById("transcription").innerHTML = "❌ Network error: " + error;
-            });
-        };
-        {% endif %}
-    </script>
-</body>
-</html>
-"""
-
-@app.route("/")
-def index():
-    return render_template_string(HTML_TEMPLATE, whisper_available=WHISPER_AVAILABLE)
-
-@app.route("/health")
-def health():
-    return jsonify({
-        "status": "healthy",
-        "whisper_available": WHISPER_AVAILABLE,
-        "version": "0.6.0"
-    })
-
-@app.route("/transcribe", methods=["POST"])
-def transcribe():
-    if not WHISPER_AVAILABLE:
-        return jsonify({"error": "Whisper model not available"})
-    
-    try:
-        if "audio" not in request.files:
-            return jsonify({"error": "No audio file provided"})
-        
-        audio_file = request.files["audio"]
-        if audio_file.filename == "":
-            return jsonify({"error": "No audio file selected"})
-        
-        filename = secure_filename(audio_file.filename)
-        
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_file:
-            audio_file.save(tmp_file.name)
-            
-            logger.info(f"Transcribing file: {filename}")
-            result = model.transcribe(tmp_file.name)
-            
-            os.unlink(tmp_file.name)
-            
-            logger.info("Transcription completed successfully")
-            return jsonify({"text": result["text"]})
-    
-    except Exception as e:
-        logger.error(f"Transcription error: {e}")
-        return jsonify({"error": str(e)})
-
-if __name__ == "__main__":
-    logger.info("🎤 WhisperS2T Appliance starting...")
-    app.run(host="0.0.0.0", port=5001, debug=False)
-PYTHON_EOF
-
-chown whisper:whisper /opt/whisper-appliance/src/app.py
+chown -R whisper:whisper /opt/whisper-appliance/src
 
 print_status "Creating systemd service..."
 cat > /etc/systemd/system/whisper-appliance.service << "SERVICE_EOF"

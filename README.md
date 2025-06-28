@@ -94,7 +94,10 @@ cd whisper-appliance
 ```
 
 ### **Features in v0.6.0**
+- ✅ **Live Speech Recognition** - Real-time microphone transcription
 - ✅ **Web File Upload Interface** - Drag & drop audio transcription
+- ✅ **Dual Interface Design** - Live speech + file upload in tabbed UI
+- ✅ **Audio Input Manager** - Hardware/simulated microphone support
 - ✅ **Health Check Endpoints** - `/health` for monitoring
 - ✅ **Systemd Service Integration** - Auto-start and management
 - ✅ **Nginx Reverse Proxy** - Production-grade web serving
@@ -155,9 +158,15 @@ docker run -p 5000:5000 whisper-appliance
 
 ### **Web Interface**
 1. **Access:** `http://container-ip:5000`
-2. **Upload:** Drag & drop audio file (MP3, WAV, M4A, etc.)
-3. **Transcribe:** Automatic processing with OpenAI Whisper
-4. **Result:** Text transcription displayed in browser
+2. **Live Speech:** Switch to "Live Speech" tab, click "Start Live Transcription", speak naturally
+3. **File Upload:** Switch to "Upload File" tab, drag & drop audio file (MP3, WAV, M4A, etc.)
+4. **Real-time Processing:** Live transcription updates continuously, file processing automatic
+5. **Results:** Copy or download transcribed text from either interface
+
+### **Dual Interface Features**
+- **🎙️ Live Speech Tab**: Real-time microphone transcription with audio visualization
+- **📁 Upload File Tab**: Drag & drop file transcription up to 100MB
+- **⚙️ System Tab**: Device management, health checks, service controls
 
 ### **API Endpoint**
 ```bash

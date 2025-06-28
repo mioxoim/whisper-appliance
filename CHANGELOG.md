@@ -8,8 +8,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- 🎙️ **Live Speech Recognition**: Real-time microphone-based transcription
+- **Dual Interface**: Live Speech + File Upload tabs in single application
+- **Audio Input Manager**: Hardware microphone detection with simulated fallback
+- **Audio Visualization**: Real-time audio level indicators during recording
+- **Background Transcription**: Non-blocking continuous speech processing
+- **Enhanced UI**: Modern tabbed interface with improved user experience
 - Enterprise-level development status warning in README
 - Professional changelog structure following industry standards
+
+### Changed
+- **Enhanced App**: Integrated live speech capabilities into main application
+- **Dependencies**: Added sounddevice and numpy for audio input processing
+- **System Dependencies**: Improved audio library support in installation scripts
+
+### Fixed
+- Audio input management and microphone detection
+- Real-time transcription worker threading
+- User interface responsiveness during live recording
 
 ## [0.6.0] - 2025-06-29
 

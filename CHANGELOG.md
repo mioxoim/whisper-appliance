@@ -1,6 +1,17 @@
 # Enhanced WhisperS2T Appliance - Changelog
 
-## v0.6.0 - 2025-06-28
+All notable changes to this project will be documented in this file.
+
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [Unreleased]
+
+### Added
+- Enterprise-level development status warning in README
+- Professional changelog structure following industry standards
+
+## [0.6.0] - 2025-06-29
 
 ### 🔄 **MAJOR STRATEGY CHANGE**
 
@@ -9,61 +20,63 @@
 - **Reason**: Fedora livemedia-creator proved unreliable with 15+ hour build times and library conflicts
 - **Target**: Debian-based ISO builds planned for future (more stable than Fedora Rawhide)
 
-#### **Container-First Benefits**
-- ✅ **Faster Testing**: Minutes instead of hours
-- ✅ **Easy Deployment**: Git clone and run
-- ✅ **Resource Efficient**: LXC containers vs full VMs
-- ✅ **Scalable**: Multiple instances possible
-- ✅ **Reliable**: No complex ISO build dependencies
+### Added
+- ✅ **Proxmox One-Liner Deployment** - Complete installation with single command
+- ✅ **Container-First Architecture** - LXC container deployment strategy
+- ✅ **Automated Setup Scripts** - `install-container.sh` and `proxmox-standalone.sh`
+- ✅ **Web-based Update Management** - Update system with safety features and rollback
+- ✅ **Health Check Endpoints** - `/health` API for monitoring
+- ✅ **Enterprise CI/CD Pipeline** - GitHub Actions with quality checks
+- ✅ **Comprehensive Documentation** - Architecture, deployment, and troubleshooting guides
+- ✅ **Security Configuration** - Firewall setup and user isolation
 
-#### **Updated Deployment Strategy**
-1. **Phase 1 (Current)**: Proxmox LXC Container - ✅ **READY**
-2. **Phase 2 (Future)**: Debian-based Live ISO  
-3. **Phase 3 (Future)**: Dedicated hardware appliance
+### Changed
+- **Deployment Strategy**: Container-first approach instead of ISO builds
+- **Target OS**: Ubuntu 22.04 LTS instead of Fedora Rawhide
+- **Installation Time**: Reduced from 15+ hours to 10-15 minutes
 
-#### **NEW: Proxmox One-Liner Deployment** 
-- ✅ **Single command installation** - Complete deployment in one line
-- ✅ **Automated container creation** - No manual Proxmox setup needed
-- ✅ **Template management** - Downloads Ubuntu 22.04 automatically
-- ✅ **Resource optimization** - Pre-configured for optimal performance
-- ✅ **Community-scripts pattern** - Following established Proxmox standards
-- ✅ **Batch deployment support** - Create multiple containers easily
+### Fixed
+- ShellCheck SC1078 error in proxmox-standalone.sh (unclosed quote in Jinja2 template)
+- Permission issues in LXC container script execution
+- GitHub Actions CI/CD pipeline failures
 
-#### **Container Deployment Ready**
-- ✅ Complete install-container.sh script
-- ✅ Systemd service configuration
-- ✅ Nginx reverse proxy setup  
-- ✅ Web interface with file upload
-- ✅ Health check endpoints
-- ✅ Resource optimization
-- ✅ Security configuration
-
-#### **NEW: Comprehensive Update Management** 
-- ✅ **Web-based updates** - Update directly from browser interface
-- ✅ **CLI update tools** - `./dev.sh update` and `./auto-update.sh` 
-- ✅ **Automatic backups** - Safe rollback to previous versions
-- ✅ **GitHub integration** - Pull updates directly from repository
-- ✅ **Service management** - Automatic service restart after updates
-- ✅ **Safety features** - Health checks and automatic rollback on failure
+### Security
+- Added security policy and vulnerability reporting process
+- Implemented secure deployment practices
+- Added code audit recommendations for production use
 
 ---
 
-## Previous Versions
+## [0.5.0] - 2025-06-27
 
-### v0.5.0 - 2025-06-27
-- **Fedora ISO Build Attempts**: Extensive work on livemedia-creator
-- **Issues Found**: Library conflicts, 15+ hour build times, Mock environment problems
-- **Learning**: Custom ISO builds are complex and error-prone
+### Attempted
+- **Fedora ISO Build System**: Extensive work on livemedia-creator
+- **Mock Build Environment**: Complex dependency management
 
-### v0.4.0 - 2025-06-26  
+### Issues Found
+- Library conflicts between packages
+- 15+ hour build times with frequent hangs
+- Mock environment instability
+- `auth` vs `authselect` kickstart syntax changes
+
+### Deprecated
+- Fedora-based ISO build approach (moved to container-first strategy)
+
+## [0.4.0] - 2025-06-26
+
+### Added
 - Initial WhisperS2T integration
-- Docker and development environment setup
+- Docker development environment
 - Basic web interface implementation
+- File upload functionality
 
-### v0.3.0 - 2025-06-25
+## [0.3.0] - 2025-06-25
+
+### Added
 - Project structure establishment
 - Multi-platform build system design
 - Development tooling (`dev.sh`)
+- Initial documentation structure
 
 ---
 

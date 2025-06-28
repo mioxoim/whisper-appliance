@@ -2,6 +2,21 @@
 
 **Advanced Speech-to-Text Appliance powered by OpenAI Whisper**
 
+## ⚠️ **DEVELOPMENT STATUS WARNING**
+
+> **🚧 ACTIVE DEVELOPMENT - NOT PRODUCTION READY**  
+> This project is under heavy development and should **NOT** be used in production environments without thorough testing and security auditing. 
+> 
+> **🔍 SECURITY NOTICE:**  
+> - **Code Audit Required:** Please audit all code before production deployment
+> - **Test Environment Only:** Use only in isolated, non-critical environments  
+> - **No Warranty:** See [LICENSE](LICENSE) for complete disclaimer
+> - **Changes Tracked:** See [CHANGELOG.md](CHANGELOG.md) for all modifications
+> 
+> **📊 Current Status:** Container deployment functional, but expect breaking changes
+
+---
+
 ## 🎯 **NEW: Container-First Deployment**
 
 **Priority Focus:** Proxmox LXC Container deployment for immediate production use

@@ -21,6 +21,14 @@
 2. **Phase 2 (Future)**: Debian-based Live ISO  
 3. **Phase 3 (Future)**: Dedicated hardware appliance
 
+#### **NEW: Proxmox One-Liner Deployment** 
+- ✅ **Single command installation** - Complete deployment in one line
+- ✅ **Automated container creation** - No manual Proxmox setup needed
+- ✅ **Template management** - Downloads Ubuntu 22.04 automatically
+- ✅ **Resource optimization** - Pre-configured for optimal performance
+- ✅ **Community-scripts pattern** - Following established Proxmox standards
+- ✅ **Batch deployment support** - Create multiple containers easily
+
 #### **Container Deployment Ready**
 - ✅ Complete install-container.sh script
 - ✅ Systemd service configuration

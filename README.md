@@ -6,7 +6,15 @@
 
 **Priority Focus:** Proxmox LXC Container deployment for immediate production use
 
-### ⚡ Quick Start (10 Minutes)
+### ⚡ One-Liner Installation (Easiest)
+
+**For Proxmox VE users:**
+```bash
+bash -c "$(wget -qLO - https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/scripts/proxmox-oneliner.sh)"
+```
+**⏱️ Total time: 10-15 minutes** - Creates container, installs everything, ready to use!
+
+### 🔧 Manual Container Setup (More Control)
 
 ```bash
 # 1. Create Ubuntu 22.04 LXC container in Proxmox
@@ -14,7 +22,7 @@
 ssh root@container-ip
 
 # 3. Clone and install  
-git clone https://github.com/yourusername/whisper-appliance.git
+git clone https://github.com/GaboCapo/whisper-appliance.git
 cd whisper-appliance
 ./install-container.sh
 
@@ -22,7 +30,9 @@ cd whisper-appliance
 # http://container-ip:5000
 ```
 
-**📖 Detailed Guide:** [PROXMOX-QUICKSTART.md](PROXMOX-QUICKSTART.md)
+**📖 Detailed Guides:** 
+- **[One-Liner Method](PROXMOX-HELPER-SCRIPTS.md)** - Easiest deployment
+- **[Manual Method](PROXMOX-QUICKSTART.md)** - Step-by-step guide
 
 ---
 
@@ -221,7 +231,8 @@ curl -I http://localhost:5000/health
 
 ## 📚 Documentation
 
-- **[Quick Start Guide](PROXMOX-QUICKSTART.md)** - 10-minute deployment
+- **[One-Liner Deployment](PROXMOX-HELPER-SCRIPTS.md)** - Single command installation
+- **[Manual Setup Guide](PROXMOX-QUICKSTART.md)** - Step-by-step deployment
 - **[Container Deployment](CONTAINER-DEPLOYMENT.md)** - Detailed setup guide
 - **[Update Management](UPDATE-MANAGEMENT.md)** - Automated updates and rollbacks
 - **[CI/CD Pipeline](CI-CD-DOCUMENTATION.md)** - Quality assurance and testing

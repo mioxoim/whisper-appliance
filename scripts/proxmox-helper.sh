@@ -22,9 +22,7 @@ CM='\033[0;36m'
 GN='\033[1;92m'
 DGN='\033[32m'
 CL='\033[m'
-YW='\033[33m'
-HOLD='-'
-SPINNER_PID=""
+# YW, HOLD, SPINNER_PID reserved for future use
 
 # Basic functions
 function msg_info() {
@@ -69,7 +67,6 @@ function check_pve() {
 
 function default_settings() {
     CT_TYPE="1"
-    PW=""
     CT_ID=""
     HN="$NSAPP"
     DISK_SIZE="$var_disk"
@@ -78,9 +75,7 @@ function default_settings() {
     NET="dhcp"
     GATE=""
     APT_CACHER=""
-    APT_CACHER_IP=""
     DISABLEIP6="no"
-    MTU=""
     SD=""
     NS=""
     MAC=""
@@ -179,7 +174,7 @@ function install_script() {
     fi
     
     TEMP_DIR=$(mktemp -d)
-    pushd $TEMP_DIR >/dev/null
+    pushd "$TEMP_DIR" >/dev/null || exit
     
     export tz="$timezone"
     export SSH_ROOT="$SSH"
@@ -207,7 +202,7 @@ function install_script() {
         PCT_OPTIONS="-template"
     fi
     
-    popd >/dev/null
+    popd >/dev/null || exit
     
     msg_info "Started LXC Container"
     pct start $CTID
@@ -226,7 +221,7 @@ function update_script() {
     fi
     
     msg_info "Updating WhisperS2T to latest version"
-    cd /opt/whisper-appliance
+    cd /opt/whisper-appliance || exit
     
     if [[ -f ./auto-update.sh ]]; then
         bash ./auto-update.sh apply
@@ -244,7 +239,6 @@ function update_script() {
 
 # Script variables
 NSAPP=$(echo "${APP,,}" | tr -d ' ')
-var_install="${NSAPP}-install"
 timezone=$(cat /etc/timezone)
 
 # Main execution

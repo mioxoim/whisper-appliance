@@ -223,6 +223,8 @@ curl -I http://localhost:5000/health
 
 - **[Quick Start Guide](PROXMOX-QUICKSTART.md)** - 10-minute deployment
 - **[Container Deployment](CONTAINER-DEPLOYMENT.md)** - Detailed setup guide
+- **[Update Management](UPDATE-MANAGEMENT.md)** - Automated updates and rollbacks
+- **[CI/CD Pipeline](CI-CD-DOCUMENTATION.md)** - Quality assurance and testing
 - **[Architecture](ARCHITECTURE.md)** - System design and components
 - **[Development](QUICKSTART.md)** - Development environment setup
 - **[Changelog](CHANGELOG.md)** - Version history and changes
@@ -249,6 +251,46 @@ curl -I http://localhost:5000/health
 - [ ] Batch processing queues
 - [ ] API rate limiting
 - [ ] Backup and restore
+
+---
+
+## 🤖 Continuous Integration & Quality Assurance
+
+WhisperS2T uses **GitHub Actions** for automated testing and quality assurance to ensure reliable, professional-grade code:
+
+### 🔍 **Why GitHub Actions?**
+- **Automated Quality Checks**: Every code change is automatically tested
+- **Prevent Breaking Changes**: Catch issues before they reach production
+- **Community Contributions**: Ensure all pull requests meet quality standards
+- **Professional Standards**: Maintain enterprise-grade code quality
+
+### ⚙️ **CI/CD Pipeline Jobs**
+
+| Job | Purpose | What it Checks |
+|-----|---------|----------------|
+| **🐍 Lint** | Code Quality | Python syntax, PEP 8 compliance, import sorting |
+| **🔧 ShellCheck** | Script Quality | Shell script best practices, syntax validation |
+| **📦 Container Test** | Deployment | Installation scripts, file completeness |
+| **📚 Documentation** | Completeness | Required docs exist, version consistency |
+| **🛡️ Security** | Safety | No secrets committed, secure configurations |
+
+### 🎯 **Benefits for WhisperS2T**
+- **🚀 Reliable Deployments**: Installation scripts are tested before release
+- **🔒 Security**: Automatic scanning for potential security issues
+- **📝 Documentation**: Ensures guides stay up-to-date with code changes
+- **🤝 Community-Ready**: Contributors get immediate feedback on code quality
+- **⚡ Fast Feedback**: Know within minutes if changes break anything
+
+### 🏆 **Quality Standards Enforced**
+- **Python Code**: Black formatting, flake8 linting, import sorting
+- **Shell Scripts**: ShellCheck validation for all .sh files
+- **Documentation**: Version consistency, completeness checks
+- **Security**: No hardcoded secrets, safe file permissions
+- **Dependencies**: Proper package management and compatibility
+
+The green ✅ badges you see on GitHub mean all quality checks pass - your deployment will be reliable!
+
+**📖 Detailed Guide:** [CI/CD Documentation](CI-CD-DOCUMENTATION.md)
 
 ---
 

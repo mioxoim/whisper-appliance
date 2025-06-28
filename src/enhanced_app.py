@@ -4,15 +4,16 @@ Enhanced WhisperS2T Appliance with Update Management
 Production-ready Flask application with web-based updates
 """
 
-import os
-import tempfile
 import logging
+import os
 import subprocess
-from flask import Flask, request, render_template_string, jsonify
+import tempfile
+
+from flask import Flask, jsonify, render_template_string, request
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max file size
+app.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024  # 100MB max file size
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -21,6 +22,7 @@ logger = logging.getLogger(__name__)
 # Try to load whisper, fallback gracefully
 try:
     import whisper
+
     model = whisper.load_model("base")
     WHISPER_AVAILABLE = True
     logger.info("Whisper model loaded successfully")
@@ -29,7 +31,7 @@ except Exception as e:
     WHISPER_AVAILABLE = False
     model = None
 
-HTML_TEMPLATE = '''
+HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html>
 <head>
@@ -411,243 +413,201 @@ HTML_TEMPLATE = '''
     </script>
 </body>
 </html>
-'''
+"""
 
-@app.route('/')
+
+@app.route("/")
 def index():
     return render_template_string(HTML_TEMPLATE, whisper_available=WHISPER_AVAILABLE)
 
-@app.route('/health')
-def health():
-    return jsonify({
-        'status': 'healthy',
-        'whisper_available': WHISPER_AVAILABLE,
-        'version': '0.6.0'
-    })
 
-@app.route('/update/status')
+@app.route("/health")
+def health():
+    return jsonify({"status": "healthy", "whisper_available": WHISPER_AVAILABLE, "version": "0.6.0"})
+
+
+@app.route("/update/status")
 def update_status():
     """Check for available updates"""
     try:
-        import subprocess
         import os
-        
+        import subprocess
+
         # Check if we're in a git repository
-        app_dir = '/opt/whisper-appliance'
-        if not os.path.exists(f'{app_dir}/.git'):
-            return jsonify({
-                'error': 'Not a git installation',
-                'message': 'Updates only available for git-cloned installations'
-            })
-        
+        app_dir = "/opt/whisper-appliance"
+        if not os.path.exists(f"{app_dir}/.git"):
+            return jsonify(
+                {"error": "Not a git installation", "message": "Updates only available for git-cloned installations"}
+            )
+
         # Configure SSH if deploy key exists
         env = os.environ.copy()
-        if os.path.exists(f'{app_dir}/deploy_key_whisper_appliance'):
-            env['GIT_SSH_COMMAND'] = f'ssh -i {app_dir}/deploy_key_whisper_appliance -o IdentitiesOnly=yes'
-        
+        if os.path.exists(f"{app_dir}/deploy_key_whisper_appliance"):
+            env["GIT_SSH_COMMAND"] = f"ssh -i {app_dir}/deploy_key_whisper_appliance -o IdentitiesOnly=yes"
+
         # Get current commit
         current_commit = subprocess.check_output(
-            ['git', 'rev-parse', 'HEAD'], 
-            cwd=app_dir,
-            env=env,
-            universal_newlines=True
+            ["git", "rev-parse", "HEAD"], cwd=app_dir, env=env, universal_newlines=True
         ).strip()
-        
+
         # Get current version
         try:
             current_version = subprocess.check_output(
-                ['git', 'describe', '--tags', '--always'], 
-                cwd=app_dir,
-                env=env,
-                universal_newlines=True
+                ["git", "describe", "--tags", "--always"], cwd=app_dir, env=env, universal_newlines=True
             ).strip()
         except:
             current_version = current_commit[:8]
-        
+
         # Fetch latest changes
-        subprocess.run(
-            ['git', 'fetch', 'origin', 'main'], 
-            cwd=app_dir,
-            env=env,
-            capture_output=True
-        )
-        
+        subprocess.run(["git", "fetch", "origin", "main"], cwd=app_dir, env=env, capture_output=True)
+
         # Get remote commit
         remote_commit = subprocess.check_output(
-            ['git', 'rev-parse', 'origin/main'], 
-            cwd=app_dir,
-            env=env,
-            universal_newlines=True
+            ["git", "rev-parse", "origin/main"], cwd=app_dir, env=env, universal_newlines=True
         ).strip()
-        
+
         updates_available = current_commit != remote_commit
-        
+
         if updates_available:
             # Get number of commits behind
             commits_behind = subprocess.check_output(
-                ['git', 'rev-list', '--count', f'{current_commit}..origin/main'], 
-                cwd=app_dir,
-                env=env,
-                universal_newlines=True
+                ["git", "rev-list", "--count", f"{current_commit}..origin/main"], cwd=app_dir, env=env, universal_newlines=True
             ).strip()
         else:
             commits_behind = "0"
-        
-        return jsonify({
-            'current_version': current_version,
-            'current_commit': current_commit,
-            'latest_commit': remote_commit,
-            'updates_available': updates_available,
-            'commits_behind': int(commits_behind)
-        })
-        
+
+        return jsonify(
+            {
+                "current_version": current_version,
+                "current_commit": current_commit,
+                "latest_commit": remote_commit,
+                "updates_available": updates_available,
+                "commits_behind": int(commits_behind),
+            }
+        )
+
     except Exception as e:
         logger.error(f"Update status check failed: {e}")
-        return jsonify({'error': str(e)})
+        return jsonify({"error": str(e)})
 
-@app.route('/update/apply', methods=['POST'])
+
+@app.route("/update/apply", methods=["POST"])
 def update_apply():
     """Apply available updates"""
     try:
-        import subprocess
         import os
-        
-        app_dir = '/opt/whisper-appliance'
-        if not os.path.exists(f'{app_dir}/.git'):
-            return jsonify({
-                'error': 'Not a git installation',
-                'message': 'Updates only available for git-cloned installations'
-            })
-        
+        import subprocess
+
+        app_dir = "/opt/whisper-appliance"
+        if not os.path.exists(f"{app_dir}/.git"):
+            return jsonify(
+                {"error": "Not a git installation", "message": "Updates only available for git-cloned installations"}
+            )
+
         # Configure SSH if deploy key exists
         env = os.environ.copy()
-        if os.path.exists(f'{app_dir}/deploy_key_whisper_appliance'):
-            env['GIT_SSH_COMMAND'] = f'ssh -i {app_dir}/deploy_key_whisper_appliance -o IdentitiesOnly=yes'
-        
+        if os.path.exists(f"{app_dir}/deploy_key_whisper_appliance"):
+            env["GIT_SSH_COMMAND"] = f"ssh -i {app_dir}/deploy_key_whisper_appliance -o IdentitiesOnly=yes"
+
         # Check if updates are available
         current_commit = subprocess.check_output(
-            ['git', 'rev-parse', 'HEAD'], 
-            cwd=app_dir,
-            env=env,
-            universal_newlines=True
+            ["git", "rev-parse", "HEAD"], cwd=app_dir, env=env, universal_newlines=True
         ).strip()
-        
-        subprocess.run(['git', 'fetch', 'origin', 'main'], cwd=app_dir, env=env)
-        
+
+        subprocess.run(["git", "fetch", "origin", "main"], cwd=app_dir, env=env)
+
         remote_commit = subprocess.check_output(
-            ['git', 'rev-parse', 'origin/main'], 
-            cwd=app_dir,
-            env=env,
-            universal_newlines=True
+            ["git", "rev-parse", "origin/main"], cwd=app_dir, env=env, universal_newlines=True
         ).strip()
-        
+
         if current_commit == remote_commit:
-            return jsonify({
-                'success': True,
-                'message': 'System is already up to date',
-                'action': 'none'
-            })
-        
+            return jsonify({"success": True, "message": "System is already up to date", "action": "none"})
+
         # Apply updates
         result = subprocess.run(
-            ['git', 'pull', 'origin', 'main'], 
-            cwd=app_dir,
-            env=env,
-            capture_output=True,
-            universal_newlines=True
+            ["git", "pull", "origin", "main"], cwd=app_dir, env=env, capture_output=True, universal_newlines=True
         )
-        
+
         if result.returncode == 0:
             # Update was successful
             new_version = subprocess.check_output(
-                ['git', 'describe', '--tags', '--always'], 
-                cwd=app_dir,
-                env=env,
-                universal_newlines=True
+                ["git", "describe", "--tags", "--always"], cwd=app_dir, env=env, universal_newlines=True
             ).strip()
-            
+
             # Update permissions
-            subprocess.run(['chmod', '+x', f'{app_dir}/*.sh'], shell=True)
-            
-            return jsonify({
-                'success': True,
-                'message': f'Updated to version {new_version}',
-                'old_version': current_commit[:8],
-                'new_version': new_version,
-                'restart_required': True
-            })
+            subprocess.run(["chmod", "+x", f"{app_dir}/*.sh"], shell=True)
+
+            return jsonify(
+                {
+                    "success": True,
+                    "message": f"Updated to version {new_version}",
+                    "old_version": current_commit[:8],
+                    "new_version": new_version,
+                    "restart_required": True,
+                }
+            )
         else:
-            return jsonify({
-                'error': 'Update failed',
-                'message': result.stderr
-            })
-            
+            return jsonify({"error": "Update failed", "message": result.stderr})
+
     except Exception as e:
         logger.error(f"Update apply failed: {e}")
-        return jsonify({'error': str(e)})
+        return jsonify({"error": str(e)})
 
-@app.route('/system/restart', methods=['POST'])
+
+@app.route("/system/restart", methods=["POST"])
 def system_restart():
     """Restart the WhisperS2T service"""
     try:
         import subprocess
-        
+
         # Restart the service
-        result = subprocess.run(
-            ['systemctl', 'restart', 'whisper-appliance'], 
-            capture_output=True,
-            universal_newlines=True
-        )
-        
+        result = subprocess.run(["systemctl", "restart", "whisper-appliance"], capture_output=True, universal_newlines=True)
+
         if result.returncode == 0:
-            return jsonify({
-                'success': True,
-                'message': 'Service restart initiated'
-            })
+            return jsonify({"success": True, "message": "Service restart initiated"})
         else:
-            return jsonify({
-                'error': 'Failed to restart service',
-                'message': result.stderr
-            })
-            
+            return jsonify({"error": "Failed to restart service", "message": result.stderr})
+
     except Exception as e:
         logger.error(f"Service restart failed: {e}")
-        return jsonify({'error': str(e)})
+        return jsonify({"error": str(e)})
 
-@app.route('/transcribe', methods=['POST'])
+
+@app.route("/transcribe", methods=["POST"])
 def transcribe():
     if not WHISPER_AVAILABLE:
-        return jsonify({'error': 'Whisper model not available'})
-    
+        return jsonify({"error": "Whisper model not available"})
+
     try:
-        if 'audio' not in request.files:
-            return jsonify({'error': 'No audio file provided'})
-        
-        audio_file = request.files['audio']
-        if audio_file.filename == '':
-            return jsonify({'error': 'No audio file selected'})
-        
+        if "audio" not in request.files:
+            return jsonify({"error": "No audio file provided"})
+
+        audio_file = request.files["audio"]
+        if audio_file.filename == "":
+            return jsonify({"error": "No audio file selected"})
+
         # Secure filename
         filename = secure_filename(audio_file.filename)
-        
+
         # Save uploaded file temporarily
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as tmp_file:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_file:
             audio_file.save(tmp_file.name)
-            
+
             # Transcribe audio
             logger.info(f"Transcribing file: {filename}")
             result = model.transcribe(tmp_file.name)
-            
+
             # Clean up temp file
             os.unlink(tmp_file.name)
-            
+
             logger.info("Transcription completed successfully")
-            return jsonify({'text': result['text']})
-    
+            return jsonify({"text": result["text"]})
+
     except Exception as e:
         logger.error(f"Transcription error: {e}")
-        return jsonify({'error': str(e)})
+        return jsonify({"error": str(e)})
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     logger.info("🎤 WhisperS2T Appliance with Update Management starting...")
-    app.run(host='0.0.0.0', port=5001, debug=False)
+    app.run(host="0.0.0.0", port=5001, debug=False)

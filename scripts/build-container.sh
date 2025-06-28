@@ -29,7 +29,7 @@ print_error() {
 }
 
 # Configuration
-APPLIANCE_NAME="WhisperS2T-Appliance"
+export APPLIANCE_NAME="WhisperS2T-Appliance"
 VERSION="0.5.0"
 SCRIPT_DIR="$(dirname "$0")"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"

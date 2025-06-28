@@ -359,10 +359,10 @@ build_status() {
     fi
     
     # List all files with details
-    if [ "$(ls -A $OUTPUT_DIR 2>/dev/null)" ]; then
+    if [ "$(ls -A "$OUTPUT_DIR" 2>/dev/null)" ]; then
         echo ""
         print_info "📁 All build artifacts:"
-        ls -lah "$OUTPUT_DIR" | grep -v "^total" | grep -v "^d" | awk '{print "  " $9 " (" $5 ")"}'
+        find "$OUTPUT_DIR" -maxdepth 1 -type f -exec ls -lah {} \; | awk '{print "  " $9 " (" $5 ")"}'
         
         # Show guides
         echo ""

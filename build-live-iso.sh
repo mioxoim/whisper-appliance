@@ -40,7 +40,9 @@ fi
 
 # Create output directory
 mkdir -p "$OUTPUT_DIR"
-rm -rf "$OUTPUT_DIR"/*
+if [ -n "$OUTPUT_DIR" ] && [ "$OUTPUT_DIR" != "/" ]; then
+    rm -rf "${OUTPUT_DIR:?}"/*
+fi
 
 echo "🚀 Starting ISO build with livemedia-creator..."
 echo "This will take 30-60 minutes..."

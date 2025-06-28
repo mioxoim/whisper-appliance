@@ -1,54 +1,42 @@
-# Enhanced WhisperS2T v0.5.0 - Complete Appliance Requirements
+# Enhanced WhisperS2T v0.6.0 - Container-First Requirements
 
 # Core Web Framework
-fastapi==0.115.13
-uvicorn==0.34.3
-websockets==15.0.1
+flask>=2.3.0
+flask-cors>=4.0.0
+gunicorn>=20.1.0
 
 # Audio Processing
-pydub==0.25.1
-ffmpeg-python==0.2.0
+pydub>=0.25.1
+ffmpeg-python>=0.2.0
 
-# Whisper Models (Primary + Fallback)
-faster-whisper==1.1.1
-openai-whisper==20240930
+# Whisper Models
+openai-whisper>=20230314
+torch>=2.0.0
+torchaudio>=2.0.0
 
 # Machine Learning & Audio
 numpy>=1.21.0
-torch>=1.9.0
-torchaudio>=0.9.0
-librosa>=0.9.2
+librosa>=0.10.0
 soundfile>=0.12.1
+transformers>=4.30.0
 
-# HTTP & WebSocket
-starlette>=0.40.0
-python-multipart>=0.0.5
+# HTTP & File Handling
+werkzeug>=2.3.0
+python-multipart>=0.0.6
+requests>=2.30.0
 
-# System Monitoring & Management
+# System Monitoring
 psutil>=5.8.0
-GPUtil>=1.4.0
 
 # Utilities
 python-dateutil>=2.8.0
-typing-extensions>=4.8.0
 
-# Development & Testing (Optional for Appliance)
+# Development & Testing (CI/CD)
 pytest>=7.0.0
-pytest-asyncio>=0.21.0
 black>=22.0.0
 flake8>=5.0.0
+isort>=5.0.0
 
-# Appliance-specific Dependencies
-systemd-python>=234  # For systemd integration
-python-daemon>=2.3.0  # For daemon management
-croniter>=1.3.0  # For scheduled tasks
-schedule>=1.2.0  # For background jobs
-
-# Security & Authentication (Future)
-passlib>=1.7.4
-python-jose>=3.3.0
-python-multipart>=0.0.5
-
-# Database (Future - for session management)
-sqlalchemy>=1.4.0
-alembic>=1.8.0
+# Container-specific (not for CI)
+# systemd-python>=234  # Only needed in container environment
+# python-daemon>=2.3.0  # Only needed for daemon management

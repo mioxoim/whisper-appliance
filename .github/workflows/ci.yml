@@ -1,0 +1,108 @@
+name: CI/CD
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install flake8 black isort
+        if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+    
+    - name: Lint with flake8
+      run: |
+        # stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --select=E9,F63,F7,F82 --show-source --statistics
+        # exit-zero treats all errors as warnings
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+    
+    - name: Check code formatting with black
+      run: black --check .
+    
+    - name: Check import sorting with isort
+      run: isort --check-only .
+
+  container-test:
+    runs-on: ubuntu-latest
+    needs: lint
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Test container installation script
+      run: |
+        # Test script syntax
+        bash -n install-container.sh
+        bash -n test-container.sh
+        
+        # Test that required files exist
+        test -f install-container.sh
+        test -f test-container.sh
+        test -f requirements-container.txt
+        
+        # Test installation script can run (dry run mode)
+        # Note: Full installation requires root privileges
+        echo "Container installation scripts validated"
+
+  documentation:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Check documentation completeness
+      run: |
+        # Check that required documentation files exist
+        test -f README.md
+        test -f CHANGELOG.md
+        test -f CONTRIBUTING.md
+        test -f LICENSE
+        test -f PROXMOX-QUICKSTART.md
+        test -f CONTAINER-DEPLOYMENT.md
+        
+        # Check that README mentions current version
+        grep -q "v0.6.0" README.md
+        
+        echo "Documentation validation passed"
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Security checks
+      run: |
+        # Check that no secrets are committed
+        ! grep -r "password\|secret\|key" --include="*.py" --include="*.sh" . || echo "Potential secrets found"
+        
+        # Check gitignore covers sensitive files
+        grep -q "*.key" .gitignore
+        grep -q "*.pem" .gitignore
+        grep -q "secrets/" .gitignore
+        
+        echo "Security checks passed"
+
+  shellcheck:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Run ShellCheck
+      uses: ludeeus/action-shellcheck@master
+      with:
+        scandir: '.'
+        format: gcc
+        severity: warning

@@ -128,9 +128,112 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-# Project specific
+# ===========================================
+# WhisperS2T Appliance Specific
+# ===========================================
+
+# Large files and build artifacts
 *.iso
+*.img
+*.qcow2
+*.vmdk
+*.vdi
+*.ova
+*.tar.gz
+*.tar.xz
+*.zip
+
+# Whisper models (can be large, downloaded on demand)
 models/
+*.pt
+*.pth
+*.bin
+*.safetensors
+
+# Audio files (test files can be large)
+*.wav
+*.mp3
+*.mp4
+*.m4a
+*.flac
+*.ogg
+*.aac
+*.wma
+uploads/
+temp_audio/
+
+# Build and cache directories
+cache/
+build/
+mock_results/
+iso_output/
+fedora_cache/
+debian_cache/
+
+# System logs and runtime files
 *.log
+logs/
+/var/log/
+systemd-private-*/
+.systemd/
+
+# Development and testing
+.pytest_cache/
+test_files/
+sample_audio/
+test_output/
+benchmark_results/
+
+# Container and VM files
+*.qcow2
+*.img
+*.iso
+*.vmx
+*.vmdk
+*.vbox*
+Vagrantfile.local
+
+# Secrets and credentials
+secrets/
+*.key
+*.pem
+*.p12
+*.pfx
+config/secrets.yaml
+.env.local
+.env.production
+
+# SSH Deploy Keys (add to .gitignore to prevent accidental commit)
+deploy_key_*
+id_rsa*
+id_ed25519*
+
+# IDE and editor files
 .vscode/
 .idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Backup files
+*.bak
+*.backup
+*.old
+*.orig
+
+# Temporary files
+tmp/
+temp/
+.tmp/
+*.tmp

@@ -1,0 +1,34 @@
+# Enhanced WhisperS2T Appliance v0.5.0 - Development Requirements
+# Lightweight dependencies for development server (Python 3.13 compatible)
+
+# Core Web Framework Dependencies
+fastapi==0.115.13
+uvicorn==0.34.3
+websockets==15.0.1
+jinja2>=3.0.0
+
+# Audio Processing Dependencies (basic)
+pydub==0.25.1
+
+# Scientific Computing Dependencies (basic)
+numpy>=1.21.0
+
+# Web Framework Extensions
+starlette>=0.40.0
+python-multipart>=0.0.5
+
+# System Monitoring Dependencies
+psutil>=5.8.0
+
+# Utility Dependencies
+python-dateutil>=2.8.0
+typing-extensions>=4.8.0
+
+# Development Tools
+pytest>=7.0.0
+black>=22.0.0
+flake8>=5.0.0
+
+# Note: This is a lightweight setup for development
+# ML dependencies (torch, whisper, etc.) are excluded to avoid Python 3.13 compatibility issues
+# For full ML features, use the container deployment: ./dev.sh container start

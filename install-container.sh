@@ -195,7 +195,7 @@ Group=whisper
 WorkingDirectory=/opt/whisper-appliance
 Environment=PATH=/home/whisper/.local/bin:/usr/local/bin:/usr/bin:/bin
 Environment=PYTHONPATH=/opt/whisper-appliance
-ExecStart=/home/whisper/.local/bin/gunicorn --bind 0.0.0.0:5001 --workers 2 --timeout 300 src.app:app
+ExecStart=/home/whisper/.local/bin/gunicorn --bind 0.0.0.0:5001 --workers 2 --timeout 300 src.enhanced_app:app
 Restart=always
 RestartSec=3
 

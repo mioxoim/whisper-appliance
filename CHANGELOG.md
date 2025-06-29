@@ -5,6 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.1] - 2025-06-29
+
+### Fixed
+- **GitHub Actions CI/CD**: Resolved isort import sorting failures
+- **Proxmox Deployment**: Fixed gunicorn service configuration (src.app → src.enhanced_app)
+- **Script Consolidation**: Removed redundant Proxmox scripts, kept only robust `proxmox-standalone.sh`
+- **Documentation**: Updated README.md and PROXMOX-HELPER-SCRIPTS.md to reference correct scripts
+
+### Restored
+- **Original Enhanced Interface**: Purple gradient background with glassmorphism effects
+- **Live Speech Functionality**: WebSocket-based real-time speech recognition (/ws/audio)
+- **Device Selection**: Whisper model and microphone selection dropdowns
+- **Language Recognition**: Multi-language support with auto-detection
+- **Test Mode**: Simulated audio input for testing scenarios
+
+### Removed
+- **Redundant Scripts**: Deleted proxmox-helper.sh, proxmox-install.sh, proxmox-oneliner.sh
+- **Script Chaos**: Consolidated to single robust deployment solution
+
+### Changed
+- **Version**: Enhanced App updated to v0.6.1
+- **Script Architecture**: Simplified to single `proxmox-standalone.sh` with fallback mechanisms
+- **Documentation**: Clarified one-liner installation process
+
 ## [Unreleased]
 
 ### Added

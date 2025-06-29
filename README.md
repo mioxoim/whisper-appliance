@@ -23,7 +23,7 @@
 
 ### ⚡ One-Liner Installation (Easiest)
 
-**For Proxmox VE users - Working Standalone Version:**
+**For Proxmox VE users - Robust Standalone Version:**
 ```bash
 # One command setup - run on Proxmox host as root:
 bash <(curl -s https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/scripts/proxmox-standalone.sh)

@@ -4,14 +4,15 @@ Enhanced WhisperS2T Appliance - Original v0.4.0-working Enhanced
 EXACT recreation from screenshots with purple gradient background
 """
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse
-from fastapi.middleware.cors import CORSMiddleware
-import json
 import asyncio
+import json
 from datetime import datetime
 
-app = FastAPI(title="Enhanced WhisperS2T Appliance", version="0.4.0-working")
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
+
+app = FastAPI(title="Enhanced WhisperS2T Appliance", version="0.6.1")
 
 app.add_middleware(
     CORSMiddleware,

@@ -2,7 +2,7 @@
 
 ## 📋 Overview
 
-WhisperS2T includes **Proxmox VE Helper Scripts** inspired by the popular [community-scripts/ProxmoxVE](https://github.com/community-scripts/ProxmoxVE) project. These scripts enable **one-command deployment** of WhisperS2T in LXC containers.
+WhisperS2T includes a **Proxmox VE Helper Script** inspired by the popular [community-scripts/ProxmoxVE](https://github.com/community-scripts/ProxmoxVE) project. This script enables **one-command deployment** of WhisperS2T in LXC containers.
 
 ## ⚡ One-Liner Installation
 
@@ -14,9 +14,9 @@ chmod +x proxmox-standalone.sh
 ./proxmox-standalone.sh
 ```
 
-**Alternative (if raw URLs work in your environment):**
+**Alternative (direct curl execution):**
 ```bash
-bash -c "$(wget -qLO - https://github.com/GaboCapo/whisper-appliance/raw/main/scripts/proxmox-oneliner.sh)"
+bash <(curl -s https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/scripts/proxmox-standalone.sh)
 ```
 
 **That's it!** This single command will:
@@ -55,23 +55,14 @@ bash -c "$(wget -qLO - https://github.com/GaboCapo/whisper-appliance/raw/main/sc
 
 ## 🔧 Script Architecture
 
-### **proxmox-oneliner.sh** (Main Script)
-- **Purpose**: Complete automated deployment
-- **Features**: Template download, container creation, installation
-- **Usage**: Perfect for first-time users and quick deployments
+### **proxmox-standalone.sh** (Complete Solution)
+- **Purpose**: Complete automated deployment with fallback mechanisms
+- **Features**: Robust downloads, template management, container creation, installation
+- **Usage**: Perfect for all deployment scenarios
 - **Output**: Ready-to-use WhisperS2T container
+- **Reliability**: Self-contained with robust error handling
 
-### **proxmox-helper.sh** (Advanced Script)
-- **Purpose**: Interactive deployment with customization
-- **Features**: Advanced settings, custom configuration
-- **Usage**: When you need specific container settings
-- **Based on**: community-scripts/ProxmoxVE patterns
-
-### **proxmox-install.sh** (Installation Backend)
-- **Purpose**: Core installation logic
-- **Features**: Template management, container setup
-- **Usage**: Called by other scripts
-- **Scope**: Container creation and basic setup
+**This is the only script you need!** All other scripts were consolidated into this robust solution.
 
 ## 🎛️ Configuration Options
 
@@ -95,35 +86,19 @@ export WHISPER_CPU="4"
 export WHISPER_RAM="8192"
 export WHISPER_DISK="50"
 
-# Then run one-liner
-bash -c "$(wget -qLO - https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/scripts/proxmox-oneliner.sh)"
+# Then run the script
+bash <(curl -s https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/scripts/proxmox-standalone.sh)
 ```
 
 ## 🛠 Advanced Usage
 
-### **Interactive Installation**
+### **Resource-Optimized Installation**
 ```bash
-# Download and run interactive helper
-wget https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/scripts/proxmox-helper.sh
-chmod +x proxmox-helper.sh
-./proxmox-helper.sh
-```
-
-**Interactive features:**
-- Custom container ID selection
-- Hostname customization
-- Resource allocation settings
-- Network configuration options
-- SSH access configuration
-
-### **Batch Deployment**
-```bash
-# Create multiple containers
-for i in {1..3}; do
-    export WHISPER_HOSTNAME="whisper-$i"
-    bash -c "$(wget -qLO - https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/scripts/proxmox-oneliner.sh)"
-    sleep 60  # Wait between deployments
-done
+# High-performance deployment
+export WHISPER_CPU="4"
+export WHISPER_RAM="8192"
+export WHISPER_DISK="50"
+bash <(curl -s https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/scripts/proxmox-standalone.sh)
 ```
 
 ## 🔍 Troubleshooting
@@ -268,15 +243,14 @@ Our helper scripts follow the same patterns as the popular **community-scripts/P
 ### **Single Instance (Most Common)**
 ```bash
 # Quick single deployment
-bash -c "$(wget -qLO - https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/scripts/proxmox-oneliner.sh)"
+bash <(curl -s https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/scripts/proxmox-standalone.sh)
 ```
 
 ### **Development Setup**
 ```bash
-# Multiple containers for testing
-bash -c "$(wget -qLO - ...)"  # Container 1: base model
-bash -c "$(wget -qLO - ...)"  # Container 2: large model  
-bash -c "$(wget -qLO - ...)"  # Container 3: development
+# Multiple containers for testing - run multiple times with different hostnames
+export WHISPER_HOSTNAME="whisper-dev"
+bash <(curl -s https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/scripts/proxmox-standalone.sh)
 ```
 
 ### **Production Deployment**
@@ -285,7 +259,7 @@ bash -c "$(wget -qLO - ...)"  # Container 3: development
 export WHISPER_CPU="4"
 export WHISPER_RAM="8192"
 export WHISPER_DISK="50"
-bash -c "$(wget -qLO - https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/scripts/proxmox-oneliner.sh)"
+bash <(curl -s https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/scripts/proxmox-standalone.sh)
 ```
 
 ## 📈 Performance Considerations

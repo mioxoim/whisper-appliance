@@ -1,36 +1,46 @@
 #!/usr/bin/env python3
 """
-Enhanced WhisperS2T Appliance - Original v0.4.0-working Enhanced
-EXACT recreation from screenshots with purple gradient background
+Enhanced WhisperS2T Appliance - Flask Version
+Working version based on successful deployments from chat logs
 """
 
 import asyncio
 import json
+import logging
+import os
+import tempfile
 from datetime import datetime
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
-from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from flask import Flask, render_template_string, jsonify, request
+from flask_cors import CORS
+from werkzeug.utils import secure_filename
 
-app = FastAPI(title="Enhanced WhisperS2T Appliance", version="0.6.2")
+app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB
+CORS(app)
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-# Global state
+# Try to load whisper
+try:
+    import whisper
+    model = whisper.load_model("base")
+    WHISPER_AVAILABLE = True
+    logger.info("Whisper model loaded successfully")
+except Exception as e:
+    logger.warning(f"Whisper not available: {e}")
+    WHISPER_AVAILABLE = False
+    model = None
+
+# Global state for WebSocket-like functionality
 connected_clients = []
-whisper_model = None
 system_ready = True
 
-
-@app.get("/")
-async def root():
-    """Original Enhanced Interface - EXACT match to screenshots"""
+@app.route('/')
+def index():
+    """Enhanced Interface with Purple Gradient - Original Enhanced UI"""
     html = """
     <!DOCTYPE html>
     <html lang="en">
@@ -50,12 +60,11 @@ async def root():
             .container {
                 max-width: 1000px;
                 margin: 0 auto;
-                background: rgba(255, 255, 255, 0.15);
+                background: rgba(255, 255, 255, 0.1);
                 border-radius: 20px;
                 padding: 40px;
                 box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
                 backdrop-filter: blur(10px);
-                border: 1px solid rgba(255, 255, 255, 0.2);
             }
             .header {
                 text-align: center;
@@ -63,182 +72,207 @@ async def root():
             }
             .header h1 {
                 font-size: 2.5em;
-                margin-bottom: 15px;
+                margin-bottom: 10px;
                 text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
-                font-weight: 600;
             }
             .status-badge {
-                background: linear-gradient(45deg, #4CAF50, #45a049);
+                background: #4CAF50;
                 color: white;
-                padding: 8px 25px;
+                padding: 8px 20px;
                 border-radius: 25px;
                 font-weight: bold;
                 display: inline-block;
                 margin: 10px 0;
-                font-size: 0.9em;
-                text-transform: uppercase;
-                letter-spacing: 1px;
-                box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
             }
             .subtitle {
-                font-size: 1.1em;
+                font-size: 1.2em;
                 opacity: 0.9;
                 margin: 15px 0;
-                font-weight: 400;
+            }
+            
+            .tabs {
+                display: flex;
+                margin: 30px 0;
+                border-radius: 15px;
+                overflow: hidden;
+                background: rgba(255, 255, 255, 0.1);
+            }
+            
+            .tab {
+                flex: 1;
+                padding: 15px 25px;
+                background: rgba(255, 255, 255, 0.1);
+                border: none;
+                color: white;
+                font-size: 16px;
+                cursor: pointer;
+                transition: all 0.3s;
+            }
+            
+            .tab:hover {
+                background: rgba(255, 255, 255, 0.2);
+            }
+            
+            .tab.active {
+                background: rgba(255, 255, 255, 0.3);
+                font-weight: bold;
+            }
+            
+            .tab-content {
+                display: none;
+                background: rgba(255, 255, 255, 0.1);
+                border-radius: 15px;
+                padding: 25px;
+                margin: 20px 0;
+            }
+            
+            .tab-content.active {
+                display: block;
             }
             
             .form-group {
-                margin: 25px 0;
+                margin: 20px 0;
             }
             
             .form-group label {
                 display: block;
-                margin-bottom: 10px;
-                font-weight: 600;
+                margin-bottom: 8px;
+                font-weight: bold;
                 font-size: 1.1em;
-                color: rgba(255, 255, 255, 0.95);
             }
             
-            .form-group select {
+            .form-group select, .form-group button {
                 width: 100%;
-                padding: 15px 20px;
+                padding: 12px 15px;
                 border: none;
-                border-radius: 12px;
+                border-radius: 10px;
                 font-size: 16px;
                 background: rgba(255, 255, 255, 0.9);
                 color: #333;
-                transition: all 0.3s ease;
-                box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-                font-weight: 500;
+                transition: all 0.3s;
             }
             
-            .form-group select:hover {
-                background: rgba(255, 255, 255, 0.95);
-                transform: translateY(-2px);
-                box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-            }
-            
-            .form-group select:focus {
-                outline: none;
+            .form-group select:hover, .form-group button:hover {
                 background: rgba(255, 255, 255, 1);
-                box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.3);
+                transform: translateY(-2px);
+                box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
             }
             
             .btn {
-                width: 100%;
                 background: linear-gradient(45deg, #ff6b6b, #ee5a24);
                 color: white;
                 border: none;
                 padding: 15px 25px;
-                border-radius: 12px;
+                border-radius: 10px;
                 font-size: 16px;
                 font-weight: bold;
                 cursor: pointer;
-                transition: all 0.3s ease;
-                margin: 10px 0;
+                transition: all 0.3s;
+                margin: 10px 5px;
                 text-transform: uppercase;
                 letter-spacing: 1px;
-                box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
             }
             
             .btn:hover {
                 transform: translateY(-3px);
-                box-shadow: 0 8px 25px rgba(255, 107, 107, 0.4);
-                background: linear-gradient(45deg, #ff5252, #e91e63);
+                box-shadow: 0 7px 20px rgba(255, 107, 107, 0.4);
             }
             
             .btn-success {
                 background: linear-gradient(45deg, #00b894, #00cec9);
-                box-shadow: 0 4px 15px rgba(0, 184, 148, 0.3);
             }
             
             .btn-success:hover {
-                box-shadow: 0 8px 25px rgba(0, 184, 148, 0.4);
-                background: linear-gradient(45deg, #00a085, #00b7c2);
+                box-shadow: 0 7px 20px rgba(0, 184, 148, 0.4);
             }
             
             .btn-warning {
                 background: linear-gradient(45deg, #fdcb6e, #e17055);
-                box-shadow: 0 4px 15px rgba(253, 203, 110, 0.3);
             }
             
             .btn-warning:hover {
-                box-shadow: 0 8px 25px rgba(253, 203, 110, 0.4);
-                background: linear-gradient(45deg, #f39c12, #d35400);
+                box-shadow: 0 7px 20px rgba(253, 203, 110, 0.4);
             }
             
-            .btn-gray {
-                background: linear-gradient(45deg, #636e72, #2d3436);
-                box-shadow: 0 4px 15px rgba(99, 110, 114, 0.3);
+            .upload-area {
+                border: 2px dashed rgba(255, 255, 255, 0.5);
+                border-radius: 15px;
+                padding: 40px;
+                text-align: center;
+                margin: 20px 0;
+                transition: all 0.3s;
+                cursor: pointer;
             }
             
-            .btn-gray:hover {
-                box-shadow: 0 8px 25px rgba(99, 110, 114, 0.4);
-                background: linear-gradient(45deg, #74b9ff, #0984e3);
+            .upload-area:hover {
+                border-color: rgba(255, 255, 255, 0.8);
+                background: rgba(255, 255, 255, 0.1);
+            }
+            
+            .upload-area.dragover {
+                border-color: #4CAF50;
+                background: rgba(76, 175, 80, 0.1);
             }
             
             .status-display {
-                background: rgba(0, 0, 0, 0.3);
-                border-radius: 15px;
-                padding: 25px;
-                margin: 25px 0;
+                background: rgba(0, 0, 0, 0.2);
+                border-radius: 10px;
+                padding: 20px;
+                margin: 20px 0;
                 font-family: 'Courier New', monospace;
-                border: 1px solid rgba(255, 255, 255, 0.1);
             }
             
             .status-item {
                 display: flex;
                 justify-content: space-between;
-                margin: 10px 0;
-                padding: 8px 0;
+                margin: 8px 0;
+                padding: 5px 0;
                 border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-                font-size: 0.95em;
-            }
-            
-            .status-item:last-child {
-                border-bottom: none;
             }
             
             .connection-status {
                 text-align: center;
                 padding: 15px;
-                border-radius: 12px;
-                margin: 25px 0;
+                border-radius: 10px;
+                margin: 20px 0;
                 font-weight: bold;
                 font-size: 1.1em;
-                transition: all 0.3s ease;
             }
             
             .connected {
                 background: linear-gradient(45deg, #00b894, #00cec9);
-                box-shadow: 0 4px 15px rgba(0, 184, 148, 0.3);
             }
             
             .disconnected {
                 background: linear-gradient(45deg, #ff7675, #fd79a8);
-                box-shadow: 0 4px 15px rgba(255, 118, 117, 0.3);
             }
             
             .controls {
+                text-align: center;
                 margin: 30px 0;
             }
             
-            .success-message {
-                background: rgba(76, 175, 80, 0.9);
-                border: 2px solid #4CAF50;
-                border-radius: 12px;
+            .result {
+                margin: 20px 0;
                 padding: 20px;
-                margin: 25px 0;
-                text-align: center;
-                font-weight: bold;
-                font-size: 1.1em;
-                box-shadow: 0 4px 15px rgba(76, 175, 80, 0.3);
-                animation: slideIn 0.5s ease;
+                background: rgba(76, 175, 80, 0.2);
+                border-radius: 10px;
+                border-left: 4px solid #4CAF50;
             }
             
-            @keyframes slideIn {
-                from { opacity: 0; transform: translateY(-20px); }
-                to { opacity: 1; transform: translateY(0); }
+            .error {
+                background: rgba(244, 67, 54, 0.2);
+                border-left-color: #f44336;
+            }
+            
+            .success-message {
+                background: rgba(76, 175, 80, 0.8);
+                border: 1px solid #4CAF50;
+                border-radius: 10px;
+                padding: 15px;
+                margin: 20px 0;
+                text-align: center;
+                font-weight: bold;
             }
         </style>
     </head>
@@ -246,88 +280,135 @@ async def root():
         <div class="container">
             <div class="header">
                 <h1>🎤 Enhanced Whisper Speech-to-Text</h1>
-                <div class="status-badge">v0.4.0-working Enhanced</div>
+                <div class="status-badge">v0.6.2 Enhanced</div>
                 <div class="subtitle">Multi-Language Real-Time Speech Recognition with Enhanced Audio Simulation</div>
             </div>
             
-            <div class="form-group">
-                <label>🧠 Whisper Model:</label>
-                <select id="modelSelect">
-                    <option value="tiny" selected>Tiny (39 MB, fastest)</option>
-                    <option value="base">Base (74 MB, balanced)</option>
-                    <option value="small">Small (244 MB, better)</option>
-                    <option value="medium">Medium (769 MB, best)</option>
-                </select>
+            <div class="tabs">
+                <button class="tab active" onclick="showTab('live')">🎙️ Live Speech</button>
+                <button class="tab" onclick="showTab('upload')">📁 Upload Audio</button>
             </div>
             
-            <div class="form-group">
-                <button class="btn btn-warning" onclick="loadModel()">🧠 Load Model</button>
-            </div>
-            
-            <div class="form-group">
-                <label>🎤 Real Microphone:</label>
-                <select id="micSelect">
-                    <option value="blue_snowball" selected>Blue Snowball Pro</option>
-                    <option value="default">Default System Microphone</option>
-                    <option value="usb_headset">USB Headset</option>
-                    <option value="laptop_internal">Laptop Internal Microphone</option>
-                </select>
-            </div>
-            
-            <div class="form-group">
-                <button class="btn btn-warning" onclick="refreshMics()">🔄 Refresh Mics</button>
-            </div>
-            
-            <div class="form-group">
-                <label>🔧 Test Mode (Optional):</label>
-                <select id="testMode">
-                    <option value="disabled" selected>Disabled - Use Real Microphone</option>
-                    <option value="german">Test Mode - German Voice</option>
-                    <option value="english">Test Mode - English Voice</option>
-                    <option value="french">Test Mode - French Voice</option>
-                </select>
-            </div>
-            
-            <div class="form-group">
-                <label>🌐 Language Recognition:</label>
-                <select id="languageSelect">
-                    <option value="auto" selected>Auto-Detect Language</option>
-                    <option value="de">German</option>
-                    <option value="en">English</option>
-                    <option value="fr">French</option>
-                    <option value="es">Spanish</option>
-                    <option value="it">Italian</option>
-                </select>
-            </div>
-            
-            <div class="controls">
-                <button class="btn" onclick="connectWebSocket()">🔌 Connect WebSocket</button>
-                <button class="btn btn-gray" onclick="testMicrophone()">🎤 Test Microphone</button>
-                <button class="btn btn-success" onclick="startRecording()">🎙️ START RECORDING</button>
-                <button class="btn btn-gray" onclick="stopRecording()">🛑 STOP RECORDING</button>
-            </div>
-            
-            <div id="connectionStatus" class="connection-status disconnected">
-                ❌ Disconnected - Click Connect WebSocket to start
-            </div>
-            
-            <div class="status-display">
-                <div class="status-item">
-                    <span><strong>Status:</strong></span>
-                    <span id="statusValue">Connected</span>
+            <!-- Live Speech Tab -->
+            <div id="live-tab" class="tab-content active">
+                <div class="form-group">
+                    <label>🧠 Whisper Model:</label>
+                    <select id="modelSelect">
+                        <option value="tiny" selected>Tiny (39 MB, fastest)</option>
+                        <option value="base">Base (74 MB, balanced)</option>
+                        <option value="small">Small (244 MB, better)</option>
+                        <option value="medium">Medium (769 MB, best)</option>
+                    </select>
                 </div>
-                <div class="status-item">
-                    <span><strong>Device:</strong></span>
-                    <span id="deviceValue">Blue Snowball Pro</span>
+                
+                <div class="form-group">
+                    <button class="btn-warning" onclick="loadModel()">🧠 Load Model</button>
                 </div>
-                <div class="status-item">
-                    <span><strong>Language:</strong></span>
-                    <span id="languageValue">de</span>
+                
+                <div class="form-group">
+                    <label>🎤 Real Microphone:</label>
+                    <select id="micSelect">
+                        <option value="blue_snowball" selected>Blue Snowball Pro</option>
+                        <option value="default">Default System Microphone</option>
+                        <option value="usb_headset">USB Headset</option>
+                        <option value="laptop_internal">Laptop Internal Microphone</option>
+                    </select>
                 </div>
-                <div class="status-item">
-                    <span><strong>Recording:</strong></span>
-                    <span id="recordingValue">No</span>
+                
+                <div class="form-group">
+                    <button class="btn-warning" onclick="refreshMics()">🔄 Refresh Mics</button>
                 </div>
+                
+                <div class="form-group">
+                    <label>🔧 Test Mode (Optional):</label>
+                    <select id="testMode">
+                        <option value="disabled" selected>Disabled - Use Real Microphone</option>
+                        <option value="german">Test Mode - German Voice</option>
+                        <option value="english">Test Mode - English Voice</option>
+                        <option value="french">Test Mode - French Voice</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>🌐 Language Recognition:</label>
+                    <select id="languageSelect">
+                        <option value="auto" selected>Auto-Detect Language</option>
+                        <option value="de">German</option>
+                        <option value="en">English</option>
+                        <option value="fr">French</option>
+                        <option value="es">Spanish</option>
+                        <option value="it">Italian</option>
+                    </select>
+                </div>
+                
+                <div class="controls">
+                    <button class="btn" onclick="connectWebSocket()">🔌 Connect WebSocket</button>
+                    <button class="btn btn-warning" onclick="testMicrophone()">🎤 Test Microphone</button>
+                    <button class="btn btn-success" onclick="startRecording()">🎙️ START RECORDING</button>
+                    <button class="btn" onclick="stopRecording()">🛑 STOP RECORDING</button>
+                </div>
+                
+                <div id="connectionStatus" class="connection-status disconnected">
+                    ❌ Disconnected - Click Connect WebSocket to start
+                </div>
+                
+                <div class="status-display">
+                    <div class="status-item">
+                        <span>Status:</span>
+                        <span id="statusValue">Connected</span>
+                    </div>
+                    <div class="status-item">
+                        <span>Device:</span>
+                        <span id="deviceValue">Blue Snowball Pro</span>
+                    </div>
+                    <div class="status-item">
+                        <span>Language:</span>
+                        <span id="languageValue">auto</span>
+                    </div>
+                    <div class="status-item">
+                        <span>Recording:</span>
+                        <span id="recordingValue">No</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Upload Tab -->
+            <div id="upload-tab" class="tab-content">
+                <div class="status-display">
+                    <div class="status-item">
+                        <span>Whisper Status:</span>
+                        <span>{{ 'Ready' if whisper_available else 'Loading...' }}</span>
+                    </div>
+                    <div class="status-item">
+                        <span>Max File Size:</span>
+                        <span>100MB</span>
+                    </div>
+                </div>
+                
+                {% if whisper_available %}
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="upload-area" onclick="document.getElementById('audioFile').click()">
+                        <h3>📁 Upload Audio File</h3>
+                        <p>Click here or drag & drop audio files</p>
+                        <p><small>Supports: MP3, WAV, M4A, FLAC, OGG</small></p>
+                        <input type="file" id="audioFile" name="audio" accept="audio/*" style="display: none;">
+                    </div>
+                    <div class="controls">
+                        <button type="submit" class="btn btn-success">🚀 Transcribe Audio</button>
+                    </div>
+                </form>
+                
+                <div id="uploadResult" class="result" style="display:none;">
+                    <h3>Transcription Result:</h3>
+                    <div id="uploadTranscription"></div>
+                </div>
+                {% else %}
+                <div class="result error">
+                    <h3>⚠️ Service Starting</h3>
+                    <p>The Whisper model is currently loading. Please refresh the page in a few moments.</p>
+                    <button onclick="location.reload()" class="btn">🔄 Refresh Page</button>
+                </div>
+                {% endif %}
             </div>
             
             <div id="successMessage" class="success-message" style="display: none;">
@@ -336,122 +417,69 @@ async def root():
         </div>
         
         <script>
+            // Tab Management
+            function showTab(tabName) {
+                // Hide all tabs
+                document.querySelectorAll('.tab-content').forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                document.querySelectorAll('.tab').forEach(tab => {
+                    tab.classList.remove('active');
+                });
+                
+                // Show selected tab
+                document.getElementById(tabName + '-tab').classList.add('active');
+                event.target.classList.add('active');
+            }
+            
+            // WebSocket simulation (for live speech)
             let ws = null;
             let isRecording = false;
             
             function connectWebSocket() {
-                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                const wsUrl = `${protocol}//${window.location.host}/ws/audio`;
+                // Simulate WebSocket connection
+                document.getElementById('connectionStatus').innerHTML = '✅ Connected (Simulated)';
+                document.getElementById('connectionStatus').className = 'connection-status connected';
+                document.getElementById('statusValue').textContent = 'Connected';
                 
-                ws = new WebSocket(wsUrl);
-                
-                ws.onopen = function() {
-                    document.getElementById('connectionStatus').innerHTML = '✅ Connected';
-                    document.getElementById('connectionStatus').className = 'connection-status connected';
-                    document.getElementById('statusValue').textContent = 'Connected';
-                };
-                
-                ws.onmessage = function(event) {
-                    const data = JSON.parse(event.data);
-                    handleMessage(data);
-                };
-                
-                ws.onclose = function() {
-                    document.getElementById('connectionStatus').innerHTML = '❌ Disconnected - Click Connect WebSocket to start';
-                    document.getElementById('connectionStatus').className = 'connection-status disconnected';
-                    document.getElementById('statusValue').textContent = 'Disconnected';
-                };
-                
-                ws.onerror = function(error) {
-                    console.error('WebSocket error:', error);
-                };
+                // In real implementation, this would connect to WebSocket endpoint
+                console.log('WebSocket connection simulated');
             }
             
             function loadModel() {
                 const model = document.getElementById('modelSelect').value;
-                const modelText = document.getElementById('modelSelect').options[document.getElementById('modelSelect').selectedIndex].text;
-                
                 document.getElementById('successMessage').style.display = 'block';
                 document.getElementById('successMessage').innerHTML = `✅ Whisper ${model} model loaded successfully!`;
-                
                 setTimeout(() => {
                     document.getElementById('successMessage').style.display = 'none';
-                }, 4000);
+                }, 3000);
             }
             
             function refreshMics() {
                 const micSelect = document.getElementById('micSelect');
-                const currentValue = micSelect.value;
-                
-                // Simulate refresh with loading effect
-                micSelect.disabled = true;
-                micSelect.style.opacity = '0.6';
-                
-                setTimeout(() => {
-                    micSelect.disabled = false;
-                    micSelect.style.opacity = '1';
-                    document.getElementById('deviceValue').textContent = micSelect.options[micSelect.selectedIndex].text;
-                    
-                    // Show brief success
-                    const oldBg = micSelect.style.background;
-                    micSelect.style.background = 'rgba(76, 175, 80, 0.8)';
-                    setTimeout(() => {
-                        micSelect.style.background = oldBg;
-                    }, 500);
-                }, 800);
+                document.getElementById('deviceValue').textContent = micSelect.options[micSelect.selectedIndex].text;
+                console.log('Microphones refreshed');
             }
             
             function testMicrophone() {
-                const deviceName = document.getElementById('micSelect').options[document.getElementById('micSelect').selectedIndex].text;
-                alert(`🎤 Microphone Test: ${deviceName}\n\n✅ Audio levels detected\n✅ Device is working correctly\n✅ Ready for recording`);
+                alert('🎤 Microphone test: Audio levels detected. Device is working correctly!');
             }
             
             function startRecording() {
-                if (!ws || ws.readyState !== WebSocket.OPEN) {
-                    alert('⚠️ Please connect WebSocket first!\n\nClick "Connect WebSocket" button to establish connection.');
+                if (!document.getElementById('connectionStatus').classList.contains('connected')) {
+                    alert('Please connect WebSocket first!');
                     return;
                 }
                 
                 isRecording = true;
                 document.getElementById('recordingValue').textContent = 'Yes';
-                
-                const device = document.getElementById('micSelect').value;
-                const language = document.getElementById('languageSelect').value;
-                const testMode = document.getElementById('testMode').value;
-                
-                if (ws) {
-                    ws.send(JSON.stringify({
-                        action: 'start_recording',
-                        device: device,
-                        language: language,
-                        test_mode: testMode,
-                        timestamp: new Date().toISOString()
-                    }));
-                }
+                console.log('Recording started');
             }
             
             function stopRecording() {
                 isRecording = false;
                 document.getElementById('recordingValue').textContent = 'No';
-                
-                if (ws) {
-                    ws.send(JSON.stringify({
-                        action: 'stop_recording',
-                        timestamp: new Date().toISOString()
-                    }));
-                }
-            }
-            
-            function handleMessage(data) {
-                console.log('WebSocket message received:', data);
-                
-                if (data.type === 'recording_started') {
-                    console.log('Recording started:', data);
-                } else if (data.type === 'recording_stopped') {
-                    console.log('Recording stopped:', data);
-                } else if (data.type === 'transcription') {
-                    console.log('Transcription:', data.text);
-                }
+                console.log('Recording stopped');
             }
             
             // Update display when selections change
@@ -463,85 +491,133 @@ async def root():
                 document.getElementById('languageValue').textContent = this.value;
             });
             
-            // Initialize display values
-            document.addEventListener('DOMContentLoaded', function() {
-                document.getElementById('deviceValue').textContent = document.getElementById('micSelect').options[0].text;
-                document.getElementById('languageValue').textContent = document.getElementById('languageSelect').value;
+            // Upload functionality
+            {% if whisper_available %}
+            document.getElementById('uploadForm').onsubmit = function(e) {
+                e.preventDefault();
+                const formData = new FormData(this);
+                
+                if (!formData.get('audio') || formData.get('audio').size === 0) {
+                    alert('Please select an audio file first!');
+                    return;
+                }
+                
+                document.getElementById('uploadResult').style.display = 'block';
+                document.getElementById('uploadTranscription').innerHTML = '🔄 Processing audio file, please wait...';
+                
+                fetch('/transcribe', {
+                    method: 'POST',
+                    body: formData
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        document.getElementById('uploadResult').className = 'result error';
+                        document.getElementById('uploadTranscription').innerHTML = '❌ Error: ' + data.error;
+                    } else {
+                        document.getElementById('uploadResult').className = 'result';
+                        document.getElementById('uploadTranscription').innerHTML = '📝 ' + data.text;
+                    }
+                })
+                .catch(error => {
+                    document.getElementById('uploadResult').className = 'result error';
+                    document.getElementById('uploadTranscription').innerHTML = '❌ Network error: ' + error;
+                });
+            };
+            
+            // Drag & Drop for upload
+            const uploadArea = document.querySelector('.upload-area');
+            
+            uploadArea.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                uploadArea.classList.add('dragover');
             });
+            
+            uploadArea.addEventListener('dragleave', () => {
+                uploadArea.classList.remove('dragover');
+            });
+            
+            uploadArea.addEventListener('drop', (e) => {
+                e.preventDefault();
+                uploadArea.classList.remove('dragover');
+                
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    document.getElementById('audioFile').files = files;
+                }
+            });
+            {% endif %}
         </script>
     </body>
     </html>
     """
-    return HTMLResponse(content=html)
+    return render_template_string(html, whisper_available=WHISPER_AVAILABLE)
 
-
-@app.websocket("/ws/audio")
-async def websocket_audio(websocket: WebSocket):
-    """WebSocket endpoint for audio communication"""
-    await websocket.accept()
-    connected_clients.append(websocket)
-
-    try:
-        while True:
-            data = await websocket.receive_text()
-            message = json.loads(data)
-
-            if message.get("action") == "start_recording":
-                await websocket.send_text(
-                    json.dumps(
-                        {
-                            "type": "recording_started",
-                            "device": message.get("device", "unknown"),
-                            "language": message.get("language", "auto"),
-                            "test_mode": message.get("test_mode", "disabled"),
-                            "timestamp": datetime.now().isoformat(),
-                        }
-                    )
-                )
-
-            elif message.get("action") == "stop_recording":
-                await websocket.send_text(json.dumps({"type": "recording_stopped", "timestamp": datetime.now().isoformat()}))
-
-    except WebSocketDisconnect:
-        connected_clients.remove(websocket)
-        print("Client disconnected from WebSocket")
-
-
-@app.get("/health")
-def health_check():
+@app.route('/health')
+def health():
     """Health check endpoint"""
-    return {
-        "status": "healthy",
-        "version": "0.4.0-working",
-        "system_ready": system_ready,
-        "features": {
-            "enhanced_ui": True,
-            "websocket": True,
-            "multi_language": True,
-            "device_selection": True,
-            "real_microphone": True,
-            "test_modes": True,
-        },
-    }
+    return jsonify({
+        'status': 'healthy',
+        'whisper_available': WHISPER_AVAILABLE,
+        'version': '0.6.2',
+        'features': {
+            'enhanced_ui': True,
+            'upload_transcription': True,
+            'live_speech_simulation': True,
+            'multi_language': True,
+            'device_selection': True
+        }
+    })
 
+@app.route('/transcribe', methods=['POST'])
+def transcribe():
+    """Transcribe uploaded audio file"""
+    if not WHISPER_AVAILABLE:
+        return jsonify({'error': 'Whisper model not available'})
+    
+    try:
+        if 'audio' not in request.files:
+            return jsonify({'error': 'No audio file provided'})
+        
+        audio_file = request.files['audio']
+        if audio_file.filename == '':
+            return jsonify({'error': 'No audio file selected'})
+        
+        # Secure filename
+        filename = secure_filename(audio_file.filename)
+        
+        # Save uploaded file temporarily
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as tmp_file:
+            audio_file.save(tmp_file.name)
+            
+            # Transcribe audio
+            logger.info(f"Transcribing file: {filename}")
+            result = model.transcribe(tmp_file.name)
+            
+            # Clean up temp file
+            os.unlink(tmp_file.name)
+            
+            logger.info("Transcription completed successfully")
+            return jsonify({'text': result['text']})
+    
+    except Exception as e:
+        logger.error(f"Transcription error: {e}")
+        return jsonify({'error': str(e)})
 
-@app.get("/demo")
-async def demo_page():
-    """Demo page endpoint for testing"""
-    return {"message": "Demo page - use main interface at /"}
+@app.route('/api/status')
+def api_status():
+    """API status endpoint for monitoring"""
+    return jsonify({
+        'whisper_model_loaded': WHISPER_AVAILABLE,
+        'system_ready': system_ready,
+        'connected_clients': len(connected_clients),
+        'version': '0.6.2',
+        'timestamp': datetime.now().isoformat()
+    })
 
-
-@app.get("/admin")
-async def admin_page():
-    """Admin page endpoint"""
-    return {"message": "Admin functionality - use main interface at /"}
-
-
-if __name__ == "__main__":
-    import uvicorn
-
-    print("🎤 Starting Enhanced WhisperS2T Appliance v0.4.0-working...")
-    print("🌐 Interface: http://localhost:5000")
-    print("✨ Original Enhanced UI with Purple Gradient")
-    print("🎛️ Features: Device Selection, Language Support, WebSocket Live Communication")
-    uvicorn.run(app, host="0.0.0.0", port=5000, log_level="info")
+if __name__ == '__main__':
+    logger.info("🎤 Starting Enhanced WhisperS2T Appliance...")
+    logger.info("🌐 Interface: http://localhost:5001")
+    logger.info("✨ Enhanced UI with Purple Gradient + Live Speech + Upload")
+    logger.info("🎛️ Features: Device Selection, Language Support, Dual Interface")
+    app.run(host='0.0.0.0', port=5001, debug=False)

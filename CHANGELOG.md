@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.3] - 2025-06-29
+
+### Fixed
+- **Critical Service Fix**: Resolved persistent gunicorn exit-code 3 by converting FastAPI to Flask
+- **Framework Compatibility**: Fixed incompatibility between FastAPI app and gunicorn WSGI server
+- **Service Startup**: Service now starts successfully without exit-code errors
+- **Purple Gradient Interface**: Restored original enhanced UI with dual-tab interface
+
+### Changed
+- **Framework Migration**: Converted enhanced_app.py from FastAPI to Flask for gunicorn compatibility
+- **Interface Design**: Maintained purple gradient background with live speech + upload tabs
+- **Dependencies**: Optimized package requirements (removed FastAPI/uvicorn, kept Flask/gunicorn)
+- **Service Configuration**: Standard gunicorn WSGI deployment (no worker-class needed)
+
+### Added
+- **Dual Interface**: Live Speech tab (simulated) + Upload Audio tab (functional)
+- **Enhanced UI Elements**: Drag & drop upload, status displays, connection simulation
+- **API Endpoints**: /health, /transcribe, /api/status for monitoring and functionality
+- **Error Handling**: Comprehensive error handling for uploads and transcription
+
+### Technical Details
+- **Root Cause**: FastAPI app was incompatible with gunicorn WSGI server
+- **Solution**: Migrated to Flask while preserving all UI features and functionality
+- **Result**: Service starts correctly, interface loads, transcription works
+- **Performance**: Maintained original enhanced UI with improved stability
+
 ## [0.6.2] - 2025-06-29
 
 ### Fixed

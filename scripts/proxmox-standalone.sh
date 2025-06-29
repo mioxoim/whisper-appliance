@@ -189,7 +189,7 @@ sudo -u whisper python3 -m pip install --user \
 # Function to create fallback app if GitHub download fails
 create_fallback_app() {
     print_warning "Creating basic fallback application..."
-    cat > /opt/whisper-appliance/src/enhanced_app.py << 'FALLBACK_APP_EOF'
+    cat > /opt/whisper-appliance/src/main.py << 'FALLBACK_APP_EOF'
 #!/usr/bin/env python3
 """
 WhisperS2T Fallback Application
@@ -453,13 +453,50 @@ download_file() {
 # Create whisper-service directory
 mkdir -p /opt/whisper-appliance/src/whisper-service
 
-# Download the enhanced app with live speech from GitHub
-if ! download_file "https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/src/enhanced_app.py" \
-                  "/opt/whisper-appliance/src/enhanced_app.py" \
-                  "Enhanced WhisperS2T App"; then
+# Download the modular main app from GitHub
+if ! download_file "https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/src/main.py" \
+                  "/opt/whisper-appliance/src/main.py" \
+                  "Enhanced WhisperS2T Main App"; then
     print_warning "GitHub download failed, creating basic fallback app..."
     create_fallback_app
 fi
+
+# Create modules directory and download modular components
+mkdir -p /opt/whisper-appliance/src/modules
+mkdir -p /opt/whisper-appliance/src/templates
+
+print_status "Downloading modular components..."
+
+# Download modules
+download_file "https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/src/modules/__init__.py" \
+              "/opt/whisper-appliance/src/modules/__init__.py" \
+              "Modules Init"
+
+download_file "https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/src/modules/live_speech.py" \
+              "/opt/whisper-appliance/src/modules/live_speech.py" \
+              "Live Speech Module"
+
+download_file "https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/src/modules/upload_handler.py" \
+              "/opt/whisper-appliance/src/modules/upload_handler.py" \
+              "Upload Handler Module"
+
+download_file "https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/src/modules/admin_panel.py" \
+              "/opt/whisper-appliance/src/modules/admin_panel.py" \
+              "Admin Panel Module"
+
+download_file "https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/src/modules/api_docs.py" \
+              "/opt/whisper-appliance/src/modules/api_docs.py" \
+              "API Documentation Module"
+
+# Download templates
+download_file "https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/src/templates/main_interface.html" \
+              "/opt/whisper-appliance/src/templates/main_interface.html" \
+              "Main Interface Template"
+
+# Download requirements
+download_file "https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/src/requirements.txt" \
+              "/opt/whisper-appliance/src/requirements.txt" \
+              "Requirements File"
 
 # Download audio input manager
 if ! download_file "https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/src/whisper-service/audio_input_manager.py" \
@@ -484,7 +521,7 @@ Group=whisper
 WorkingDirectory=/opt/whisper-appliance
 Environment=PATH=/home/whisper/.local/bin:/usr/local/bin:/usr/bin:/bin
 Environment=PYTHONPATH=/opt/whisper-appliance
-ExecStart=/home/whisper/.local/bin/gunicorn --bind 0.0.0.0:5001 --workers 2 --timeout 300 src.enhanced_app:app
+ExecStart=/usr/bin/python3 /opt/whisper-appliance/src/main.py
 Restart=always
 RestartSec=3
 

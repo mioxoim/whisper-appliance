@@ -185,14 +185,288 @@ sudo -u whisper python3 -m pip install --user \
     sounddevice \
     numpy >/dev/null 2>&1
 
+# Function to create fallback app if GitHub download fails
+create_fallback_app() {
+    print_warning "Creating basic fallback application..."
+    cat > /opt/whisper-appliance/src/app.py << 'FALLBACK_APP_EOF'
+#!/usr/bin/env python3
+"""
+WhisperS2T Fallback Application
+Basic transcription service when GitHub download fails
+"""
+
+import os
+import tempfile
+import threading
+import logging
+from flask import Flask, render_template_string, request, jsonify, send_from_directory
+from werkzeug.utils import secure_filename
+import whisper
+
+app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max file size
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Load Whisper model
+model = None
+
+def load_model():
+    global model
+    try:
+        model = whisper.load_model("base")
+        logger.info("Whisper model loaded successfully")
+    except Exception as e:
+        logger.error(f"Failed to load Whisper model: {e}")
+
+# Load model in background
+threading.Thread(target=load_model, daemon=True).start()
+
+UPLOAD_TEMPLATE = '''
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WhisperS2T - Speech to Text</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
+        .container { max-width: 800px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        h1 { color: #333; text-align: center; margin-bottom: 30px; }
+        .upload-area { border: 2px dashed #ccc; padding: 40px; text-align: center; border-radius: 10px; margin: 20px 0; }
+        .upload-area:hover { border-color: #007bff; }
+        .btn { background: #007bff; color: white; padding: 12px 24px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
+        .btn:hover { background: #0056b3; }
+        .result { margin: 20px 0; padding: 20px; background: #f8f9fa; border-radius: 5px; }
+        .status { margin: 10px 0; font-weight: bold; }
+        .error { color: #dc3545; }
+        .success { color: #28a745; }
+        .warning { color: #ffc107; background: #fff3cd; padding: 10px; border-radius: 5px; margin: 20px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎙️ WhisperS2T - Speech to Text</h1>
+        
+        <div class="warning">
+            <strong>⚠️ Fallback Mode:</strong> This is a basic version. GitHub download failed during installation.
+        </div>
+        
+        <form id="uploadForm" enctype="multipart/form-data">
+            <div class="upload-area">
+                <p>📁 Drag & drop audio files here or click to select</p>
+                <input type="file" id="audioFile" name="audio" accept="audio/*" style="display: none;">
+                <button type="button" class="btn" onclick="document.getElementById('audioFile').click()">Select Audio File</button>
+            </div>
+            <button type="submit" class="btn">🚀 Transcribe</button>
+        </form>
+        
+        <div id="status" class="status"></div>
+        <div id="result" class="result" style="display: none;"></div>
+    </div>
+
+    <script>
+        const form = document.getElementById('uploadForm');
+        const fileInput = document.getElementById('audioFile');
+        const status = document.getElementById('status');
+        const result = document.getElementById('result');
+
+        fileInput.addEventListener('change', function(e) {
+            const fileName = e.target.files[0]?.name;
+            if (fileName) {
+                document.querySelector('.upload-area p').textContent = `Selected: ${fileName}`;
+            }
+        });
+
+        form.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            if (!fileInput.files[0]) {
+                status.innerHTML = '<span class="error">Please select an audio file</span>';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('audio', fileInput.files[0]);
+
+            status.innerHTML = '<span class="success">Transcribing... This may take a moment.</span>';
+            result.style.display = 'none';
+
+            try {
+                const response = await fetch('/transcribe', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    status.innerHTML = '<span class="success">✅ Transcription completed!</span>';
+                    result.innerHTML = `<h3>Transcription Result:</h3><p>${data.transcription}</p>`;
+                    result.style.display = 'block';
+                } else {
+                    status.innerHTML = `<span class="error">❌ Error: ${data.error}</span>`;
+                }
+            } catch (error) {
+                status.innerHTML = `<span class="error">❌ Error: ${error.message}</span>`;
+            }
+        });
+    </script>
+</body>
+</html>
+'''
+
+@app.route('/')
+def index():
+    return render_template_string(UPLOAD_TEMPLATE)
+
+@app.route('/transcribe', methods=['POST'])
+def transcribe():
+    if 'audio' not in request.files:
+        return jsonify({'success': False, 'error': 'No audio file provided'})
+    
+    if model is None:
+        return jsonify({'success': False, 'error': 'Whisper model not loaded yet. Please wait and try again.'})
+    
+    file = request.files['audio']
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'No file selected'})
+    
+    try:
+        # Save uploaded file temporarily
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as tmp_file:
+            file.save(tmp_file.name)
+            
+            # Transcribe
+            result = model.transcribe(tmp_file.name)
+            transcription = result['text'].strip()
+            
+            # Clean up
+            os.unlink(tmp_file.name)
+            
+            return jsonify({
+                'success': True,
+                'transcription': transcription
+            })
+            
+    except Exception as e:
+        logger.error(f"Transcription error: {e}")
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/health')
+def health():
+    return jsonify({
+        'status': 'healthy',
+        'model_loaded': model is not None,
+        'version': 'fallback-1.0'
+    })
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=5001, debug=False)
+FALLBACK_APP_EOF
+}
+
+# Function to create fallback audio manager
+create_fallback_audio_manager() {
+    print_warning "Creating basic fallback audio input manager..."
+    cat > /opt/whisper-appliance/src/whisper-service/audio_input_manager.py << 'FALLBACK_AUDIO_EOF'
+#!/usr/bin/env python3
+"""
+Basic Audio Input Manager Fallback
+Placeholder when GitHub download fails
+"""
+
+import logging
+
+logger = logging.getLogger(__name__)
+
+class AudioInputManager:
+    """Basic fallback audio input manager"""
+    
+    def __init__(self):
+        logger.warning("Using fallback AudioInputManager - Live speech feature not available")
+        self.recording = False
+    
+    def start_recording(self):
+        logger.warning("Live recording not available in fallback mode")
+        return False
+    
+    def stop_recording(self):
+        logger.warning("Live recording not available in fallback mode")
+        return None
+    
+    def is_recording(self):
+        return False
+FALLBACK_AUDIO_EOF
+}
+
 print_status "Creating WhisperS2T application..."
 
+# Function to download file with fallback mechanisms
+download_file() {
+    local url="$1"
+    local output_file="$2"
+    local description="$3"
+    
+    print_status "Downloading $description..."
+    
+    # Method 1: Try wget first (more reliable for file downloads)
+    if wget -q --timeout=30 --tries=3 "$url" -O "$output_file.tmp"; then
+        print_success "Downloaded $description using wget"
+    # Method 2: Try curl as fallback
+    elif curl -s --max-time 30 --retry 3 "$url" -o "$output_file.tmp"; then
+        print_success "Downloaded $description using curl"
+    else
+        print_error "Failed to download $description from GitHub"
+        return 1
+    fi
+    
+    # Verify file is not empty and contains expected content
+    if [[ ! -s "$output_file.tmp" ]]; then
+        print_error "Downloaded file is empty: $description"
+        rm -f "$output_file.tmp"
+        return 1
+    fi
+    
+    # For Python files, verify they contain basic Python syntax
+    if [[ "$output_file" == *.py ]]; then
+        if ! grep -q "import\|def\|class" "$output_file.tmp"; then
+            print_error "Downloaded Python file appears corrupted: $description"
+            rm -f "$output_file.tmp"
+            return 1
+        fi
+    fi
+    
+    # Move to final location
+    mv "$output_file.tmp" "$output_file"
+    print_success "Successfully downloaded and verified: $description"
+    return 0
+}
+
+# Create whisper-service directory
+mkdir -p /opt/whisper-appliance/src/whisper-service
+
 # Download the enhanced app with live speech from GitHub
-curl -s https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/src/enhanced_app.py > /opt/whisper-appliance/src/app.py
+if ! download_file "https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/src/enhanced_app.py" \
+                  "/opt/whisper-appliance/src/app.py" \
+                  "Enhanced WhisperS2T App"; then
+    print_warning "GitHub download failed, creating basic fallback app..."
+    create_fallback_app
+fi
 
 # Download audio input manager
-mkdir -p /opt/whisper-appliance/src/whisper-service
-curl -s https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/src/whisper-service/audio_input_manager.py > /opt/whisper-appliance/src/whisper-service/audio_input_manager.py
+if ! download_file "https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/src/whisper-service/audio_input_manager.py" \
+                  "/opt/whisper-appliance/src/whisper-service/audio_input_manager.py" \
+                  "Audio Input Manager"; then
+    print_warning "GitHub download failed, creating basic fallback audio manager..."
+    create_fallback_audio_manager
+fi
 
 chown -R whisper:whisper /opt/whisper-appliance/src
 
@@ -249,7 +523,29 @@ systemctl enable whisper-appliance
 systemctl enable nginx
 
 systemctl restart nginx
-systemctl start whisper-appliance
+sleep 2
+
+# Start whisper service with retry mechanism
+for i in {1..3}; do
+    print_status "Starting WhisperS2T service (attempt $i/3)..."
+    if systemctl start whisper-appliance; then
+        sleep 5
+        if systemctl is-active --quiet whisper-appliance; then
+            print_success "WhisperS2T service started successfully"
+            break
+        else
+            print_warning "Service started but not active, checking logs..."
+            systemctl status whisper-appliance --no-pager -l
+        fi
+    else
+        print_error "Failed to start WhisperS2T service on attempt $i"
+        if [[ $i -eq 3 ]]; then
+            print_error "Service failed to start after 3 attempts. Check logs with: journalctl -u whisper-appliance"
+        else
+            sleep 3
+        fi
+    fi
+done
 
 if command -v ufw >/dev/null 2>&1; then
     ufw --force enable
@@ -272,6 +568,29 @@ pct exec $CTID -- /root/install-whisper.sh
 msg_info "Getting container IP address..."
 sleep 5
 CONTAINER_IP=$(pct exec $CTID -- hostname -I | awk '{print $1}')
+
+# Verify installation
+msg_info "Verifying installation..."
+pct exec $CTID -- systemctl is-active whisper-appliance >/dev/null 2>&1
+if [[ $? -eq 0 ]]; then
+    msg_ok "WhisperS2T service is running"
+else
+    msg_warn "WhisperS2T service may not be fully started yet"
+fi
+
+pct exec $CTID -- systemctl is-active nginx >/dev/null 2>&1
+if [[ $? -eq 0 ]]; then
+    msg_ok "Nginx is running"
+else
+    msg_warn "Nginx may not be running properly"
+fi
+
+# Test web interface accessibility
+if timeout 10 curl -s "http://$CONTAINER_IP:5000" >/dev/null 2>&1; then
+    msg_ok "Web interface is accessible"
+else
+    msg_warn "Web interface may not be ready yet (this is normal for first startup)"
+fi
 
 # Success message
 clear
@@ -296,10 +615,16 @@ msg_ok "🔧 SSH Access: ssh root@$CONTAINER_IP"
 echo
 msg_info "Features available:"
 msg_info "  • Upload and transcribe audio files"
-msg_info "  • Health monitoring endpoint"
+msg_info "  • Live speech recognition (if GitHub download successful)"
+msg_info "  • Health monitoring endpoint: http://$CONTAINER_IP:5000/health"
 msg_info "  • Automatic service management"
 echo
 msg_warn "Note: First transcription may take longer as Whisper downloads models"
+echo
+msg_info "Troubleshooting commands:"
+msg_info "  pct exec $CTID -- systemctl status whisper-appliance"
+msg_info "  pct exec $CTID -- journalctl -u whisper-appliance -f"
+msg_info "  pct exec $CTID -- tail -f /var/log/nginx/error.log"
 echo
 msg_info "Container management commands:"
 msg_info "  pct start $CTID    # Start container"

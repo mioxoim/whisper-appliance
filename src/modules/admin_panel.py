@@ -310,7 +310,34 @@ class AdminPanel:
                 </div>
                 
                 <div class="demo-section">
-                    <h3>🔗 WebSocket Live Speech Test</h3>
+                    <h3>🎙️ Live Speech Recording Demo</h3>
+                    <p>Test real-time speech-to-text with your microphone</p>
+                    
+                    <div style="margin: 15px 0;">
+                        <label for="demoLanguage">🌍 Language:</label>
+                        <select id="demoLanguage" style="margin: 5px; padding: 5px;">
+                            <option value="auto">Auto-detect</option>
+                            <option value="de">German (Deutsch)</option>
+                            <option value="en">English</option>
+                            <option value="fr">French (Français)</option>
+                            <option value="es">Spanish (Español)</option>
+                            <option value="it">Italian (Italiano)</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <button id="startRecordingDemo" onclick="startLiveRecording()">🎙️ Start Recording</button>
+                        <button id="stopRecordingDemo" onclick="stopLiveRecording()" disabled>⏹️ Stop Recording</button>
+                        <span id="recordingStatus" style="margin-left: 15px; color: #666;">Ready to record</span>
+                    </div>
+                    
+                    <div id="liveSpeechResult" style="margin-top: 15px; min-height: 60px; padding: 15px; background: #f8f9fa; border-radius: 5px; border-left: 4px solid #667eea;">
+                        Click "Start Recording" to test live speech recognition...
+                    </div>
+                </div>
+                
+                <div class="demo-section">
+                    <h3>🔗 WebSocket Connection Test</h3>
                     <button onclick="testWebSocket()">Test WebSocket Connection</button>
                     <div id="websocketResult"></div>
                 </div>
@@ -360,6 +387,120 @@ class AdminPanel:
                         document.getElementById('uploadResult').innerHTML = 
                             '<div class="result error"><strong>Error:</strong> ' + error.message + '</div>';
                     }
+                }
+                
+                // Live Speech Recording Demo
+                let demoSocket = null;
+                let demoMediaRecorder = null;
+                let demoAudioChunks = [];
+                let isDemoRecording = false;
+                
+                function initDemoWebSocket() {
+                    if (!demoSocket) {
+                        demoSocket = io();
+                        
+                        demoSocket.on('connect', function() {
+                            console.log('Demo WebSocket connected');
+                        });
+                        
+                        demoSocket.on('transcription_result', function(data) {
+                            document.getElementById('liveSpeechResult').innerHTML = 
+                                '<div class="result"><strong>📝 Transcription Result:</strong><br>"' + 
+                                data.text + '"<br><small>Language: ' + data.language + 
+                                ' | Time: ' + new Date().toLocaleTimeString() + '</small></div>';
+                        });
+                        
+                        demoSocket.on('transcription_error', function(data) {
+                            document.getElementById('liveSpeechResult').innerHTML = 
+                                '<div class="result error"><strong>❌ Error:</strong> ' + data.error + '</div>';
+                        });
+                    }
+                }
+                
+                async function startLiveRecording() {
+                    try {
+                        // Initialize WebSocket if needed
+                        initDemoWebSocket();
+                        
+                        // Get microphone access
+                        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                        demoMediaRecorder = new MediaRecorder(stream);
+                        demoAudioChunks = [];
+                        
+                        demoMediaRecorder.ondataavailable = function(event) {
+                            if (event.data.size > 0) {
+                                demoAudioChunks.push(event.data);
+                            }
+                        };
+                        
+                        demoMediaRecorder.onstop = function() {
+                            const audioBlob = new Blob(demoAudioChunks, { type: 'audio/wav' });
+                            sendDemoAudioToServer(audioBlob);
+                        };
+                        
+                        demoMediaRecorder.start();
+                        isDemoRecording = true;
+                        
+                        // Update UI
+                        document.getElementById('startRecordingDemo').disabled = true;
+                        document.getElementById('stopRecordingDemo').disabled = false;
+                        document.getElementById('recordingStatus').innerHTML = '🔴 Recording...';
+                        document.getElementById('recordingStatus').style.color = '#dc3545';
+                        document.getElementById('liveSpeechResult').innerHTML = '🎙️ Recording in progress... Speak now!';
+                        
+                        // Emit start recording event
+                        if (demoSocket) {
+                            demoSocket.emit('start_recording', {
+                                language: document.getElementById('demoLanguage').value
+                            });
+                        }
+                        
+                    } catch (error) {
+                        console.error('Error starting demo recording:', error);
+                        document.getElementById('liveSpeechResult').innerHTML = 
+                            '<div class="result error"><strong>❌ Microphone Error:</strong> ' + error.message + 
+                            '<br><small>Please allow microphone access and try again.</small></div>';
+                    }
+                }
+                
+                function stopLiveRecording() {
+                    if (demoMediaRecorder && isDemoRecording) {
+                        demoMediaRecorder.stop();
+                        isDemoRecording = false;
+                        
+                        // Stop all tracks
+                        demoMediaRecorder.stream.getTracks().forEach(track => track.stop());
+                        
+                        // Update UI
+                        document.getElementById('startRecordingDemo').disabled = false;
+                        document.getElementById('stopRecordingDemo').disabled = true;
+                        document.getElementById('recordingStatus').innerHTML = '🔄 Processing...';
+                        document.getElementById('recordingStatus').style.color = '#667eea';
+                        document.getElementById('liveSpeechResult').innerHTML = '🔄 Processing audio for transcription...';
+                        
+                        // Emit stop recording event
+                        if (demoSocket) {
+                            demoSocket.emit('stop_recording', {});
+                        }
+                    }
+                }
+                
+                function sendDemoAudioToServer(audioBlob) {
+                    const reader = new FileReader();
+                    reader.onload = function() {
+                        const base64Data = reader.result.split(',')[1];
+                        if (demoSocket) {
+                            demoSocket.emit('audio_chunk', {
+                                audio_data: base64Data,
+                                language: document.getElementById('demoLanguage').value
+                            });
+                        }
+                        
+                        // Reset status
+                        document.getElementById('recordingStatus').innerHTML = 'Ready to record';
+                        document.getElementById('recordingStatus').style.color = '#666';
+                    };
+                    reader.readAsDataURL(audioBlob);
                 }
                 
                 function testWebSocket() {

@@ -28,6 +28,7 @@ from datetime import datetime
 from flask import Flask, jsonify, render_template, request, send_from_directory
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
+from flask_swagger_ui import get_swaggerui_blueprint
 from werkzeug.utils import secure_filename
 
 # Import our modular components
@@ -69,6 +70,14 @@ upload_handler = UploadHandler(model, WHISPER_AVAILABLE, system_stats)
 live_speech_handler = LiveSpeechHandler(model, WHISPER_AVAILABLE, system_stats, connected_clients)
 admin_panel = AdminPanel(WHISPER_AVAILABLE, system_stats, connected_clients, model)
 api_docs = APIDocs(version="0.7.0")
+
+# Configure SwaggerUI
+SWAGGER_URL = "/docs"
+API_URL = "/api/openapi.json"
+swaggerui_blueprint = get_swaggerui_blueprint(
+    SWAGGER_URL, API_URL, config={"app_name": "WhisperS2T API Documentation", "deepLinking": True}
+)
+app.register_blueprint(swaggerui_blueprint, url_prefix=SWAGGER_URL)
 
 
 # ==================== MAIN ROUTES ====================
@@ -401,6 +410,12 @@ def api_status():
     )
 
 
+@app.route("/api/openapi.json")
+def openapi_spec():
+    """OpenAPI 3.0 specification for SwaggerUI"""
+    return jsonify(api_docs.get_openapi_spec(request))
+
+
 # ==================== INTERFACE ROUTES ====================
 
 
@@ -414,12 +429,6 @@ def admin():
 def demo():
     """Demo Interface - Delegated to AdminPanel"""
     return admin_panel.get_demo_interface()
-
-
-@app.route("/docs")
-def docs():
-    """API Documentation - Delegated to APIDocs"""
-    return api_docs.get_docs_interface()
 
 
 # ==================== WEBSOCKET HANDLERS ====================

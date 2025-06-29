@@ -69,7 +69,7 @@ except Exception as e:
 upload_handler = UploadHandler(model, WHISPER_AVAILABLE, system_stats)
 live_speech_handler = LiveSpeechHandler(model, WHISPER_AVAILABLE, system_stats, connected_clients)
 admin_panel = AdminPanel(WHISPER_AVAILABLE, system_stats, connected_clients, model)
-api_docs = APIDocs(version="0.7.0")
+api_docs = APIDocs(version="0.7.1")
 
 # Configure SwaggerUI
 SWAGGER_URL = "/docs"
@@ -349,7 +349,7 @@ def health():
         {
             "status": "healthy",
             "whisper_available": WHISPER_AVAILABLE,
-            "version": "0.7.0",
+            "version": "0.7.1",
             "uptime_seconds": uptime,
             "total_transcriptions": system_stats["total_transcriptions"],
             "active_connections": len(connected_clients),
@@ -378,7 +378,7 @@ def api_status():
     return jsonify(
         {
             "service": "WhisperS2T Enhanced Appliance",
-            "version": "0.7.0",
+            "version": "0.7.1",
             "status": "running",
             "whisper": {
                 "available": WHISPER_AVAILABLE,
@@ -479,7 +479,7 @@ def handle_transcription_error(data):
 # ==================== STARTUP ====================
 
 if __name__ == "__main__":
-    logger.info("🎤 Starting Enhanced WhisperS2T Appliance v0.7.0...")
+    logger.info("🎤 Starting Enhanced WhisperS2T Appliance v0.7.1...")
     logger.info("🏗️ Architecture: Modular (live_speech, upload_handler, admin_panel, api_docs)")
     logger.info("🌐 Main Interface: http://0.0.0.0:5001")
     logger.info("⚙️ Admin Panel: http://0.0.0.0:5001/admin")

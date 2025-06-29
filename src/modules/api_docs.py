@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class APIDocs:
     """Manages SwaggerUI API documentation interface"""
 
-    def __init__(self, version="0.7.0"):
+    def __init__(self, version="0.7.1"):
         self.version = version
 
     def get_current_base_url(self, request_obj):

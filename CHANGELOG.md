@@ -5,6 +5,29 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.1] - 2025-06-29
+
+### Added
+- **📚 Professional SwaggerUI**: Replaced custom API documentation with industry-standard SwaggerUI
+- **🎙️ Live Speech Demo**: Complete microphone recording demo in /demo interface
+- **🔄 Dynamic Base URL**: API documentation automatically detects current server URL
+- **📱 Interactive API Testing**: "Try it out" functionality directly in SwaggerUI
+
+### Changed
+- **🎯 API Documentation**: Migrated from custom HTML to OpenAPI 3.0 specification
+- **🌐 Demo Interface**: Enhanced with real-time speech recording and testing
+- **📊 Professional Standards**: Industry-standard API documentation interface
+
+### Fixed
+- **🔗 Hardcoded URLs**: Removed "your-server:5001" with dynamic URL detection
+- **📝 Documentation Quality**: Professional appearance matching industry standards
+
+### Technical Details
+- **SwaggerUI Integration**: OpenAPI 3.0 with complete endpoint documentation
+- **Live Speech Demo**: Start/stop recording, language selection, visual feedback
+- **WebSocket Integration**: Real-time audio processing in demo interface
+- **Dynamic Configuration**: Server URL automatically detected from request headers
+
 ## [0.7.0] - 2025-06-29
 
 ### Added

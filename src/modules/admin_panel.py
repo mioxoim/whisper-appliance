@@ -212,7 +212,7 @@ class AdminPanel:
                     <table>
                         <tr><th>Property</th><th>Value</th></tr>
                         <tr><td>Service Name</td><td>WhisperS2T Enhanced Appliance</td></tr>
-                        <tr><td>Version</td><td>0.7.0</td></tr>
+                        <tr><td>Version</td><td>0.7.1</td></tr>
                         <tr><td>Framework</td><td>Flask + SocketIO</td></tr>
                         <tr><td>Whisper Available</td><td>{"Yes" if self.whisper_available else "No"}</td></tr>
                         <tr><td>Model Type</td><td>{"base" if self.model else "Not loaded"}</td></tr>

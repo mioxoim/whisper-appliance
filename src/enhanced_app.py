@@ -26,6 +26,7 @@ connected_clients = []
 whisper_model = None
 system_ready = True
 
+
 @app.get("/")
 async def root():
     """Original Enhanced Interface - EXACT match to screenshots"""
@@ -472,35 +473,38 @@ async def root():
     """
     return HTMLResponse(content=html)
 
+
 @app.websocket("/ws/audio")
 async def websocket_audio(websocket: WebSocket):
     """WebSocket endpoint for audio communication"""
     await websocket.accept()
     connected_clients.append(websocket)
-    
+
     try:
         while True:
             data = await websocket.receive_text()
             message = json.loads(data)
-            
+
             if message.get("action") == "start_recording":
-                await websocket.send_text(json.dumps({
-                    "type": "recording_started",
-                    "device": message.get("device", "unknown"),
-                    "language": message.get("language", "auto"),
-                    "test_mode": message.get("test_mode", "disabled"),
-                    "timestamp": datetime.now().isoformat()
-                }))
-                
+                await websocket.send_text(
+                    json.dumps(
+                        {
+                            "type": "recording_started",
+                            "device": message.get("device", "unknown"),
+                            "language": message.get("language", "auto"),
+                            "test_mode": message.get("test_mode", "disabled"),
+                            "timestamp": datetime.now().isoformat(),
+                        }
+                    )
+                )
+
             elif message.get("action") == "stop_recording":
-                await websocket.send_text(json.dumps({
-                    "type": "recording_stopped",
-                    "timestamp": datetime.now().isoformat()
-                }))
-                
+                await websocket.send_text(json.dumps({"type": "recording_stopped", "timestamp": datetime.now().isoformat()}))
+
     except WebSocketDisconnect:
         connected_clients.remove(websocket)
         print("Client disconnected from WebSocket")
+
 
 @app.get("/health")
 def health_check():
@@ -515,22 +519,26 @@ def health_check():
             "multi_language": True,
             "device_selection": True,
             "real_microphone": True,
-            "test_modes": True
-        }
+            "test_modes": True,
+        },
     }
+
 
 @app.get("/demo")
 async def demo_page():
     """Demo page endpoint for testing"""
     return {"message": "Demo page - use main interface at /"}
 
+
 @app.get("/admin")
 async def admin_page():
     """Admin page endpoint"""
     return {"message": "Admin functionality - use main interface at /"}
 
+
 if __name__ == "__main__":
     import uvicorn
+
     print("🎤 Starting Enhanced WhisperS2T Appliance v0.4.0-working...")
     print("🌐 Interface: http://localhost:5000")
     print("✨ Original Enhanced UI with Purple Gradient")

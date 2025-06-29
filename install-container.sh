@@ -129,7 +129,9 @@ sudo -u whisper python3 -m pip install --user \
     soundfile \
     pydub \
     requests \
-    python-multipart
+    python-multipart \
+    sounddevice \
+    numpy
 
 # Copy application files if in repository
 if [ -d "./src" ]; then
@@ -142,7 +144,7 @@ if [ -d "./src" ]; then
     # Use enhanced app with update functionality if available
     if [ -f "./src/enhanced_app.py" ]; then
         print_status "Installing enhanced app with update management"
-        cp ./src/enhanced_app.py /opt/whisper-appliance/src/app.py
+        cp ./src/enhanced_app.py /opt/whisper-appliance/src/enhanced_app.py
     fi
     
     # Copy auto-updater script
@@ -235,7 +237,7 @@ nginx -t
 # Create basic health check endpoint
 print_section "🏥 Creating Health Check"
 mkdir -p /opt/whisper-appliance/src
-cat > /opt/whisper-appliance/src/app.py << 'EOF'
+cat > /opt/whisper-appliance/src/enhanced_app.py << 'EOF'
 #!/usr/bin/env python3
 import os
 import tempfile

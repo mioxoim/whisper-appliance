@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.6.2] - 2025-06-29
+
+### Fixed
+- **Critical Deployment Fix**: Resolved gunicorn service exit-code 3 error in Proxmox deployment
+- **File Naming Consistency**: Fixed enhanced_app.py vs app.py naming conflict in deployment scripts
+- **Service Configuration**: Updated all scripts to use consistent `src.enhanced_app:app` module path
+- **Audio Dependencies**: Added missing sounddevice and numpy packages for live speech functionality
+
+### Changed
+- **Script Consistency**: Updated proxmox-standalone.sh to save enhanced_app.py with correct filename
+- **Install Scripts**: Fixed install-container.sh to create enhanced_app.py instead of app.py
+- **Service Files**: All systemd services now correctly reference src.enhanced_app:app
+
+### Technical Details
+- Resolved module import error where service tried to load src.enhanced_app:app but file was saved as app.py
+- Enhanced deployment reliability by fixing download/save filename consistency
+- Improved audio input support with proper dependency installation
+
 ## [0.6.1] - 2025-06-29
 
 ### Fixed

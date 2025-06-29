@@ -188,7 +188,7 @@ sudo -u whisper python3 -m pip install --user \
 # Function to create fallback app if GitHub download fails
 create_fallback_app() {
     print_warning "Creating basic fallback application..."
-    cat > /opt/whisper-appliance/src/app.py << 'FALLBACK_APP_EOF'
+    cat > /opt/whisper-appliance/src/enhanced_app.py << 'FALLBACK_APP_EOF'
 #!/usr/bin/env python3
 """
 WhisperS2T Fallback Application
@@ -454,7 +454,7 @@ mkdir -p /opt/whisper-appliance/src/whisper-service
 
 # Download the enhanced app with live speech from GitHub
 if ! download_file "https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/src/enhanced_app.py" \
-                  "/opt/whisper-appliance/src/app.py" \
+                  "/opt/whisper-appliance/src/enhanced_app.py" \
                   "Enhanced WhisperS2T App"; then
     print_warning "GitHub download failed, creating basic fallback app..."
     create_fallback_app

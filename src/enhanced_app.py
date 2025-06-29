@@ -12,7 +12,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 
-app = FastAPI(title="Enhanced WhisperS2T Appliance", version="0.6.1")
+app = FastAPI(title="Enhanced WhisperS2T Appliance", version="0.6.2")
 
 app.add_middleware(
     CORSMiddleware,

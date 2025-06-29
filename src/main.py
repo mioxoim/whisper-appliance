@@ -19,19 +19,19 @@ Main entry point with preserved functionality and enhanced architecture
 - Improved error handling and logging
 """
 
-import os
 import logging
+import os
 import tempfile
 from datetime import datetime
 
 # Flask and extensions
-from flask import Flask, render_template, jsonify, request, send_from_directory
+from flask import Flask, jsonify, render_template, request, send_from_directory
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
 from werkzeug.utils import secure_filename
 
 # Import our modular components
-from modules import LiveSpeechHandler, UploadHandler, AdminPanel, APIDocs
+from modules import AdminPanel, APIDocs, LiveSpeechHandler, UploadHandler
 
 # Initialize Flask app
 app = Flask(__name__)

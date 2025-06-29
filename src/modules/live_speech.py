@@ -5,11 +5,12 @@ Preserves all original WebSocket features and enhances with real implementation
 """
 
 import logging
+import os
+import tempfile
 from datetime import datetime
+
 from flask import request
 from flask_socketio import emit
-import tempfile
-import os
 
 logger = logging.getLogger(__name__)
 

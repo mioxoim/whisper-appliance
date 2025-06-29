@@ -6,6 +6,7 @@ Preserves all original admin features and enhances with navigation
 
 import logging
 from datetime import datetime
+
 from flask import render_template_string
 
 logger = logging.getLogger(__name__)

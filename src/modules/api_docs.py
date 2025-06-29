@@ -5,6 +5,7 @@ Preserves all original API docs features and enhances with better structure
 """
 
 import logging
+
 from flask import render_template_string
 
 logger = logging.getLogger(__name__)

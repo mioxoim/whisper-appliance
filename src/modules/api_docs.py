@@ -9,12 +9,13 @@ from flask import render_template_string
 
 logger = logging.getLogger(__name__)
 
+
 class APIDocs:
     """Manages API documentation interface"""
-    
+
     def __init__(self, version="0.7.0"):
         self.version = version
-    
+
     def get_docs_interface(self):
         """Enhanced API Documentation - Swagger-like interface with navigation"""
         docs_html = f"""

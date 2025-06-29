@@ -10,18 +10,19 @@ from flask import render_template_string
 
 logger = logging.getLogger(__name__)
 
+
 class AdminPanel:
     """Manages admin interface and system monitoring"""
-    
+
     def __init__(self, whisper_available, system_stats, connected_clients, model):
         self.whisper_available = whisper_available
         self.system_stats = system_stats
         self.connected_clients = connected_clients
         self.model = model
-    
+
     def get_admin_interface(self):
         """Enhanced Admin Panel with Navigation - Preserving original + adding navigation"""
-        uptime = (datetime.now() - self.system_stats['uptime_start']).total_seconds()
+        uptime = (datetime.now() - self.system_stats["uptime_start"]).total_seconds()
         uptime_formatted = f"{int(uptime // 3600)}h {int((uptime % 3600) // 60)}m {int(uptime % 60)}s"
 
         admin_html = f"""
@@ -223,7 +224,7 @@ class AdminPanel:
         </html>
         """
         return admin_html
-    
+
     def get_demo_interface(self):
         """Enhanced Demo Interface - Preserving original functionality"""
         demo_html = """

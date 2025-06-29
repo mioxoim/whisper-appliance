@@ -4,11 +4,11 @@ Enhanced WhisperS2T Appliance - Modular Version
 Main entry point with preserved functionality and enhanced architecture
 
 🚨 ALL ORIGINAL FEATURES PRESERVED:
-- Purple Gradient UI (Original Enhanced Interface)  
+- Purple Gradient UI (Original Enhanced Interface)
 - Live Speech WebSocket (now with REAL implementation)
-- Upload Transcription 
+- Upload Transcription
 - Admin Panel with Navigation
-- API Documentation 
+- API Documentation
 - Health Check & Status Endpoints
 - Demo Interface
 
@@ -35,32 +35,26 @@ from modules import LiveSpeechHandler, UploadHandler, AdminPanel, APIDocs
 
 # Initialize Flask app
 app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max file size
-app.config['SECRET_KEY'] = 'whisper-s2t-enhanced-secret-key'
+app.config["MAX_CONTENT_LENGTH"] = 100 * 1024 * 1024  # 100MB max file size
+app.config["SECRET_KEY"] = "whisper-s2t-enhanced-secret-key"
 CORS(app)
 
 # Initialize SocketIO
 socketio = SocketIO(app, cors_allowed_origins="*")
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
 # System statistics and state
-system_stats = {
-    'uptime_start': datetime.now(),
-    'total_transcriptions': 0,
-    'active_connections': 0
-}
+system_stats = {"uptime_start": datetime.now(), "total_transcriptions": 0, "active_connections": 0}
 connected_clients = []
 system_ready = True
 
 # Try to load Whisper model
 try:
     import whisper
+
     logger.info("Loading Whisper model...")
     model = whisper.load_model("base")
     WHISPER_AVAILABLE = True
@@ -79,15 +73,16 @@ api_docs = APIDocs(version="0.7.0")
 
 # ==================== MAIN ROUTES ====================
 
-@app.route('/')
+
+@app.route("/")
 def index():
     """Enhanced Purple Gradient Interface - Original UI Preserved"""
     status_text = "🟢 System Ready" if WHISPER_AVAILABLE else "🔴 Whisper Unavailable"
-    
+
     try:
-        with open('/home/commander/Code/whisper-appliance/src/templates/main_interface.html', 'r') as f:
+        with open("/home/commander/Code/whisper-appliance/src/templates/main_interface.html", "r") as f:
             template = f.read()
-        
+
         # Inject status and enhanced JavaScript
         enhanced_js = """
         <script>
@@ -315,13 +310,13 @@ def index():
         });
         </script>
         """
-        
+
         # Replace placeholder and inject JavaScript
-        template = template.replace('{{ status_text }}', status_text)
-        template = template.replace('</body>', enhanced_js + '</body>')
-        
+        template = template.replace("{{ status_text }}", status_text)
+        template = template.replace("</body>", enhanced_js + "</body>")
+
         return template
-        
+
     except Exception as e:
         logger.error(f"Error loading main interface: {e}")
         # Fallback simple interface
@@ -336,81 +331,92 @@ def index():
 
 # ==================== API ROUTES ====================
 
-@app.route('/health')
+
+@app.route("/health")
 def health():
     """Health check endpoint - Original functionality preserved"""
-    uptime = (datetime.now() - system_stats['uptime_start']).total_seconds()
-    return jsonify({
-        'status': 'healthy',
-        'whisper_available': WHISPER_AVAILABLE,
-        'version': '0.7.0',
-        'uptime_seconds': uptime,
-        'total_transcriptions': system_stats['total_transcriptions'],
-        'active_connections': len(connected_clients),
-        'system_ready': system_ready,
-        'timestamp': datetime.now().isoformat()
-    })
+    uptime = (datetime.now() - system_stats["uptime_start"]).total_seconds()
+    return jsonify(
+        {
+            "status": "healthy",
+            "whisper_available": WHISPER_AVAILABLE,
+            "version": "0.7.0",
+            "uptime_seconds": uptime,
+            "total_transcriptions": system_stats["total_transcriptions"],
+            "active_connections": len(connected_clients),
+            "system_ready": system_ready,
+            "timestamp": datetime.now().isoformat(),
+        }
+    )
 
-@app.route('/transcribe', methods=['POST'])
+
+@app.route("/transcribe", methods=["POST"])
 def transcribe():
     """Upload transcription - Delegated to UploadHandler"""
     return upload_handler.transcribe_upload()
 
-@app.route('/api/transcribe-live', methods=['POST'])
+
+@app.route("/api/transcribe-live", methods=["POST"])
 def transcribe_live():
     """Live transcription API - Delegated to UploadHandler"""
     return upload_handler.transcribe_live_api()
 
-@app.route('/api/status')
+
+@app.route("/api/status")
 def api_status():
     """Detailed API status - Enhanced version"""
-    uptime = (datetime.now() - system_stats['uptime_start']).total_seconds()
-    return jsonify({
-        'service': 'WhisperS2T Enhanced Appliance',
-        'version': '0.7.0',
-        'status': 'running',
-        'whisper': {
-            'available': WHISPER_AVAILABLE,
-            'model_loaded': model is not None,
-            'model_type': 'base' if model else None
-        },
-        'statistics': {
-            'uptime_seconds': uptime,
-            'total_transcriptions': system_stats['total_transcriptions'],
-            'active_websocket_connections': len(connected_clients),
-            'system_ready': system_ready
-        },
-        'endpoints': {
-            'main_interface': '/',
-            'health_check': '/health',
-            'upload_transcription': '/transcribe',
-            'live_transcription': '/api/transcribe-live',
-            'api_documentation': '/docs',
-            'admin_panel': '/admin',
-            'demo_interface': '/demo'
-        },
-        'architecture': {
-            'framework': 'Flask + SocketIO',
-            'modules': ['live_speech', 'upload_handler', 'admin_panel', 'api_docs'],
-            'features': ['Purple Gradient UI', 'Real WebSocket', 'Navigation', 'Modular']
-        },
-        'timestamp': datetime.now().isoformat()
-    })
+    uptime = (datetime.now() - system_stats["uptime_start"]).total_seconds()
+    return jsonify(
+        {
+            "service": "WhisperS2T Enhanced Appliance",
+            "version": "0.7.0",
+            "status": "running",
+            "whisper": {
+                "available": WHISPER_AVAILABLE,
+                "model_loaded": model is not None,
+                "model_type": "base" if model else None,
+            },
+            "statistics": {
+                "uptime_seconds": uptime,
+                "total_transcriptions": system_stats["total_transcriptions"],
+                "active_websocket_connections": len(connected_clients),
+                "system_ready": system_ready,
+            },
+            "endpoints": {
+                "main_interface": "/",
+                "health_check": "/health",
+                "upload_transcription": "/transcribe",
+                "live_transcription": "/api/transcribe-live",
+                "api_documentation": "/docs",
+                "admin_panel": "/admin",
+                "demo_interface": "/demo",
+            },
+            "architecture": {
+                "framework": "Flask + SocketIO",
+                "modules": ["live_speech", "upload_handler", "admin_panel", "api_docs"],
+                "features": ["Purple Gradient UI", "Real WebSocket", "Navigation", "Modular"],
+            },
+            "timestamp": datetime.now().isoformat(),
+        }
+    )
 
 
 # ==================== INTERFACE ROUTES ====================
 
-@app.route('/admin')
+
+@app.route("/admin")
 def admin():
     """Admin Panel - Delegated to AdminPanel"""
     return admin_panel.get_admin_interface()
 
-@app.route('/demo') 
+
+@app.route("/demo")
 def demo():
     """Demo Interface - Delegated to AdminPanel"""
     return admin_panel.get_demo_interface()
 
-@app.route('/docs')
+
+@app.route("/docs")
 def docs():
     """API Documentation - Delegated to APIDocs"""
     return api_docs.get_docs_interface()
@@ -418,37 +424,44 @@ def docs():
 
 # ==================== WEBSOCKET HANDLERS ====================
 
-@socketio.on('connect')
+
+@socketio.on("connect")
 def handle_connect():
     """WebSocket connect - Delegated to LiveSpeechHandler"""
     return live_speech_handler.handle_connect()
 
-@socketio.on('disconnect')
+
+@socketio.on("disconnect")
 def handle_disconnect():
     """WebSocket disconnect - Delegated to LiveSpeechHandler"""
     return live_speech_handler.handle_disconnect()
 
-@socketio.on('audio_chunk')
+
+@socketio.on("audio_chunk")
 def handle_audio_chunk(data):
     """Audio chunk processing - NEW REAL IMPLEMENTATION"""
     return live_speech_handler.handle_audio_chunk(data)
 
-@socketio.on('start_recording')
+
+@socketio.on("start_recording")
 def handle_start_recording(data):
     """Start recording - NEW FEATURE"""
     return live_speech_handler.handle_start_recording(data)
 
-@socketio.on('stop_recording')
+
+@socketio.on("stop_recording")
 def handle_stop_recording(data):
     """Stop recording - NEW FEATURE"""
     return live_speech_handler.handle_stop_recording(data)
 
-@socketio.on('transcription_result')
+
+@socketio.on("transcription_result")
 def handle_transcription_result(data):
     """Transcription result - Original functionality preserved"""
     return live_speech_handler.handle_transcription_result(data)
 
-@socketio.on('transcription_error')
+
+@socketio.on("transcription_error")
 def handle_transcription_error(data):
     """Transcription error - Original functionality preserved"""
     return live_speech_handler.handle_transcription_error(data)
@@ -456,7 +469,7 @@ def handle_transcription_error(data):
 
 # ==================== STARTUP ====================
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     logger.info("🎤 Starting Enhanced WhisperS2T Appliance v0.7.0...")
     logger.info("🏗️ Architecture: Modular (live_speech, upload_handler, admin_panel, api_docs)")
     logger.info("🌐 Main Interface: http://0.0.0.0:5001")
@@ -465,6 +478,6 @@ if __name__ == '__main__':
     logger.info("🎯 Demo Interface: http://0.0.0.0:5001/demo")
     logger.info("🏥 Health Check: http://0.0.0.0:5001/health")
     logger.info("✨ Features: Purple Gradient UI + REAL Live Speech + Upload + Full Navigation")
-    
+
     # Run with SocketIO
-    socketio.run(app, host='0.0.0.0', port=5001, debug=False, allow_unsafe_werkzeug=True)
+    socketio.run(app, host="0.0.0.0", port=5001, debug=False, allow_unsafe_werkzeug=True)

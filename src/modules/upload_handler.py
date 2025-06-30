@@ -18,10 +18,11 @@ logger = logging.getLogger(__name__)
 class UploadHandler:
     """Handles audio file upload and transcription"""
 
-    def __init__(self, model_manager, whisper_available, system_stats):
+    def __init__(self, model_manager, whisper_available, system_stats, chat_history):
         self.model_manager = model_manager
         self.whisper_available = whisper_available
         self.system_stats = system_stats
+        self.chat_history = chat_history
 
     def transcribe_upload(self):
         """Transcribe uploaded audio file - Original functionality preserved"""
@@ -56,6 +57,19 @@ class UploadHandler:
                 logger.info("Transcription completed successfully")
 
                 if result:
+                    # Save to chat history
+                    try:
+                        self.chat_history.add_transcription(
+                            text=result["text"],
+                            language=result.get("language", "unknown"),
+                            model_used=current_model,
+                            source_type="upload",
+                            filename=filename,
+                            metadata={"timestamp": datetime.now().isoformat()},
+                        )
+                    except Exception as e:
+                        logger.warning(f"Failed to save transcription to history: {e}")
+
                     return jsonify(
                         {
                             "text": result["text"],
@@ -96,6 +110,19 @@ class UploadHandler:
                 os.unlink(tmp_file.name)
 
                 self.system_stats["total_transcriptions"] += 1
+
+                # Save to chat history
+                try:
+                    self.chat_history.add_transcription(
+                        text=result["text"],
+                        language=result.get("language", "unknown"),
+                        model_used=self.model_manager.get_current_model_name(),
+                        source_type="live_api",
+                        metadata={"language_requested": language, "timestamp": datetime.now().isoformat()},
+                    )
+                except Exception as e:
+                    logger.warning(f"Failed to save live transcription to history: {e}")
+
                 return jsonify(
                     {
                         "text": result["text"],

@@ -8,10 +8,11 @@ __author__ = "WhisperS2T Team"
 
 from .admin_panel import AdminPanel
 from .api_docs import APIDocs
+from .chat_history import ChatHistoryManager
 
 # Module exports
 from .live_speech import LiveSpeechHandler
 from .model_manager import ModelManager
 from .upload_handler import UploadHandler
 
-__all__ = ["LiveSpeechHandler", "UploadHandler", "AdminPanel", "APIDocs", "ModelManager"]
+__all__ = ["LiveSpeechHandler", "UploadHandler", "AdminPanel", "APIDocs", "ModelManager", "ChatHistoryManager"]

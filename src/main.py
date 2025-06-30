@@ -32,7 +32,7 @@ from flask_swagger_ui import get_swaggerui_blueprint
 from werkzeug.utils import secure_filename
 
 # Import our modular components
-from modules import AdminPanel, APIDocs, LiveSpeechHandler, ModelManager, UploadHandler
+from modules import AdminPanel, APIDocs, ChatHistoryManager, LiveSpeechHandler, ModelManager, UploadHandler
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -52,27 +52,48 @@ system_stats = {"uptime_start": datetime.now(), "total_transcriptions": 0, "acti
 connected_clients = []
 system_ready = True
 
-# Initialize Model Manager
-model_manager = ModelManager()
+# Initialize Model Manager and Chat History
+try:
+    model_manager = ModelManager()
+    chat_history = ChatHistoryManager()
+    logger.info("✅ Model Manager and Chat History initialized")
+except Exception as e:
+    logger.error(f"❌ Failed to initialize core components: {e}")
+    # Use minimal fallback components
+    model_manager = None
+    chat_history = None
 
 # Try to load default Whisper model
-try:
-    logger.info("Loading default Whisper model...")
-    if model_manager.load_model("base"):
-        WHISPER_AVAILABLE = True
-        logger.info("✅ Whisper model loaded successfully")
-    else:
+WHISPER_AVAILABLE = False
+if model_manager:
+    try:
+        logger.info("Loading default Whisper model...")
+        if model_manager.load_model("base"):
+            WHISPER_AVAILABLE = True
+            logger.info("✅ Whisper model loaded successfully")
+        else:
+            WHISPER_AVAILABLE = False
+            logger.warning("⚠️ Failed to load default model, will try on-demand")
+    except Exception as e:
+        logger.error(f"❌ Failed to load Whisper model: {e}")
         WHISPER_AVAILABLE = False
-        logger.warning("⚠️ Failed to load default model, will try on-demand")
-except Exception as e:
-    logger.error(f"❌ Failed to load Whisper model: {e}")
-    WHISPER_AVAILABLE = False
+else:
+    logger.warning("⚠️ Model Manager not available")
 
-# Initialize module handlers with ModelManager
-upload_handler = UploadHandler(model_manager, WHISPER_AVAILABLE, system_stats)
-live_speech_handler = LiveSpeechHandler(model_manager, WHISPER_AVAILABLE, system_stats, connected_clients)
-admin_panel = AdminPanel(WHISPER_AVAILABLE, system_stats, connected_clients, model_manager)
-api_docs = APIDocs(version="0.9.0")
+# Initialize module handlers with proper fallback handling
+try:
+    upload_handler = UploadHandler(model_manager, WHISPER_AVAILABLE, system_stats, chat_history)
+    live_speech_handler = LiveSpeechHandler(model_manager, WHISPER_AVAILABLE, system_stats, connected_clients, chat_history)
+    admin_panel = AdminPanel(WHISPER_AVAILABLE, system_stats, connected_clients, model_manager, chat_history)
+    api_docs = APIDocs(version="0.9.0")
+    logger.info("✅ All module handlers initialized")
+except Exception as e:
+    logger.error(f"❌ Failed to initialize module handlers: {e}")
+    # Create minimal fallback handlers
+    upload_handler = None
+    live_speech_handler = None
+    admin_panel = None
+    api_docs = None
 
 # Configure SwaggerUI
 SWAGGER_URL = "/docs"
@@ -180,15 +201,94 @@ def switch_model(model_name):
     return jsonify({"message": f"Loading model: {model_name}", "target_model": model_name, "status": "loading"})
 
 
+@app.route("/api/models/download-status", methods=["GET"])
+def get_model_download_status():
+    """Get detailed download status for all models"""
+    return jsonify(
+        {
+            "download_status": model_manager.get_download_status(),
+            "summary": {
+                "total_models": len(model_manager.get_available_models()),
+                "downloaded_count": len(model_manager.downloaded_models),
+                "pending_count": len(
+                    [m for m in model_manager.get_available_models() if m not in model_manager.downloaded_models]
+                ),
+            },
+            "status": "success",
+        }
+    )
+
+
+# ==================== CHAT HISTORY ROUTES ====================
+
+
+@app.route("/api/chat-history", methods=["GET"])
+def get_chat_history():
+    """Get recent chat history"""
+    limit = request.args.get("limit", 50, type=int)
+    source_type = request.args.get("source", None)
+
+    if source_type:
+        transcriptions = chat_history.get_transcriptions_by_source(source_type, limit)
+    else:
+        transcriptions = chat_history.get_recent_transcriptions(limit)
+
+    return jsonify({"transcriptions": transcriptions, "count": len(transcriptions), "status": "success"})
+
+
+@app.route("/api/chat-history/search", methods=["GET"])
+def search_chat_history():
+    """Search chat history"""
+    query = request.args.get("q", "")
+    limit = request.args.get("limit", 50, type=int)
+
+    if not query:
+        return jsonify({"error": "Search query required", "status": "error"}), 400
+
+    results = chat_history.search_transcriptions(query, limit)
+    return jsonify({"results": results, "count": len(results), "query": query, "status": "success"})
+
+
+@app.route("/api/chat-history/stats", methods=["GET"])
+def get_chat_history_stats():
+    """Get chat history statistics"""
+    stats = chat_history.get_statistics()
+    return jsonify({"statistics": stats, "status": "success"})
+
+
+@app.route("/api/chat-history/export", methods=["GET"])
+def export_chat_history():
+    """Export chat history"""
+    format = request.args.get("format", "json")
+
+    if format not in ["json", "csv"]:
+        return jsonify({"error": "Invalid format. Use 'json' or 'csv'", "status": "error"}), 400
+
+    exported_data = chat_history.export_history(format)
+
+    if format == "csv":
+        from flask import Response
+
+        return Response(
+            exported_data, mimetype="text/csv", headers={"Content-Disposition": "attachment; filename=chat_history.csv"}
+        )
+    else:
+        return jsonify({"data": exported_data, "format": format, "status": "success"})
+
+
 @app.route("/transcribe", methods=["POST"])
 def transcribe():
     """Upload transcription - Delegated to UploadHandler"""
+    if not upload_handler:
+        return jsonify({"error": "Upload handler not available"}), 503
     return upload_handler.transcribe_upload()
 
 
 @app.route("/api/transcribe-live", methods=["POST"])
 def transcribe_live():
     """Live transcription API - Delegated to UploadHandler"""
+    if not upload_handler:
+        return jsonify({"error": "Upload handler not available"}), 503
     return upload_handler.transcribe_live_api()
 
 

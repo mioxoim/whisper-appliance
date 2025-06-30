@@ -15,11 +15,12 @@ logger = logging.getLogger(__name__)
 class AdminPanel:
     """Manages admin interface and system monitoring"""
 
-    def __init__(self, whisper_available, system_stats, connected_clients, model_manager):
+    def __init__(self, whisper_available, system_stats, connected_clients, model_manager, chat_history):
         self.whisper_available = whisper_available
         self.system_stats = system_stats
         self.connected_clients = connected_clients
         self.model_manager = model_manager
+        self.chat_history = chat_history
 
     def get_admin_interface(self):
         """Enhanced Admin Panel with Navigation - Preserving original + adding navigation"""
@@ -260,12 +261,57 @@ class AdminPanel:
                         <tr><th>Property</th><th>Value</th></tr>
                         <tr><td>Service Name</td><td>WhisperS2T Enhanced Appliance</td></tr>
                         <tr><td>Version</td><td>0.9.0</td></tr>
-                        <tr><td>Framework</td><td>Flask + SocketIO</td></tr>
+                        <tr><td>Framework</td><td>Flask + SocketIO + SQLite</td></tr>
                         <tr><td>Whisper Available</td><td>{"Yes" if self.whisper_available else "No"}</td></tr>
-                        <tr><td>Model Type</td><td>{"base" if self.model else "Not loaded"}</td></tr>
-                        <tr><td>Architecture</td><td>Modular (live_speech, upload_handler, admin_panel, api_docs)</td></tr>
-                        <tr><td>Features</td><td>Live Speech, Upload Transcription, WebSocket, API Docs</td></tr>
+                        <tr><td>Model Type</td><td>{self.model_manager.get_current_model_name()}</td></tr>
+                        <tr><td>Architecture</td><td>Modular (live_speech, upload_handler, admin_panel, api_docs, chat_history)</td></tr>
+                        <tr><td>Features</td><td>Live Speech, Upload Transcription, WebSocket, API Docs, Chat History</td></tr>
                     </table>
+                </div>
+                
+                <!-- Chat History & Model Download Status Section -->
+                <div class="stat-card">
+                    <h3>📊 Model Download Status</h3>
+                    <div class="model-download-status">
+                        <table style="width: 100%; margin-top: 10px; border-collapse: collapse;">
+                            <tr style="background: #f8f9fa;">
+                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Model</th>
+                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Status</th>
+                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Size</th>
+                                <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Description</th>
+                            </tr>
+                            {"".join([f'''
+                            <tr>
+                                <td style="padding: 8px; border: 1px solid #ddd;"><strong>{model_info["name"]}</strong></td>
+                                <td style="padding: 8px; border: 1px solid #ddd;">
+                                    {"📦 Downloaded" if model_id in self.model_manager.downloaded_models else "⬇️ Need Download"}
+                                </td>
+                                <td style="padding: 8px; border: 1px solid #ddd;">{model_info["size"]}</td>
+                                <td style="padding: 8px; border: 1px solid #ddd;">{model_info["description"]}</td>
+                            </tr>''' for model_id, model_info in self.model_manager.get_available_models().items()])}
+                        </table>
+                    </div>
+                </div>
+                
+                <div class="stat-card">
+                    <h3>💬 Chat History Statistics</h3>
+                    <div class="chat-history-stats">
+                        {self._get_chat_history_stats_html()}
+                        <div style="margin-top: 15px;">
+                            <button onclick="loadChatHistory()" style="margin-right: 10px; padding: 5px 10px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer;">
+                                📜 View Recent History
+                            </button>
+                            <button onclick="exportChatHistory('json')" style="margin-right: 10px; padding: 5px 10px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer;">
+                                📤 Export JSON
+                            </button>
+                            <button onclick="exportChatHistory('csv')" style="padding: 5px 10px; background: #ffc107; color: black; border: none; border-radius: 3px; cursor: pointer;">
+                                📤 Export CSV
+                            </button>
+                        </div>
+                        <div id="chat-history-content" style="margin-top: 15px; max-height: 400px; overflow-y: auto; border: 1px solid #ddd; padding: 10px; background: #f8f9fa; display: none;">
+                            <!-- Chat history will be loaded here -->
+                        </div>
+                    </div>
                 </div>
             </div>
         </body>
@@ -342,6 +388,74 @@ class AdminPanel:
                         console.error('Model status update failed:', error);
                     }
                 }, 30000);
+                
+                // Chat History Functions
+                async function loadChatHistory() {
+                    const chatContent = document.getElementById('chat-history-content');
+                    
+                    try {
+                        chatContent.innerHTML = '<p>Loading chat history...</p>';
+                        chatContent.style.display = 'block';
+                        
+                        const response = await fetch('/api/chat-history?limit=20');
+                        const data = await response.json();
+                        
+                        if (data.status === 'success' && data.transcriptions.length > 0) {
+                            let historyHtml = '<h4>Recent Transcriptions:</h4>';
+                            
+                            data.transcriptions.forEach(trans => {
+                                const date = new Date(trans.timestamp).toLocaleString();
+                                historyHtml += `
+                                    <div style="border-bottom: 1px solid #ddd; padding: 10px; margin: 5px 0;">
+                                        <div style="font-size: 0.9em; color: #666;">
+                                            ${date} | ${trans.source_type} | ${trans.model_used || 'unknown'}
+                                        </div>
+                                        <div style="margin-top: 5px;">${trans.text}</div>
+                                    </div>
+                                `;
+                            });
+                            
+                            chatContent.innerHTML = historyHtml;
+                        } else {
+                            chatContent.innerHTML = '<p>No chat history found.</p>';
+                        }
+                    } catch (error) {
+                        chatContent.innerHTML = '<p>Error loading chat history: ' + error.message + '</p>';
+                    }
+                }
+                
+                async function exportChatHistory(format) {
+                    try {
+                        const response = await fetch('/api/chat-history/export?format=' + format);
+                        
+                        if (format === 'csv') {
+                            const blob = await response.blob();
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = 'chat_history.csv';
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            window.URL.revokeObjectURL(url);
+                        } else {
+                            const data = await response.json();
+                            const blob = new Blob([data.data], { type: 'application/json' });
+                            const url = window.URL.createObjectURL(blob);
+                            const a = document.createElement('a');
+                            a.href = url;
+                            a.download = 'chat_history.json';
+                            document.body.appendChild(a);
+                            a.click();
+                            document.body.removeChild(a);
+                            window.URL.revokeObjectURL(url);
+                        }
+                        
+                        alert('Chat history exported successfully!');
+                    } catch (error) {
+                        alert('Export failed: ' + error.message);
+                    }
+                }
             </script>
         """
 
@@ -349,6 +463,39 @@ class AdminPanel:
         admin_html = admin_html.replace("</body>", js_script + "</body>")
 
         return admin_html
+
+    def _get_chat_history_stats_html(self):
+        """Generate HTML for chat history statistics"""
+        try:
+            stats = self.chat_history.get_statistics()
+
+            stats_html = f"""
+                <div class="stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 10px; margin: 15px 0;">
+                    <div style="padding: 10px; background: #e8f5e8; border-radius: 5px;">
+                        <div style="font-size: 1.5em; font-weight: bold;">{stats.get('total_transcriptions', 0)}</div>
+                        <div style="font-size: 0.9em; color: #666;">Total Transcriptions</div>
+                    </div>
+                    <div style="padding: 10px; background: #e8f4fd; border-radius: 5px;">
+                        <div style="font-size: 1.5em; font-weight: bold;">{stats.get('last_24h', 0)}</div>
+                        <div style="font-size: 0.9em; color: #666;">Last 24 Hours</div>
+                    </div>
+                </div>
+                
+                <div style="margin-top: 15px;">
+                    <h4>By Source Type:</h4>
+                    <ul style="margin: 5px 0;">
+                        {"".join([f"<li>{source}: {count} transcriptions</li>" for source, count in stats.get('source_breakdown', {}).items()])}
+                    </ul>
+                    
+                    <h4>By Model:</h4>
+                    <ul style="margin: 5px 0;">
+                        {"".join([f"<li>{model}: {count} transcriptions</li>" for model, count in stats.get('model_breakdown', {}).items()])}
+                    </ul>
+                </div>
+            """
+            return stats_html
+        except Exception as e:
+            return f"<p>Error loading statistics: {e}</p>"
 
     def get_demo_interface(self):
         """Enhanced Demo Interface - Preserving original functionality"""

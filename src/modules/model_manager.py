@@ -59,6 +59,7 @@ class ModelManager:
         self.model_loading = False
         self.model_load_lock = threading.Lock()
         self.whisper_available = False
+        self.downloaded_models = set()  # Track which models are actually downloaded
 
         # Try to import whisper
         try:
@@ -66,11 +67,36 @@ class ModelManager:
 
             self.whisper = whisper
             self.whisper_available = True
-            logger.info("Whisper library available")
+            logger.info("✅ Whisper library available")
+
+            # Check which models are already downloaded
+            self._check_downloaded_models()
         except ImportError:
             self.whisper = None
             self.whisper_available = False
-            logger.warning("Whisper library not available")
+            logger.warning("⚠️ Whisper library not available - install with: pip install openai-whisper")
+
+    def _check_downloaded_models(self):
+        """Check which models are already downloaded to avoid re-downloading"""
+        if not self.whisper_available:
+            return
+
+        import os
+
+        try:
+            # Whisper stores models in ~/.cache/whisper/
+            whisper_cache = os.path.expanduser("~/.cache/whisper/")
+            if os.path.exists(whisper_cache):
+                for model_name in self.AVAILABLE_MODELS.keys():
+                    # Check for .pt files that match model names
+                    model_files = [f for f in os.listdir(whisper_cache) if f.startswith(model_name) and f.endswith(".pt")]
+                    if model_files:
+                        self.downloaded_models.add(model_name)
+                        logger.info(f"📦 Found downloaded model: {model_name}")
+
+            logger.info(f"📊 Downloaded models: {list(self.downloaded_models) if self.downloaded_models else 'None'}")
+        except Exception as e:
+            logger.warning(f"Could not check downloaded models: {e}")
 
     def load_model(self, model_name: str = "base") -> bool:
         """Load a Whisper model"""
@@ -146,4 +172,21 @@ class ModelManager:
             "model_loaded": self.current_model is not None,
             "model_loading": self.model_loading,
             "available_models": list(self.AVAILABLE_MODELS.keys()),
+            "downloaded_models": list(self.downloaded_models),
+            "models_needing_download": [m for m in self.AVAILABLE_MODELS.keys() if m not in self.downloaded_models],
         }
+
+    def is_model_downloaded(self, model_name: str) -> bool:
+        """Check if a specific model is downloaded"""
+        return model_name in self.downloaded_models
+
+    def get_download_status(self) -> Dict:
+        """Get detailed download status for all models"""
+        status = {}
+        for model_name, model_info in self.AVAILABLE_MODELS.items():
+            status[model_name] = {
+                "downloaded": model_name in self.downloaded_models,
+                "info": model_info,
+                "status": "Downloaded" if model_name in self.downloaded_models else "Needs Download",
+            }
+        return status

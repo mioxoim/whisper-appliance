@@ -18,11 +18,12 @@ logger = logging.getLogger(__name__)
 class LiveSpeechHandler:
     """Manages WebSocket connections and live speech transcription"""
 
-    def __init__(self, model_manager, whisper_available, system_stats, connected_clients):
+    def __init__(self, model_manager, whisper_available, system_stats, connected_clients, chat_history):
         self.model_manager = model_manager
         self.whisper_available = whisper_available
         self.system_stats = system_stats
         self.connected_clients = connected_clients
+        self.chat_history = chat_history
 
     def handle_connect(self):
         """Handle WebSocket connection - Original functionality preserved"""
@@ -46,7 +47,19 @@ class LiveSpeechHandler:
         logger.info(f"Client disconnected: {request.sid}")
 
     def handle_transcription_result(self, data):
-        """Broadcast transcription result to client - Original functionality"""
+        """Broadcast transcription result to client - Original functionality + save to history"""
+        # Save to chat history
+        try:
+            self.chat_history.add_transcription(
+                text=data.get("text", ""),
+                language=data.get("language", "unknown"),
+                model_used=self.model_manager.get_current_model_name(),
+                source_type="live",
+                metadata={"timestamp": datetime.now().isoformat()},
+            )
+        except Exception as e:
+            logger.warning(f"Failed to save live speech to history: {e}")
+
         emit("transcription_result", data)
 
     def handle_transcription_error(self, data):

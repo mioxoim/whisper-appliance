@@ -571,6 +571,24 @@ for i in {1..3}; do
         sleep 5
         if systemctl is-active --quiet whisper-appliance; then
             print_success "WhisperS2T service started successfully"
+            
+            # Quick connectivity test to ensure service is actually working
+            sleep 2
+            if curl -s -o /dev/null -w "%{http_code}" http://localhost:5001/ | grep -q "200\|404\|500"; then
+                print_success "Flask app responding on port 5001"
+            else
+                print_warning "Flask app not responding, attempting fix..."
+                # Stop and restart with proper working directory
+                systemctl stop whisper-appliance
+                sleep 2
+                systemctl start whisper-appliance
+                sleep 3
+                if curl -s -o /dev/null -w "%{http_code}" http://localhost:5001/ | grep -q "200\|404\|500"; then
+                    print_success "Flask app fixed and responding"
+                else
+                    print_warning "Flask app still not responding - check logs"
+                fi
+            fi
             break
         else
             print_warning "Service started but not active, checking logs..."
@@ -624,11 +642,38 @@ else
     msg_warn "Nginx may not be running properly"
 fi
 
-# Test web interface accessibility
-if timeout 10 curl -s "http://$CONTAINER_IP:5000" >/dev/null 2>&1; then
-    msg_ok "Web interface is accessible"
-else
-    msg_warn "Web interface may not be ready yet (this is normal for first startup)"
+# Test web interface accessibility with retry
+web_accessible=false
+for i in {1..3}; do
+    if timeout 10 curl -s "http://$CONTAINER_IP:5000" >/dev/null 2>&1; then
+        msg_ok "Web interface is accessible"
+        web_accessible=true
+        break
+    else
+        if [[ $i -lt 3 ]]; then
+            msg_warn "Web interface not ready, retrying in 5 seconds... (attempt $i/3)"
+            sleep 5
+        fi
+    fi
+done
+
+if [[ "$web_accessible" == "false" ]]; then
+    msg_warn "Web interface not immediately accessible - applying automated fix..."
+    pct exec $CTID -- bash -c "
+        systemctl stop whisper-appliance nginx
+        sleep 2
+        systemctl start nginx
+        sleep 2
+        systemctl start whisper-appliance
+        sleep 5
+    "
+    
+    # Final test
+    if timeout 10 curl -s "http://$CONTAINER_IP:5000" >/dev/null 2>&1; then
+        msg_ok "Web interface fixed and accessible"
+    else
+        msg_warn "Web interface requires manual troubleshooting"
+    fi
 fi
 
 # Success message

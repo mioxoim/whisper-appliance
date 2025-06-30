@@ -61,13 +61,25 @@ echo "---------------------"
 
 # Check what's listening on ports
 echo "📋 Port 80 (HTTP):"
-netstat -tlnp | grep ":80 " || echo "Nothing listening on port 80"
+if command -v netstat >/dev/null 2>&1; then
+    netstat -tlnp | grep ":80 " || echo "Nothing listening on port 80"
+else
+    ss -tlnp | grep ":80 " || echo "Nothing listening on port 80"
+fi
 
 echo "📋 Port 5000 (Nginx):"
-netstat -tlnp | grep ":5000 " || echo "Nothing listening on port 5000"
+if command -v netstat >/dev/null 2>&1; then
+    netstat -tlnp | grep ":5000 " || echo "Nothing listening on port 5000"
+else
+    ss -tlnp | grep ":5000 " || echo "Nothing listening on port 5000"
+fi
 
 echo "📋 Port 5001 (Flask):"
-netstat -tlnp | grep ":5001 " || echo "Nothing listening on port 5001"
+if command -v netstat >/dev/null 2>&1; then
+    netstat -tlnp | grep ":5001 " || echo "Nothing listening on port 5001"
+else
+    ss -tlnp | grep ":5001 " || echo "Nothing listening on port 5001"
+fi
 
 echo ""
 echo "🔍 Configuration Check:"
@@ -132,7 +144,7 @@ try:
     print('✅ All modules import successfully')
 except Exception as e:
     print(f'❌ Module import error: {e}')
-"
+" 2>/dev/null || echo "❌ Module import failed"
     
     # Fix 3: Check template loading
     echo "🔍 Checking template loading..."
@@ -144,7 +156,7 @@ if os.path.exists(template_path):
     print(f'✅ Template found: {template_path}')
 else:
     print(f'❌ Template not found: {template_path}')
-"
+" 2>/dev/null || echo "❌ Template check failed"
 fi
 
 echo ""

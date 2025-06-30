@@ -199,12 +199,13 @@ def api_status():
     return jsonify(
         {
             "service": "WhisperS2T Enhanced Appliance",
-            "version": "0.8.0",
+            "version": "0.9.0",
             "status": "running",
             "whisper": {
                 "available": WHISPER_AVAILABLE,
-                "model_loaded": model is not None,
-                "model_type": "base" if model else None,
+                "model_loaded": model_manager.get_current_model() is not None,
+                "model_type": model_manager.get_current_model_name() if model_manager.get_current_model() else None,
+                "model_loading": model_manager.is_model_loading(),
             },
             "statistics": {
                 "uptime_seconds": uptime,

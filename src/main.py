@@ -89,7 +89,11 @@ def index():
     status_text = "🟢 System Ready" if WHISPER_AVAILABLE else "🔴 Whisper Unavailable"
 
     try:
-        with open("/home/commander/Code/whisper-appliance/src/templates/main_interface.html", "r") as f:
+        # Get the directory of the current script
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        template_path = os.path.join(script_dir, "templates", "main_interface.html")
+
+        with open(template_path, "r") as f:
             template = f.read()
 
         # Inject status and enhanced JavaScript

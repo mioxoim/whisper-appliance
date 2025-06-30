@@ -175,6 +175,7 @@ sudo -u whisper python3 -m pip install --user \
     flask \
     flask-cors \
     flask-socketio \
+    flask-swagger-ui \
     gunicorn \
     librosa \
     soundfile \

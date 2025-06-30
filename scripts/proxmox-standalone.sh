@@ -519,7 +519,7 @@ After=network.target
 Type=simple
 User=whisper
 Group=whisper
-WorkingDirectory=/opt/whisper-appliance
+WorkingDirectory=/opt/whisper-appliance/src
 Environment=PATH=/home/whisper/.local/bin:/usr/local/bin:/usr/bin:/bin
 Environment=PYTHONPATH=/opt/whisper-appliance
 ExecStart=/usr/bin/python3 /opt/whisper-appliance/src/main.py

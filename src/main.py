@@ -69,7 +69,7 @@ except Exception as e:
 upload_handler = UploadHandler(model, WHISPER_AVAILABLE, system_stats)
 live_speech_handler = LiveSpeechHandler(model, WHISPER_AVAILABLE, system_stats, connected_clients)
 admin_panel = AdminPanel(WHISPER_AVAILABLE, system_stats, connected_clients, model)
-api_docs = APIDocs(version="0.7.1")
+api_docs = APIDocs(version="0.7.2")
 
 # Configure SwaggerUI
 SWAGGER_URL = "/docs"
@@ -96,237 +96,8 @@ def index():
         with open(template_path, "r") as f:
             template = f.read()
 
-        # Inject status and enhanced JavaScript
-        enhanced_js = """
-        <script>
-        // WebSocket connection and audio handling
-        let socket = null;
-        let mediaRecorder = null;
-        let audioChunks = [];
-        let isRecording = false;
-        
-        // Initialize WebSocket connection
-        function initWebSocket() {
-            socket = io();
-            
-            socket.on('connect', function() {
-                document.getElementById('ws-status').textContent = 'Connected ✅';
-                document.getElementById('ws-indicator').classList.add('connected');
-                console.log('WebSocket connected');
-            });
-            
-            socket.on('disconnect', function() {
-                document.getElementById('ws-status').textContent = 'Disconnected ❌';
-                document.getElementById('ws-indicator').classList.remove('connected');
-                console.log('WebSocket disconnected');
-            });
-            
-            socket.on('connection_status', function(data) {
-                console.log('Connection status:', data);
-                if (data.real_connection) {
-                    document.getElementById('ws-status').textContent = 'Connected (Real) ✅';
-                }
-            });
-            
-            socket.on('transcription_result', function(data) {
-                document.getElementById('liveResult').innerHTML = 
-                    '<strong>📝 ' + new Date().toLocaleTimeString() + ':</strong><br>' + 
-                    data.text + '<br><small>Language: ' + data.language + '</small>';
-            });
-            
-            socket.on('transcription_error', function(data) {
-                document.getElementById('liveResult').innerHTML = 
-                    '<span style="color: #ff6b6b;">❌ Error: ' + data.error + '</span>';
-            });
-        }
-        
-        // Initialize audio devices
-        async function initAudioDevices() {
-            try {
-                const devices = await navigator.mediaDevices.enumerateDevices();
-                const audioDevices = devices.filter(device => device.kind === 'audioinput');
-                const select = document.getElementById('deviceSelect');
-                
-                audioDevices.forEach(device => {
-                    const option = document.createElement('option');
-                    option.value = device.deviceId;
-                    option.textContent = device.label || `Microphone ${select.children.length}`;
-                    select.appendChild(option);
-                });
-            } catch (error) {
-                console.error('Error accessing audio devices:', error);
-            }
-        }
-        
-        // Start recording function
-        async function startRecording() {
-            try {
-                const deviceId = document.getElementById('deviceSelect').value;
-                const constraints = {
-                    audio: deviceId ? { deviceId: { exact: deviceId } } : true
-                };
-                
-                const stream = await navigator.mediaDevices.getUserMedia(constraints);
-                mediaRecorder = new MediaRecorder(stream);
-                audioChunks = [];
-                
-                mediaRecorder.ondataavailable = function(event) {
-                    if (event.data.size > 0) {
-                        audioChunks.push(event.data);
-                    }
-                };
-                
-                mediaRecorder.onstop = function() {
-                    const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
-                    sendAudioToServer(audioBlob);
-                };
-                
-                mediaRecorder.start();
-                isRecording = true;
-                
-                // Update UI
-                document.getElementById('startBtn').disabled = true;
-                document.getElementById('stopBtn').disabled = false;
-                document.getElementById('recordingIndicator').style.display = 'block';
-                
-                // Emit start recording event
-                if (socket) {
-                    socket.emit('start_recording', {
-                        language: document.getElementById('languageSelect').value
-                    });
-                }
-                
-            } catch (error) {
-                console.error('Error starting recording:', error);
-                alert('Error accessing microphone: ' + error.message);
-            }
-        }
-        
-        // Stop recording function
-        function stopRecording() {
-            if (mediaRecorder && isRecording) {
-                mediaRecorder.stop();
-                isRecording = false;
-                
-                // Stop all tracks
-                mediaRecorder.stream.getTracks().forEach(track => track.stop());
-                
-                // Update UI
-                document.getElementById('startBtn').disabled = false;
-                document.getElementById('stopBtn').disabled = true;
-                document.getElementById('recordingIndicator').style.display = 'none';
-                
-                // Emit stop recording event
-                if (socket) {
-                    socket.emit('stop_recording', {});
-                }
-            }
-        }
-        
-        // Send audio to server via WebSocket
-        function sendAudioToServer(audioBlob) {
-            const reader = new FileReader();
-            reader.onload = function() {
-                const base64Data = reader.result.split(',')[1];
-                if (socket) {
-                    socket.emit('audio_chunk', {
-                        audio_data: base64Data,
-                        language: document.getElementById('languageSelect').value
-                    });
-                }
-            };
-            reader.readAsDataURL(audioBlob);
-        }
-        
-        // File upload functionality
-        function uploadFile() {
-            const fileInput = document.getElementById('audioFile');
-            const file = fileInput.files[0];
-            
-            if (!file) {
-                alert('Please select an audio file first!');
-                return;
-            }
-            
-            const formData = new FormData();
-            formData.append('audio', file);
-            
-            document.getElementById('uploadResult').innerHTML = '🔄 Processing...';
-            document.getElementById('uploadBtn').disabled = true;
-            
-            fetch('/transcribe', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    document.getElementById('uploadResult').innerHTML = 
-                        '<span style="color: #ff6b6b;">❌ Error: ' + data.error + '</span>';
-                } else {
-                    document.getElementById('uploadResult').innerHTML = 
-                        '<strong>📝 Transcription:</strong><br>' + data.text + 
-                        '<br><small>Language: ' + (data.language || 'unknown') + '</small>';
-                }
-                document.getElementById('uploadBtn').disabled = false;
-            })
-            .catch(error => {
-                document.getElementById('uploadResult').innerHTML = 
-                    '<span style="color: #ff6b6b;">❌ Error: ' + error.message + '</span>';
-                document.getElementById('uploadBtn').disabled = false;
-            });
-        }
-        
-        // Clear upload
-        function clearUpload() {
-            document.getElementById('audioFile').value = '';
-            document.getElementById('uploadResult').innerHTML = 'No file uploaded yet...';
-            document.getElementById('uploadBtn').disabled = true;
-        }
-        
-        // File input change handler
-        document.addEventListener('DOMContentLoaded', function() {
-            const fileInput = document.getElementById('audioFile');
-            const uploadBtn = document.getElementById('uploadBtn');
-            
-            fileInput.addEventListener('change', function() {
-                uploadBtn.disabled = !this.files[0];
-            });
-            
-            // Drag and drop functionality
-            const uploadArea = document.getElementById('uploadArea');
-            
-            uploadArea.addEventListener('dragover', function(e) {
-                e.preventDefault();
-                this.classList.add('dragover');
-            });
-            
-            uploadArea.addEventListener('dragleave', function(e) {
-                e.preventDefault();
-                this.classList.remove('dragover');
-            });
-            
-            uploadArea.addEventListener('drop', function(e) {
-                e.preventDefault();
-                this.classList.remove('dragover');
-                
-                const files = e.dataTransfer.files;
-                if (files.length > 0) {
-                    fileInput.files = files;
-                    uploadBtn.disabled = false;
-                }
-            });
-            
-            // Initialize everything
-            initWebSocket();
-            initAudioDevices();
-        });
-        </script>
-        """
-
-        # Replace placeholder and inject JavaScript
+        # Replace status placeholder
         template = template.replace("{{ status_text }}", status_text)
-        template = template.replace("</body>", enhanced_js + "</body>")
 
         return template
 
@@ -353,7 +124,7 @@ def health():
         {
             "status": "healthy",
             "whisper_available": WHISPER_AVAILABLE,
-            "version": "0.7.1",
+            "version": "0.7.2",
             "uptime_seconds": uptime,
             "total_transcriptions": system_stats["total_transcriptions"],
             "active_connections": len(connected_clients),
@@ -382,7 +153,7 @@ def api_status():
     return jsonify(
         {
             "service": "WhisperS2T Enhanced Appliance",
-            "version": "0.7.1",
+            "version": "0.7.2",
             "status": "running",
             "whisper": {
                 "available": WHISPER_AVAILABLE,
@@ -483,7 +254,7 @@ def handle_transcription_error(data):
 # ==================== STARTUP ====================
 
 if __name__ == "__main__":
-    logger.info("🎤 Starting Enhanced WhisperS2T Appliance v0.7.1...")
+    logger.info("🎤 Starting Enhanced WhisperS2T Appliance v0.7.2...")
     logger.info("🏗️ Architecture: Modular (live_speech, upload_handler, admin_panel, api_docs)")
     logger.info("🌐 Main Interface: http://0.0.0.0:5001")
     logger.info("⚙️ Admin Panel: http://0.0.0.0:5001/admin")

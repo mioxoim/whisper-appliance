@@ -5,6 +5,31 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.2] - 2025-06-30
+
+### Fixed
+- **🐛 Critical Deployment Fix**: Fixed hardcoded template path causing systemd service failures
+- **🔧 Working Directory**: Corrected systemd service working directory to /opt/whisper-appliance/src
+- **📦 Dependencies**: Added flask-swagger-ui to Proxmox installer pip packages
+- **🎙️ HTTPS Microphone Access**: Enhanced getUserMedia error handling with HTTPS requirement detection
+- **🖥️ Device Selection**: Restored complete audio device enumeration and selection functionality
+
+### Added
+- **📱 Enhanced Error Messages**: Better microphone access error messages with HTTPS guidance
+- **🔄 Robust Template Loading**: Dynamic path resolution using script directory
+- **⚙️ Complete Audio Interface**: Full microphone device selection and initialization
+
+### Changed
+- **🏗️ Code Architecture**: Cleaned up main.py by moving JavaScript directly to template
+- **📝 Template Integration**: Self-contained HTML template with embedded functionality
+- **🌐 Production Ready**: Fixed all deployment issues for Proxmox containers
+
+### Technical Details
+- **Template Path**: Now uses `os.path.join(script_dir, "templates", "main_interface.html")`
+- **SystemD Service**: WorkingDirectory set to `/opt/whisper-appliance/src`
+- **Dependencies**: flask-swagger-ui added to installation script
+- **Microphone Access**: Enhanced with HTTPS requirement detection and better error handling
+
 ## [0.7.1] - 2025-06-29
 
 ### Added

@@ -137,7 +137,7 @@ else
     
     # Fix 2: Check for dependency issues
     echo "🔍 Checking for Python dependency issues..."
-    cd /opt/whisper-appliance/src
+    cd /opt/whisper-appliance/src || { echo "❌ Failed to change to source directory"; return 1; }
     python3 -c "
 try:
     from modules import APIDocs, AdminPanel, LiveSpeechHandler, UploadHandler

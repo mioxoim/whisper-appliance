@@ -113,13 +113,23 @@ print_section "📦 Installing Python Dependencies"
 pip3 install --upgrade pip
 pip3 install \
     torch \
-    whisper-openai \
+    openai-whisper \
     flask \
     flask-cors \
     flask-socketio \
     flask-swagger-ui \
     gunicorn \
     requests
+
+print_status "✅ Core dependencies installed"
+print_status "🧠 Testing Whisper installation..."
+
+# Test Whisper installation
+if python3 -c "import whisper; print('✅ Whisper import successful')" 2>/dev/null; then
+    print_success "✅ Whisper library is working correctly"
+else
+    print_warning "⚠️ Whisper import failed, but service will start in fallback mode"
+fi
 
 # Copy application files if they exist locally
 if [ -f "./src/main.py" ]; then
@@ -255,9 +265,10 @@ Group=whisper
 WorkingDirectory=/opt/whisper-appliance/src
 Environment=PATH=/home/whisper/.local/bin:/usr/local/bin:/usr/bin:/bin
 Environment=PYTHONPATH=/opt/whisper-appliance/src
+Environment=PYTHONUNBUFFERED=1
 ExecStart=/usr/bin/python3 main.py
 Restart=always
-RestartSec=3
+RestartSec=10
 
 [Install]
 WantedBy=multi-user.target
@@ -265,6 +276,48 @@ EOF
 
 # Set proper ownership for all files
 chown -R whisper:whisper /opt/whisper-appliance
+
+# Test the application before starting service
+print_section "🧪 Testing Application"
+print_status "Testing application startup..."
+
+# Test import and basic functionality
+cd /opt/whisper-appliance/src || exit 1
+if sudo -u whisper python3 -c "
+import sys
+sys.path.insert(0, '/opt/whisper-appliance/src')
+try:
+    from modules import ModelManager, ChatHistoryManager
+    print('✅ Modules import successful')
+    
+    # Test basic initialization (should work even without whisper)
+    model_manager = ModelManager()
+    chat_history = ChatHistoryManager()
+    print('✅ Core components initialize successfully')
+    
+    print('✅ Application ready to start')
+except Exception as e:
+    print(f'❌ Application test failed: {e}')
+    import traceback
+    traceback.print_exc()
+    sys.exit(1)
+" 2>&1; then
+    print_success "✅ Application test passed"
+else
+    print_error "❌ Application test failed"
+    print_status "Attempting to fix common issues..."
+    
+    # Try to fix common permission issues
+    chown -R whisper:whisper /opt/whisper-appliance
+    chmod -R u+rw /opt/whisper-appliance
+    
+    print_status "Retrying test..."
+    if sudo -u whisper python3 -c "from modules import ModelManager; print('✅ Retry successful')" 2>/dev/null; then
+        print_success "✅ Application fixed and ready"
+    else
+        print_warning "⚠️ Application may have issues, but continuing with service setup"
+    fi
+fi
 
 # Enable and start services
 print_section "🚀 Starting Services"
@@ -332,6 +385,18 @@ print_section "🔍 Final Status Check"
 if systemctl is-active --quiet whisper-appliance; then
     print_success "✅ WhisperS2T service is running"
 else
-    print_warning "⚠️  WhisperS2T service may need a moment to start"
-    print_status "Check logs with: journalctl -u whisper-appliance -f"
+    print_warning "⚠️ WhisperS2T service failed to start"
+    print_status "📋 Checking detailed logs..."
+    
+    # Show last 20 lines of service logs
+    echo ""
+    echo "🔍 Service Logs (last 20 lines):"
+    journalctl -u whisper-appliance -n 20 --no-pager || true
+    
+    echo ""
+    print_status "💡 Common fixes:"
+    print_status "   1. Check Python dependencies: pip3 install openai-whisper"
+    print_status "   2. Check file permissions: chown -R whisper:whisper /opt/whisper-appliance"
+    print_status "   3. Check logs with: journalctl -u whisper-appliance -f"
+    print_status "   4. Manual start test: sudo -u whisper python3 /opt/whisper-appliance/src/main.py"
 fi

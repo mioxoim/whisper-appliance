@@ -170,7 +170,6 @@ sudo -u whisper python3 -m pip install --user --upgrade pip >/dev/null 2>&1
 sudo -u whisper python3 -m pip install --user \
     torch torchaudio --index-url https://download.pytorch.org/whl/cpu >/dev/null 2>&1
 sudo -u whisper python3 -m pip install --user \
-    transformers \
     openai-whisper \
     flask \
     flask-cors \

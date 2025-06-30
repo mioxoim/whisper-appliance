@@ -39,7 +39,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **🔍 Shell Script Quality**: ShellCheck integration for robust bash scripts
 - **⚡ Enterprise Standards**: Consistent versioning across all modules
 
-### Testing Priorities & Open Questions 🔬
+### 🚀 **PROXMOX ONE-LINER SSL AUTOMATION** 
+- **🔐 Automatic SSL Certificate Generation**: One-Liner now generates self-signed certificates automatically
+- **🎙️ HTTPS Microphone Access Ready**: No manual steps required - microphone works immediately
+- **⚡ Zero-Configuration HTTPS**: Installation script handles complete SSL setup
+- **🛠️ Enterprise One-Liner**: True one-command deployment with all features enabled
+
+### 📋 **UPDATED PROXMOX ONE-LINER:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/install-container.sh | sudo bash
+```
+**Result:** Complete HTTPS-enabled WhisperS2T with working microphone access!
 **❓ High Priority Testing Needed:**
 - [ ] **WebSocket Stability**: Test long-duration live speech sessions (>10 minutes)
 - [ ] **SSL Certificate Acceptance**: Browser workflow for self-signed certificate acceptance

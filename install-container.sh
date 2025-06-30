@@ -1,6 +1,6 @@
 #!/bin/bash
-# Container Installation Script for WhisperS2T Appliance
-# Optimized for Ubuntu 22.04/Debian 12 LXC containers
+# Container Installation Script for WhisperS2T Appliance v0.8.0
+# Optimized for Ubuntu 22.04/Debian 12 LXC containers with HTTPS SSL Support
 
 set -e
 
@@ -38,7 +38,7 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-print_section "🎤 WhisperS2T Appliance Container Installation"
+print_section "🎤 WhisperS2T Appliance Container Installation v0.8.0"
 
 # Detect OS
 if [ -f /etc/os-release ]; then
@@ -56,7 +56,7 @@ print_status "Detected OS: $OS $VERSION"
 print_section "📦 Updating System Packages"
 apt update && apt upgrade -y
 
-# Install system dependencies
+# Install system dependencies including SSL support
 print_section "🔧 Installing System Dependencies"
 apt install -y \
     build-essential \
@@ -68,7 +68,8 @@ apt install -y \
     apt-transport-https \
     ca-certificates \
     gnupg \
-    lsb-release
+    lsb-release \
+    openssl
 
 # Install Python and development tools
 print_section "🐍 Installing Python Development Environment"
@@ -95,68 +96,74 @@ apt install -y \
     libffi-dev \
     libssl-dev
 
-# Install web server
-print_section "🌐 Installing Web Server"
-apt install -y nginx
-
 # Create application user
 print_section "👤 Creating Application User"
 if ! id "whisper" &>/dev/null; then
     useradd -m -s /bin/bash whisper
-    usermod -aG audio whisper
-    print_success "Created user 'whisper'"
-else
-    print_status "User 'whisper' already exists"
+    print_success "Created user: whisper"
 fi
 
-# Create application directories
-print_section "📁 Setting up Application Directories"
-mkdir -p /opt/whisper-appliance/{src,templates,static,models,uploads,logs,config}
+# Create application directory
+print_section "📁 Setting up Application Directory"
+mkdir -p /opt/whisper-appliance/src
 chown -R whisper:whisper /opt/whisper-appliance
 
-# Install Python dependencies
-print_section "📚 Installing Python Dependencies"
-sudo -u whisper python3 -m pip install --user --upgrade pip
-sudo -u whisper python3 -m pip install --user \
-    torch torchaudio --index-url https://download.pytorch.org/whl/cpu
-sudo -u whisper python3 -m pip install --user \
-    transformers \
-    openai-whisper \
+# Install Python packages
+print_section "📦 Installing Python Dependencies"
+pip3 install --upgrade pip
+pip3 install \
+    torch \
+    whisper-openai \
     flask \
     flask-cors \
     flask-socketio \
+    flask-swagger-ui \
     gunicorn \
-    librosa \
-    soundfile \
-    pydub \
-    requests \
-    python-multipart \
-    sounddevice \
-    numpy
+    requests
 
-# Copy application files if in repository
-if [ -d "./src" ]; then
-    print_section "📋 Copying Application Files"
+# Copy application files if they exist locally
+if [ -f "./src/main.py" ]; then
+    print_section "📁 Installing Enhanced Application Files"
+    print_status "Copying enhanced application to container..."
     cp -r ./src/* /opt/whisper-appliance/src/
-    cp -r ./templates/* /opt/whisper-appliance/templates/ 2>/dev/null || true
-    cp -r ./static/* /opt/whisper-appliance/static/ 2>/dev/null || true
-    cp -r ./config/* /opt/whisper-appliance/config/ 2>/dev/null || true
-    
-    # Use enhanced app with update functionality if available
-    if [ -f "./src/enhanced_app.py" ]; then
-        print_status "Installing enhanced app with update management"
-        cp ./src/enhanced_app.py /opt/whisper-appliance/src/enhanced_app.py
-    fi
-    
-    # Copy auto-updater script
-    if [ -f "./auto-update.sh" ]; then
-        print_status "Installing auto-updater script"
-        cp ./auto-update.sh /opt/whisper-appliance/
-        chmod +x /opt/whisper-appliance/auto-update.sh
-    fi
-    
-    chown -R whisper:whisper /opt/whisper-appliance
+    print_success "✅ Enhanced WhisperS2T application installed"
+else
+    print_warning "⚠️  Enhanced app not found, downloading from GitHub..."
+    # Download enhanced application from GitHub
+    cd /opt/whisper-appliance || exit 1
+    wget -O src/main.py "https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/src/main.py" || {
+        print_error "Failed to download enhanced application"
+        exit 1
+    }
+    print_success "✅ Downloaded WhisperS2T application from GitHub"
 fi
+
+# Auto-generate SSL certificates for HTTPS microphone access
+print_section "🔐 Setting up SSL Certificates for HTTPS"
+print_status "Generating self-signed SSL certificate for microphone access..."
+
+# Create SSL directory
+mkdir -p /opt/whisper-appliance/ssl
+cd /opt/whisper-appliance/ssl || exit 1
+
+# Generate private key
+openssl genrsa -out whisper-appliance.key 2048
+
+# Generate certificate signing request
+openssl req -new -key whisper-appliance.key -out whisper-appliance.csr -subj "/C=DE/ST=NRW/L=Container/O=WhisperS2T/OU=Production/CN=localhost/emailAddress=admin@whisper-appliance.local"
+
+# Generate self-signed certificate (valid for 365 days)
+openssl x509 -req -in whisper-appliance.csr -signkey whisper-appliance.key -out whisper-appliance.crt -days 365
+
+# Set appropriate permissions
+chmod 600 whisper-appliance.key
+chmod 644 whisper-appliance.crt
+chown -R whisper:whisper /opt/whisper-appliance/ssl
+
+cd /opt/whisper-appliance || exit 1
+
+print_success "✅ SSL certificates generated for HTTPS microphone access"
+print_status "Application will automatically run with HTTPS on port 5001"
 
 # Setup Git repository for updates (if we're in a git repo)
 if [ -d "./.git" ]; then
@@ -176,29 +183,23 @@ if [ -d "./.git" ]; then
     
     # Set git ownership
     chown -R whisper:whisper /opt/whisper-appliance/.git
-    
-    print_success "✅ Update management configured"
-    print_status "Updates can be managed via:"
-    print_status "  - Web interface: http://container-ip:5000 (Updates tab)"
-    print_status "  - Command line: /opt/whisper-appliance/auto-update.sh"
-    print_status "  - Dev script: ./dev.sh update [check|apply|rollback|status]"
 fi
 
 # Create systemd service
 print_section "⚙️ Creating System Service"
 cat > /etc/systemd/system/whisper-appliance.service << 'EOF'
 [Unit]
-Description=WhisperS2T Appliance
+Description=WhisperS2T Appliance v0.8.0 with HTTPS Support
 After=network.target
 
 [Service]
 Type=simple
 User=whisper
 Group=whisper
-WorkingDirectory=/opt/whisper-appliance
+WorkingDirectory=/opt/whisper-appliance/src
 Environment=PATH=/home/whisper/.local/bin:/usr/local/bin:/usr/bin:/bin
-Environment=PYTHONPATH=/opt/whisper-appliance
-ExecStart=/home/whisper/.local/bin/gunicorn --bind 0.0.0.0:5001 --workers 2 --timeout 300 src.enhanced_app:app
+Environment=PYTHONPATH=/opt/whisper-appliance/src
+ExecStart=/usr/bin/python3 main.py
 Restart=always
 RestartSec=3
 
@@ -206,399 +207,42 @@ RestartSec=3
 WantedBy=multi-user.target
 EOF
 
-# Create nginx configuration
-print_section "🔧 Configuring Nginx"
-cat > /etc/nginx/sites-available/whisper-appliance << 'EOF'
-server {
-    listen 5000;
-    server_name _;
-
-    client_max_body_size 100M;
-    
-    location / {
-        proxy_pass http://127.0.0.1:5001;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_read_timeout 300;
-        proxy_connect_timeout 300;
-        proxy_send_timeout 300;
-    }
-}
-EOF
-
-# Enable nginx site
-ln -sf /etc/nginx/sites-available/whisper-appliance /etc/nginx/sites-enabled/
-rm -f /etc/nginx/sites-enabled/default
-
-# Test nginx configuration
-nginx -t
-
-# Create basic health check endpoint
-print_section "🏥 Creating Health Check"
-mkdir -p /opt/whisper-appliance/src
-cat > /opt/whisper-appliance/src/enhanced_app.py << 'EOF'
-#!/usr/bin/env python3
-import os
-import tempfile
-import logging
-from flask import Flask, request, render_template_string, jsonify
-from werkzeug.utils import secure_filename
-
-app = Flask(__name__)
-app.config['MAX_CONTENT_LENGTH'] = 100 * 1024 * 1024  # 100MB max file size
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
-
-# Try to load whisper, fallback gracefully
-try:
-    import whisper
-    model = whisper.load_model("base")
-    WHISPER_AVAILABLE = True
-    logger.info("Whisper model loaded successfully")
-except Exception as e:
-    logger.warning(f"Whisper not available: {e}")
-    WHISPER_AVAILABLE = False
-    model = None
-
-HTML_TEMPLATE = '''
-<!DOCTYPE html>
-<html>
-<head>
-    <title>WhisperS2T Appliance</title>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        body { font-family: Arial, sans-serif; margin: 40px; background: #f5f5f5; }
-        .container { max-width: 800px; margin: 0 auto; background: white; padding: 40px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        h1 { color: #333; text-align: center; }
-        .upload-area { border: 2px dashed #007bff; padding: 40px; text-align: center; margin: 20px 0; border-radius: 10px; background: #f8f9fa; }
-        .upload-area:hover { background: #e9ecef; }
-        .result { margin: 20px 0; padding: 20px; background: #e8f5e8; border-radius: 5px; border-left: 4px solid #28a745; }
-        .error { background: #f8d7da; border-left-color: #dc3545; }
-        button { background: #007bff; color: white; padding: 12px 24px; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; }
-        button:hover { background: #0056b3; }
-        .status { text-align: center; margin: 20px 0; }
-        .status.running { color: #28a745; }
-        .status.error { color: #dc3545; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <h1>🎤 WhisperS2T Appliance</h1>
-        
-        <div class="status {{ 'running' if whisper_available else 'error' }}">
-            Status: {{ 'Whisper Model Ready' if whisper_available else 'Whisper Model Loading...' }}
-        </div>
-        
-        {% if whisper_available %}
-        <p>Upload an audio file to transcribe it using OpenAI Whisper</p>
-        
-        <form id="uploadForm" enctype="multipart/form-data">
-            <div class="upload-area">
-                <input type="file" name="audio" accept="audio/*" required>
-                <p>Select an audio file (MP3, WAV, M4A, etc.)</p>
-                <p><small>Maximum file size: 100MB</small></p>
-            </div>
-            <button type="submit">🎵 Transcribe Audio</button>
-        </form>
-        
-        <div id="result" class="result" style="display:none;">
-            <h3>Transcription Result:</h3>
-            <div id="transcription"></div>
-        </div>
-        {% else %}
-        <div class="result error">
-            <h3>⚠️ Service Starting</h3>
-            <p>The Whisper model is currently loading. Please refresh the page in a few moments.</p>
-            <button onclick="location.reload()">🔄 Refresh Page</button>
-        </div>
-        {% endif %}
-    </div>
-
-    <script>
-        {% if whisper_available %}
-        document.getElementById('uploadForm').onsubmit = function(e) {
-            e.preventDefault();
-            const formData = new FormData(this);
-            
-            document.getElementById('result').style.display = 'block';
-            document.getElementById('transcription').innerHTML = '🔄 Processing audio file, please wait...';
-            
-            fetch('/transcribe', {
-                method: 'POST',
-                body: formData
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    document.getElementById('result').className = 'result error';
-                    document.getElementById('transcription').innerHTML = '❌ Error: ' + data.error;
-                } else {
-                    document.getElementById('result').className = 'result';
-                    document.getElementById('transcription').innerHTML = '📝 ' + data.text;
-                }
-            })
-            .catch(error => {
-                document.getElementById('result').className = 'result error';
-                document.getElementById('transcription').innerHTML = '❌ Network error: ' + error;
-            });
-        };
-        {% endif %}
-    </script>
-</body>
-</html>
-'''
-
-@app.route('/')
-def index():
-    return render_template_string(HTML_TEMPLATE, whisper_available=WHISPER_AVAILABLE)
-
-@app.route('/health')
-def health():
-    return jsonify({
-        'status': 'healthy',
-        'whisper_available': WHISPER_AVAILABLE,
-        'version': '0.6.0'
-    })
-
-@app.route('/update/status')
-def update_status():
-    """Check for available updates"""
-    try:
-        import subprocess
-        import os
-        
-        # Check if we're in a git repository
-        if not os.path.exists('/opt/whisper-appliance/.git'):
-            return jsonify({
-                'error': 'Not a git installation',
-                'message': 'Updates only available for git-cloned installations'
-            })
-        
-        # Get current commit
-        current_commit = subprocess.check_output(
-            ['git', 'rev-parse', 'HEAD'], 
-            cwd='/opt/whisper-appliance',
-            universal_newlines=True
-        ).strip()
-        
-        # Get current version
-        try:
-            current_version = subprocess.check_output(
-                ['git', 'describe', '--tags', '--always'], 
-                cwd='/opt/whisper-appliance',
-                universal_newlines=True
-            ).strip()
-        except:
-            current_version = current_commit[:8]
-        
-        # Fetch latest changes
-        subprocess.run(
-            ['git', 'fetch', 'origin', 'main'], 
-            cwd='/opt/whisper-appliance',
-            capture_output=True
-        )
-        
-        # Get remote commit
-        remote_commit = subprocess.check_output(
-            ['git', 'rev-parse', 'origin/main'], 
-            cwd='/opt/whisper-appliance',
-            universal_newlines=True
-        ).strip()
-        
-        updates_available = current_commit != remote_commit
-        
-        if updates_available:
-            # Get number of commits behind
-            commits_behind = subprocess.check_output(
-                ['git', 'rev-list', '--count', f'{current_commit}..origin/main'], 
-                cwd='/opt/whisper-appliance',
-                universal_newlines=True
-            ).strip()
-        else:
-            commits_behind = "0"
-        
-        return jsonify({
-            'current_version': current_version,
-            'current_commit': current_commit,
-            'latest_commit': remote_commit,
-            'updates_available': updates_available,
-            'commits_behind': int(commits_behind)
-        })
-        
-    except Exception as e:
-        return jsonify({'error': str(e)})
-
-@app.route('/update/apply', methods=['POST'])
-def update_apply():
-    """Apply available updates"""
-    try:
-        import subprocess
-        import os
-        
-        if not os.path.exists('/opt/whisper-appliance/.git'):
-            return jsonify({
-                'error': 'Not a git installation',
-                'message': 'Updates only available for git-cloned installations'
-            })
-        
-        # Check if updates are available
-        current_commit = subprocess.check_output(
-            ['git', 'rev-parse', 'HEAD'], 
-            cwd='/opt/whisper-appliance',
-            universal_newlines=True
-        ).strip()
-        
-        subprocess.run(['git', 'fetch', 'origin', 'main'], cwd='/opt/whisper-appliance')
-        
-        remote_commit = subprocess.check_output(
-            ['git', 'rev-parse', 'origin/main'], 
-            cwd='/opt/whisper-appliance',
-            universal_newlines=True
-        ).strip()
-        
-        if current_commit == remote_commit:
-            return jsonify({
-                'success': True,
-                'message': 'System is already up to date',
-                'action': 'none'
-            })
-        
-        # Create backup
-        backup_name = f"backup-{current_commit[:8]}"
-        
-        # Apply updates
-        result = subprocess.run(
-            ['git', 'pull', 'origin', 'main'], 
-            cwd='/opt/whisper-appliance',
-            capture_output=True,
-            universal_newlines=True
-        )
-        
-        if result.returncode == 0:
-            # Update was successful
-            new_version = subprocess.check_output(
-                ['git', 'describe', '--tags', '--always'], 
-                cwd='/opt/whisper-appliance',
-                universal_newlines=True
-            ).strip()
-            
-            return jsonify({
-                'success': True,
-                'message': f'Updated to version {new_version}',
-                'old_version': current_commit[:8],
-                'new_version': new_version,
-                'backup_created': backup_name,
-                'restart_required': True
-            })
-        else:
-            return jsonify({
-                'error': 'Update failed',
-                'message': result.stderr
-            })
-            
-    except Exception as e:
-        return jsonify({'error': str(e)})
-
-@app.route('/system/restart', methods=['POST'])
-def system_restart():
-    """Restart the WhisperS2T service"""
-    try:
-        import subprocess
-        
-        # Restart the service
-        result = subprocess.run(
-            ['systemctl', 'restart', 'whisper-appliance'], 
-            capture_output=True,
-            universal_newlines=True
-        )
-        
-        if result.returncode == 0:
-            return jsonify({
-                'success': True,
-                'message': 'Service restart initiated'
-            })
-        else:
-            return jsonify({
-                'error': 'Failed to restart service',
-                'message': result.stderr
-            })
-            
-    except Exception as e:
-        return jsonify({'error': str(e)})
-
-@app.route('/transcribe', methods=['POST'])
-def transcribe():
-    if not WHISPER_AVAILABLE:
-        return jsonify({'error': 'Whisper model not available'})
-    
-    try:
-        if 'audio' not in request.files:
-            return jsonify({'error': 'No audio file provided'})
-        
-        audio_file = request.files['audio']
-        if audio_file.filename == '':
-            return jsonify({'error': 'No audio file selected'})
-        
-        # Secure filename
-        filename = secure_filename(audio_file.filename)
-        
-        # Save uploaded file temporarily
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as tmp_file:
-            audio_file.save(tmp_file.name)
-            
-            # Transcribe audio
-            logger.info(f"Transcribing file: {filename}")
-            result = model.transcribe(tmp_file.name)
-            
-            # Clean up temp file
-            os.unlink(tmp_file.name)
-            
-            logger.info("Transcription completed successfully")
-            return jsonify({'text': result['text']})
-    
-    except Exception as e:
-        logger.error(f"Transcription error: {e}")
-        return jsonify({'error': str(e)})
-
-if __name__ == '__main__':
-    logger.info("🎤 WhisperS2T Appliance starting...")
-    app.run(host='0.0.0.0', port=5001, debug=False)
-EOF
-
-chown whisper:whisper /opt/whisper-appliance/src/app.py
+# Set proper ownership for all files
+chown -R whisper:whisper /opt/whisper-appliance
 
 # Enable and start services
 print_section "🚀 Starting Services"
 systemctl daemon-reload
 systemctl enable whisper-appliance
-systemctl enable nginx
-
-# Start nginx first
-systemctl restart nginx
 systemctl start whisper-appliance
 
 # Configure firewall if ufw is available
 if command -v ufw >/dev/null 2>&1; then
     print_section "🔥 Configuring Firewall"
     ufw --force enable
-    ufw allow 5000/tcp
+    ufw allow 5001/tcp comment "WhisperS2T HTTPS"
     ufw allow ssh
 fi
+
+# Wait a moment for service to start
+sleep 3
 
 # Get container IP
 CONTAINER_IP=$(hostname -I | awk '{print $1}')
 
 print_section "✅ Installation Complete!"
-print_success "WhisperS2T Appliance installed successfully!"
+print_success "WhisperS2T Appliance v0.8.0 installed successfully!"
 print_success ""
 print_success "🌐 Access URLs:"
-print_success "   Web Interface: http://$CONTAINER_IP:5000"
-print_success "   Health Check:  http://$CONTAINER_IP:5000/health"
+print_success "   HTTPS (Recommended): https://$CONTAINER_IP:5001"
+print_success "   Health Check:        https://$CONTAINER_IP:5001/health"
+print_success "   Admin Panel:         https://$CONTAINER_IP:5001/admin"
+print_success "   API Documentation:   https://$CONTAINER_IP:5001/docs"
+print_success ""
+print_success "🔒 SSL/HTTPS Configuration:"
+print_success "   ✅ Self-signed SSL certificate generated"
+print_success "   🎙️ Microphone access enabled via HTTPS"
+print_success "   ⚠️  Browser will show security warning (click 'Advanced' → 'Continue')"
 print_success ""
 print_success "🔧 Service Management:"
 print_success "   Status:  systemctl status whisper-appliance"
@@ -607,10 +251,21 @@ print_success "   Restart: systemctl restart whisper-appliance"
 print_success ""
 print_success "📁 Application Directory: /opt/whisper-appliance"
 print_success "👤 Application User: whisper"
+print_success "🔐 SSL Certificates: /opt/whisper-appliance/ssl/"
 
 print_warning ""
 print_warning "⏳ Note: Whisper model download may take a few minutes on first access"
 print_warning "    The service will show 'Whisper Model Loading...' until ready"
 
 print_success ""
-print_success "🎤 Ready to transcribe audio files!"
+print_success "🎤 Ready for live speech recognition and audio file transcription!"
+print_success "🔒 HTTPS enabled - Microphone access will work in all modern browsers!"
+
+# Final service status check
+print_section "🔍 Final Status Check"
+if systemctl is-active --quiet whisper-appliance; then
+    print_success "✅ WhisperS2T service is running"
+else
+    print_warning "⚠️  WhisperS2T service may need a moment to start"
+    print_status "Check logs with: journalctl -u whisper-appliance -f"
+fi

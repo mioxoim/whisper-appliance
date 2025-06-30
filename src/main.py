@@ -266,8 +266,9 @@ def handle_transcription_error(data):
 # ==================== STARTUP ====================
 
 if __name__ == "__main__":
-    logger.info("🎤 Starting Enhanced WhisperS2T Appliance v0.8.0...")
+    logger.info("🎤 Starting Enhanced WhisperS2T Appliance v0.9.0...")
     logger.info("🏗️ Architecture: Modular (live_speech, upload_handler, admin_panel, api_docs)")
+    logger.info("🌐 SSL: Intelligent network certificate with SAN support")
 
     # Check for SSL certificates (support both local dev and container paths)
     ssl_cert_path = None

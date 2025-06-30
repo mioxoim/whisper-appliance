@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.9.0] - 2025-06-30
+
+### Added - INTELLIGENT NETWORK SSL & PROXMOX READY 🌐
+- **🧠 Intelligent SSL Generation**: Auto-detects all network IPs and creates certificates with SAN (Subject Alternative Names)
+- **🔗 Network IP Support**: SSL certificates now work for ALL network IPs (192.168.x.x, container IPs, etc.)
+- **🎯 Dynamic Certificate Creation**: Automatically includes `DNS:localhost`, `DNS:hostname`, and `IP:x.x.x.x` entries
+- **🔧 OpenSSL Version Detection**: Supports both modern (`-addext`) and legacy (config file) OpenSSL methods
+- **🌍 External IP Detection**: Optionally includes public IP in certificate SAN if detected
+- **🚀 Proxmox Integration**: Enhanced `proxmox-standalone.sh` script with automatic network SSL setup
+- **🔥 Direct HTTPS Mode**: Flask app runs directly on HTTPS:5001 without Nginx proxy (more efficient)
+
+### Changed - NETWORK-FIRST ARCHITECTURE ⚡
+- **🔒 Network HTTPS by Default**: All installation scripts now generate network-ready SSL certificates
+- **🎙️ Microphone Access Everywhere**: Works on ANY network IP, not just localhost
+- **📍 Smart IP Detection**: Automatically discovers and configures all available network interfaces
+- **⚡ Simplified Architecture**: Removed redundant Nginx proxy, Flask handles HTTPS directly
+- **🎯 Certificate Validation**: Automatic verification of SAN configuration after generation
+- **🔧 Enhanced Container Setup**: Proxmox containers now get full network SSL support out-of-the-box
+
+### Fixed - CRITICAL NETWORK ACCESS ISSUES 🐛
+- **🌐 ERR_SSL_PROTOCOL_ERROR**: Fixed SSL certificate issues for network IPs (192.168.x.x)
+- **🎙️ Cross-Network Microphone Access**: Microphone now works from any device on the network
+- **🔗 Multi-IP Certificate Support**: One certificate validates ALL network interfaces
+- **📱 Browser Security Compliance**: Proper SSL handling for getUserMedia() across network connections
+- **🚨 Container IP Changes**: SSL certificates adapt to dynamic container IP assignment
+
 ## [0.8.0] - 2025-06-30
 
 ### Added - ENTERPRISE HTTPS & MICROPHONE ACCESS 🔒

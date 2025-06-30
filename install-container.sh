@@ -1,6 +1,6 @@
 #!/bin/bash
-# Container Installation Script for WhisperS2T Appliance v0.8.0
-# Optimized for Ubuntu 22.04/Debian 12 LXC containers with HTTPS SSL Support
+# Container Installation Script for WhisperS2T Appliance v0.9.0
+# Optimized for Ubuntu 22.04/Debian 12 LXC containers with Intelligent Network SSL Support
 
 set -e
 
@@ -38,7 +38,7 @@ if [ "$EUID" -ne 0 ]; then
     exit 1
 fi
 
-print_section "🎤 WhisperS2T Appliance Container Installation v0.8.0"
+print_section "🎤 WhisperS2T Appliance Container Installation v0.9.0"
 
 # Detect OS
 if [ -f /etc/os-release ]; then
@@ -138,32 +138,88 @@ else
     print_success "✅ Downloaded WhisperS2T application from GitHub"
 fi
 
-# Auto-generate SSL certificates for HTTPS microphone access
-print_section "🔐 Setting up SSL Certificates for HTTPS"
-print_status "Generating self-signed SSL certificate for microphone access..."
+# Auto-generate SSL certificates with intelligent SAN for network access
+print_section "🔐 Setting up Intelligent SSL Certificates for Network HTTPS"
+print_status "Generating SSL certificate with auto-detected IPs for network access..."
 
-# Create SSL directory
-mkdir -p /opt/whisper-appliance/ssl
-cd /opt/whisper-appliance/ssl || exit 1
+# Copy our intelligent SSL script if available
+if [ -f "./create-ssl-cert.sh" ]; then
+    print_status "📋 Using enhanced SSL generation script..."
+    cp ./create-ssl-cert.sh /opt/whisper-appliance/
+    cd /opt/whisper-appliance || exit 1
+    chmod +x create-ssl-cert.sh
+    ./create-ssl-cert.sh
+else
+    print_status "🔄 Using integrated intelligent SSL generation..."
+    
+    # Create SSL directory
+    mkdir -p /opt/whisper-appliance/ssl
+    cd /opt/whisper-appliance/ssl || exit 1
+    
+    # Auto-detect IP addresses for SAN
+    LOCAL_IPS=$(hostname -I | tr ' ' '\n' | grep -v '^127\.' | grep -v '^::1' | head -5)
+    PRIMARY_IP=$(echo "$LOCAL_IPS" | head -1)
+    
+    # Build SAN list
+    SAN_LIST="DNS:localhost,DNS:$(hostname)"
+    for ip in $LOCAL_IPS; do
+        if [[ $ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            SAN_LIST="${SAN_LIST},IP:${ip}"
+            print_status "📍 Adding IP to certificate: $ip"
+        fi
+    done
+    
+    # Use primary IP as CN if available
+    CN_VALUE="${PRIMARY_IP:-localhost}"
+    print_status "🎯 Certificate CN: $CN_VALUE"
+    print_status "🌐 SAN Configuration: $SAN_LIST"
+    
+    # Generate private key
+    openssl genrsa -out whisper-appliance.key 2048
+    
+    # Generate certificate with SAN (try modern method first)
+    if openssl req -help 2>&1 | grep -q "addext"; then
+        print_status "✅ Using modern OpenSSL with SAN support"
+        openssl req -x509 -new -key whisper-appliance.key -sha256 -days 365 -out whisper-appliance.crt \
+            -subj "/C=DE/ST=NRW/L=Container/O=WhisperS2T/OU=Production/CN=${CN_VALUE}/emailAddress=admin@whisper-appliance.local" \
+            -addext "subjectAltName=${SAN_LIST}"
+    else
+        # Fallback for older OpenSSL
+        print_status "🔄 Using legacy OpenSSL config method"
+        cat > ssl.conf << EOF
+[req]
+distinguished_name = req_distinguished_name
+x509_extensions = v3_req
+prompt = no
 
-# Generate private key
-openssl genrsa -out whisper-appliance.key 2048
+[req_distinguished_name]
+C = DE
+ST = NRW
+L = Container
+O = WhisperS2T
+OU = Production
+CN = ${CN_VALUE}
+emailAddress = admin@whisper-appliance.local
 
-# Generate certificate signing request
-openssl req -new -key whisper-appliance.key -out whisper-appliance.csr -subj "/C=DE/ST=NRW/L=Container/O=WhisperS2T/OU=Production/CN=localhost/emailAddress=admin@whisper-appliance.local"
-
-# Generate self-signed certificate (valid for 365 days)
-openssl x509 -req -in whisper-appliance.csr -signkey whisper-appliance.key -out whisper-appliance.crt -days 365
+[v3_req]
+keyUsage = keyEncipherment, dataEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = ${SAN_LIST}
+EOF
+        openssl req -x509 -new -key whisper-appliance.key -sha256 -days 365 -out whisper-appliance.crt -config ssl.conf
+        rm ssl.conf
+    fi
+    
+    cd /opt/whisper-appliance || exit 1
+fi
 
 # Set appropriate permissions
-chmod 600 whisper-appliance.key
-chmod 644 whisper-appliance.crt
+chmod 600 /opt/whisper-appliance/ssl/whisper-appliance.key
+chmod 644 /opt/whisper-appliance/ssl/whisper-appliance.crt
 chown -R whisper:whisper /opt/whisper-appliance/ssl
 
-cd /opt/whisper-appliance || exit 1
-
-print_success "✅ SSL certificates generated for HTTPS microphone access"
-print_status "Application will automatically run with HTTPS on port 5001"
+print_success "✅ Intelligent SSL certificates generated for network HTTPS access"
+print_status "🎙️ Microphone access enabled for ALL detected network IPs"
 
 # Setup Git repository for updates (if we're in a git repo)
 if [ -d "./.git" ]; then
@@ -189,7 +245,7 @@ fi
 print_section "⚙️ Creating System Service"
 cat > /etc/systemd/system/whisper-appliance.service << 'EOF'
 [Unit]
-Description=WhisperS2T Appliance v0.8.0 with HTTPS Support
+Description=WhisperS2T Appliance v0.9.0 with Intelligent Network SSL Support
 After=network.target
 
 [Service]
@@ -227,21 +283,31 @@ fi
 # Wait a moment for service to start
 sleep 3
 
-# Get container IP
+# Get container IP and show all possible URLs
 CONTAINER_IP=$(hostname -I | awk '{print $1}')
+ALL_IPS=$(hostname -I | tr ' ' '\n' | grep -v '^127\.' | grep -v '^::1')
 
 print_section "✅ Installation Complete!"
-print_success "WhisperS2T Appliance v0.8.0 installed successfully!"
+print_success "WhisperS2T Appliance v0.9.0 installed successfully!"
 print_success ""
-print_success "🌐 Access URLs:"
-print_success "   HTTPS (Recommended): https://$CONTAINER_IP:5001"
-print_success "   Health Check:        https://$CONTAINER_IP:5001/health"
-print_success "   Admin Panel:         https://$CONTAINER_IP:5001/admin"
-print_success "   API Documentation:   https://$CONTAINER_IP:5001/docs"
+print_success "🌐 Access URLs (All IPs configured with SSL):"
+print_success "   📍 Primary:              https://$CONTAINER_IP:5001"
+for ip in $ALL_IPS; do
+    if [[ $ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]] && [ "$ip" != "$CONTAINER_IP" ]; then
+        print_success "   🔗 Additional Network:   https://$ip:5001"
+    fi
+done
+print_success ""
+print_success "📚 Essential Endpoints:"
+print_success "   🏥 Health Check:         https://$CONTAINER_IP:5001/health"
+print_success "   ⚙️ Admin Panel:          https://$CONTAINER_IP:5001/admin"
+print_success "   📖 API Documentation:   https://$CONTAINER_IP:5001/docs"
+print_success "   🎮 Demo Interface:       https://$CONTAINER_IP:5001/demo"
 print_success ""
 print_success "🔒 SSL/HTTPS Configuration:"
-print_success "   ✅ Self-signed SSL certificate generated"
-print_success "   🎙️ Microphone access enabled via HTTPS"
+print_success "   ✅ Intelligent SSL certificate with SAN generated"
+print_success "   🎙️ Microphone access enabled via HTTPS on ALL network IPs"
+print_success "   🌐 Certificate valid for ALL detected IP addresses"
 print_success "   ⚠️  Browser will show security warning (click 'Advanced' → 'Continue')"
 print_success ""
 print_success "🔧 Service Management:"

@@ -152,8 +152,8 @@ apt-get install -y \
     libffi-dev \
     libssl-dev >/dev/null 2>&1
 
-print_status "Installing web server..."
-apt-get install -y nginx >/dev/null 2>&1
+print_status "Installing web server and SSL support..."
+apt-get install -y nginx openssl >/dev/null 2>&1
 
 print_status "Creating application user..."
 if ! id "whisper" &>/dev/null; then
@@ -509,6 +509,76 @@ fi
 
 chown -R whisper:whisper /opt/whisper-appliance/src
 
+print_status "Setting up intelligent SSL certificates for network HTTPS access..."
+
+# Auto-detect IP addresses for SAN
+LOCAL_IPS=$(hostname -I | tr ' ' '\n' | grep -v '^127\.' | grep -v '^::1' | head -5)
+PRIMARY_IP=$(echo "$LOCAL_IPS" | head -1)
+
+# Build SAN list
+SAN_LIST="DNS:localhost,DNS:$(hostname)"
+for ip in $LOCAL_IPS; do
+    if [[ $ip =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        SAN_LIST="${SAN_LIST},IP:${ip}"
+        print_status "📍 Adding IP to SSL certificate: $ip"
+    fi
+done
+
+# Create SSL directory and certificates
+mkdir -p /opt/whisper-appliance/ssl
+cd /opt/whisper-appliance/ssl || exit 1
+
+# Use primary IP as CN if available
+CN_VALUE="${PRIMARY_IP:-localhost}"
+print_status "🎯 Certificate CN: $CN_VALUE"
+print_status "🌐 SAN Configuration: $SAN_LIST"
+
+# Generate private key
+openssl genrsa -out whisper-appliance.key 2048
+
+# Generate certificate with SAN (try modern method first)
+if openssl req -help 2>&1 | grep -q "addext"; then
+    print_status "✅ Using modern OpenSSL with SAN support"
+    openssl req -x509 -new -key whisper-appliance.key -sha256 -days 365 -out whisper-appliance.crt \
+        -subj "/C=DE/ST=NRW/L=Container/O=WhisperS2T/OU=Production/CN=${CN_VALUE}/emailAddress=admin@whisper-appliance.local" \
+        -addext "subjectAltName=${SAN_LIST}"
+else
+    # Fallback for older OpenSSL
+    print_status "🔄 Using legacy OpenSSL config method"
+    cat > ssl.conf << EOF
+[req]
+distinguished_name = req_distinguished_name
+x509_extensions = v3_req
+prompt = no
+
+[req_distinguished_name]
+C = DE
+ST = NRW
+L = Container
+O = WhisperS2T
+OU = Production
+CN = ${CN_VALUE}
+emailAddress = admin@whisper-appliance.local
+
+[v3_req]
+keyUsage = keyEncipherment, dataEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = ${SAN_LIST}
+EOF
+    openssl req -x509 -new -key whisper-appliance.key -sha256 -days 365 -out whisper-appliance.crt -config ssl.conf
+    rm ssl.conf
+fi
+
+# Set permissions and ownership
+chmod 600 whisper-appliance.key
+chmod 644 whisper-appliance.crt
+chown -R whisper:whisper /opt/whisper-appliance/ssl
+
+print_success "✅ SSL certificates with SAN generated for network access"
+print_status "🎙️ Microphone access enabled for ALL detected network IPs"
+
+cd /opt/whisper-appliance || exit 1
+
 print_status "Creating systemd service..."
 cat > /etc/systemd/system/whisper-appliance.service << "SERVICE_EOF"
 [Unit]
@@ -530,7 +600,7 @@ RestartSec=3
 WantedBy=multi-user.target
 SERVICE_EOF
 
-print_status "Configuring Nginx..."
+print_status "Configuring Nginx for HTTPS pass-through..."
 cat > /etc/nginx/sites-available/whisper-appliance << "NGINX_EOF"
 server {
     listen 5000;
@@ -538,8 +608,28 @@ server {
 
     client_max_body_size 100M;
     
+    # HTTP to HTTPS redirect for production access
+    return 301 https://$host:5001$request_uri;
+}
+
+server {
+    listen 5001 ssl http2;
+    server_name _;
+
+    # SSL Configuration
+    ssl_certificate /opt/whisper-appliance/ssl/whisper-appliance.crt;
+    ssl_certificate_key /opt/whisper-appliance/ssl/whisper-appliance.key;
+    
+    # Modern SSL configuration
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512:ECDHE-RSA-AES256-GCM-SHA384:DHE-RSA-AES256-GCM-SHA384;
+    ssl_prefer_server_ciphers off;
+    
+    client_max_body_size 100M;
+    
     location / {
-        proxy_pass http://127.0.0.1:5001;
+        proxy_pass https://127.0.0.1:5001;
+        proxy_ssl_verify off;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -551,42 +641,45 @@ server {
 }
 NGINX_EOF
 
-ln -sf /etc/nginx/sites-available/whisper-appliance /etc/nginx/sites-enabled/
-rm -f /etc/nginx/sites-enabled/default
+print_status "Configuring firewall for HTTPS access..."
+# Remove Nginx proxy since Flask app handles HTTPS directly
+rm -f /etc/nginx/sites-enabled/whisper-appliance /etc/nginx/sites-available/whisper-appliance
+systemctl disable nginx
+systemctl stop nginx
 
-nginx -t
+if command -v ufw >/dev/null 2>&1; then
+    ufw --force enable
+    ufw allow 5001/tcp comment "WhisperS2T HTTPS"
+    ufw allow ssh
+    print_status "✅ Firewall configured for port 5001 (HTTPS)"
+fi
 
 print_status "Starting services..."
 systemctl daemon-reload
 systemctl enable whisper-appliance
-systemctl enable nginx
-
-systemctl restart nginx
-sleep 2
 
 # Start whisper service with retry mechanism
 for i in {1..3}; do
-    print_status "Starting WhisperS2T service (attempt $i/3)..."
+    print_status "Starting WhisperS2T HTTPS service (attempt $i/3)..."
     if systemctl start whisper-appliance; then
         sleep 5
         if systemctl is-active --quiet whisper-appliance; then
-            print_success "WhisperS2T service started successfully"
+            print_success "WhisperS2T HTTPS service started successfully"
             
-            # Quick connectivity test to ensure service is actually working
-            sleep 2
-            if curl -s -o /dev/null -w "%{http_code}" http://localhost:5001/ | grep -q "200\|404\|500"; then
-                print_success "Flask app responding on port 5001"
+            # Quick connectivity test to ensure HTTPS service is actually working
+            sleep 3
+            if curl -k -s -o /dev/null -w "%{http_code}" https://localhost:5001/ | grep -q "200\|404\|500"; then
+                print_success "HTTPS app responding on port 5001"
             else
-                print_warning "Flask app not responding, attempting fix..."
-                # Stop and restart with proper working directory
+                print_warning "HTTPS app not responding, attempting fix..."
                 systemctl stop whisper-appliance
                 sleep 2
                 systemctl start whisper-appliance
-                sleep 3
-                if curl -s -o /dev/null -w "%{http_code}" http://localhost:5001/ | grep -q "200\|404\|500"; then
-                    print_success "Flask app fixed and responding"
+                sleep 5
+                if curl -k -s -o /dev/null -w "%{http_code}" https://localhost:5001/ | grep -q "200\|404\|500"; then
+                    print_success "HTTPS app fixed and responding"
                 else
-                    print_warning "Flask app still not responding - check logs"
+                    print_warning "HTTPS app still not responding - check logs"
                 fi
             fi
             break
@@ -603,12 +696,6 @@ for i in {1..3}; do
         fi
     fi
 done
-
-if command -v ufw >/dev/null 2>&1; then
-    ufw --force enable
-    ufw allow 5000/tcp
-    ufw allow ssh
-fi
 
 print_success "WhisperS2T installation completed!"
 INSTALL_EOF
@@ -627,52 +714,43 @@ sleep 5
 CONTAINER_IP=$(pct exec $CTID -- hostname -I | awk '{print $1}')
 
 # Verify installation
-msg_info "Verifying installation..."
+msg_info "Verifying HTTPS installation..."
 pct exec $CTID -- systemctl is-active whisper-appliance >/dev/null 2>&1
 if [[ $? -eq 0 ]]; then
-    msg_ok "WhisperS2T service is running"
+    msg_ok "WhisperS2T HTTPS service is running"
 else
     msg_warn "WhisperS2T service may not be fully started yet"
 fi
 
-pct exec $CTID -- systemctl is-active nginx >/dev/null 2>&1
-if [[ $? -eq 0 ]]; then
-    msg_ok "Nginx is running"
-else
-    msg_warn "Nginx may not be running properly"
-fi
-
-# Test web interface accessibility with retry
+# Test HTTPS web interface accessibility with retry
 web_accessible=false
 for i in {1..3}; do
-    if timeout 10 curl -s "http://$CONTAINER_IP:5000" >/dev/null 2>&1; then
-        msg_ok "Web interface is accessible"
+    if timeout 10 pct exec $CTID -- curl -k -s "https://localhost:5001" >/dev/null 2>&1; then
+        msg_ok "HTTPS web interface is accessible"
         web_accessible=true
         break
     else
         if [[ $i -lt 3 ]]; then
-            msg_warn "Web interface not ready, retrying in 5 seconds... (attempt $i/3)"
+            msg_warn "HTTPS web interface not ready, retrying in 5 seconds... (attempt $i/3)"
             sleep 5
         fi
     fi
 done
 
 if [[ "$web_accessible" == "false" ]]; then
-    msg_warn "Web interface not immediately accessible - applying automated fix..."
+    msg_warn "HTTPS web interface not immediately accessible - applying automated fix..."
     pct exec $CTID -- bash -c "
-        systemctl stop whisper-appliance nginx
-        sleep 2
-        systemctl start nginx
-        sleep 2
+        systemctl stop whisper-appliance
+        sleep 3
         systemctl start whisper-appliance
-        sleep 5
+        sleep 8
     "
     
     # Final test
-    if timeout 10 curl -s "http://$CONTAINER_IP:5000" >/dev/null 2>&1; then
-        msg_ok "Web interface fixed and accessible"
+    if timeout 10 pct exec $CTID -- curl -k -s "https://localhost:5001" >/dev/null 2>&1; then
+        msg_ok "HTTPS web interface fixed and accessible"
     else
-        msg_warn "Web interface requires manual troubleshooting"
+        msg_warn "HTTPS web interface requires manual troubleshooting"
     fi
 fi
 
@@ -694,21 +772,24 @@ msg_ok "WhisperS2T LXC Container created successfully!"
 msg_ok "Container ID: $CTID"
 msg_ok "IP Address: $CONTAINER_IP"
 echo
-msg_ok "🌐 Web Interface: http://$CONTAINER_IP:5000"
+msg_ok "🌐 HTTPS Web Interface: https://$CONTAINER_IP:5001"
 msg_ok "🔧 SSH Access: ssh root@$CONTAINER_IP"
 echo
 msg_info "Features available:"
-msg_info "  • Upload and transcribe audio files"
-msg_info "  • Live speech recognition (if GitHub download successful)"
-msg_info "  • Health monitoring endpoint: http://$CONTAINER_IP:5000/health"
-msg_info "  • Automatic service management"
+msg_info "  🎙️ Live speech recognition with microphone access"
+msg_info "  📁 Upload and transcribe audio files"
+msg_info "  🔒 Full HTTPS with SSL certificates for network access"
+msg_info "  🏥 Health monitoring: https://$CONTAINER_IP:5001/health"
+msg_info "  ⚙️ Admin panel: https://$CONTAINER_IP:5001/admin"
+msg_info "  📚 API documentation: https://$CONTAINER_IP:5001/docs"
 echo
-msg_warn "Note: First transcription may take longer as Whisper downloads models"
+msg_warn "🔒 Browser Security: Click 'Advanced' → 'Continue to site' (self-signed cert)"
+msg_warn "📝 Note: First transcription may take longer as Whisper downloads models"
 echo
 msg_info "Troubleshooting commands:"
 msg_info "  pct exec $CTID -- systemctl status whisper-appliance"
 msg_info "  pct exec $CTID -- journalctl -u whisper-appliance -f"
-msg_info "  pct exec $CTID -- tail -f /var/log/nginx/error.log"
+msg_info "  pct exec $CTID -- openssl x509 -in /opt/whisper-appliance/ssl/whisper-appliance.crt -text -noout | grep -A5 'Subject Alternative Name'"
 echo
 msg_info "Container management commands:"
 msg_info "  pct start $CTID    # Start container"

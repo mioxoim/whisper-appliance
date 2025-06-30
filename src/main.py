@@ -69,7 +69,7 @@ except Exception as e:
 upload_handler = UploadHandler(model, WHISPER_AVAILABLE, system_stats)
 live_speech_handler = LiveSpeechHandler(model, WHISPER_AVAILABLE, system_stats, connected_clients)
 admin_panel = AdminPanel(WHISPER_AVAILABLE, system_stats, connected_clients, model)
-api_docs = APIDocs(version="0.7.2")
+api_docs = APIDocs(version="0.8.0")
 
 # Configure SwaggerUI
 SWAGGER_URL = "/docs"
@@ -124,7 +124,7 @@ def health():
         {
             "status": "healthy",
             "whisper_available": WHISPER_AVAILABLE,
-            "version": "0.7.2",
+            "version": "0.8.0",
             "uptime_seconds": uptime,
             "total_transcriptions": system_stats["total_transcriptions"],
             "active_connections": len(connected_clients),
@@ -153,7 +153,7 @@ def api_status():
     return jsonify(
         {
             "service": "WhisperS2T Enhanced Appliance",
-            "version": "0.7.2",
+            "version": "0.8.0",
             "status": "running",
             "whisper": {
                 "available": WHISPER_AVAILABLE,
@@ -254,14 +254,38 @@ def handle_transcription_error(data):
 # ==================== STARTUP ====================
 
 if __name__ == "__main__":
-    logger.info("🎤 Starting Enhanced WhisperS2T Appliance v0.7.2...")
+    logger.info("🎤 Starting Enhanced WhisperS2T Appliance v0.8.0...")
     logger.info("🏗️ Architecture: Modular (live_speech, upload_handler, admin_panel, api_docs)")
-    logger.info("🌐 Main Interface: http://0.0.0.0:5001")
-    logger.info("⚙️ Admin Panel: http://0.0.0.0:5001/admin")
-    logger.info("📚 API Docs: http://0.0.0.0:5001/docs")
-    logger.info("🎯 Demo Interface: http://0.0.0.0:5001/demo")
-    logger.info("🏥 Health Check: http://0.0.0.0:5001/health")
-    logger.info("✨ Features: Purple Gradient UI + REAL Live Speech + Upload + Full Navigation")
 
-    # Run with SocketIO
-    socketio.run(app, host="0.0.0.0", port=5001, debug=False, allow_unsafe_werkzeug=True)
+    # Check for SSL certificates
+    ssl_cert_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "ssl", "whisper-appliance.crt")
+    ssl_key_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "ssl", "whisper-appliance.key")
+
+    if os.path.exists(ssl_cert_path) and os.path.exists(ssl_key_path):
+        logger.info("🔒 SSL certificates found - Starting with HTTPS support")
+        logger.info("🌐 Main Interface: https://localhost:5001")
+        logger.info("⚙️ Admin Panel: https://localhost:5001/admin")
+        logger.info("📚 API Docs: https://localhost:5001/docs")
+        logger.info("🎯 Demo Interface: https://localhost:5001/demo")
+        logger.info("🏥 Health Check: https://localhost:5001/health")
+        logger.info("🎙️ Microphone Access: ✅ Enabled via HTTPS")
+        logger.info("⚠️  Browser Security Warning: Click 'Advanced' → 'Continue to localhost'")
+
+        # Run with SSL
+        socketio.run(
+            app, host="0.0.0.0", port=5001, debug=False, allow_unsafe_werkzeug=True, ssl_context=(ssl_cert_path, ssl_key_path)
+        )
+    else:
+        logger.warning("🔓 No SSL certificates found - Starting without HTTPS")
+        logger.warning("🎙️ Microphone Access: ❌ Limited (HTTPS required for production)")
+        logger.info("💡 To enable HTTPS: Run './create-ssl-cert.sh' in project root")
+        logger.info("🌐 Main Interface: http://0.0.0.0:5001")
+        logger.info("⚙️ Admin Panel: http://0.0.0.0:5001/admin")
+        logger.info("📚 API Docs: http://0.0.0.0:5001/docs")
+        logger.info("🎯 Demo Interface: http://0.0.0.0:5001/demo")
+        logger.info("🏥 Health Check: http://0.0.0.0:5001/health")
+
+        # Run without SSL
+        socketio.run(app, host="0.0.0.0", port=5001, debug=False, allow_unsafe_werkzeug=True)
+
+    logger.info("✨ Features: Purple Gradient UI + REAL Live Speech + Upload + Full Navigation + HTTPS Support")

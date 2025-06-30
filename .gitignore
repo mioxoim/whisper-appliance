@@ -208,6 +208,15 @@ config/secrets.yaml
 .env.local
 .env.production
 
+# SSL Certificates (SECURITY CRITICAL)
+ssl/
+*.crt
+*.key
+*.csr
+*.pem
+*.p12
+*.pfx
+
 # SSH Deploy Keys (add to .gitignore to prevent accidental commit)
 deploy_key_*
 id_rsa*

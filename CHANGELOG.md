@@ -5,6 +5,68 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.8.0] - 2025-06-30
+
+### Added - ENTERPRISE HTTPS & MICROPHONE ACCESS 🔒
+- **🔐 Self-Signed SSL Certificate**: Created `create-ssl-cert.sh` script for instant HTTPS setup
+- **🌐 HTTPS Support**: Application automatically detects SSL certificates and runs with HTTPS
+- **🎙️ Microphone Permission Handling**: Enhanced device enumeration with proper permission requests
+- **📁 Upload File Status**: Real-time display of selected file info (name, size, type)
+- **🎨 Pre-Commit Hook**: Automatic code formatting (isort + Black + ShellCheck) before commits
+- **📱 Drag & Drop File Info**: Shows dropped file details immediately
+
+### Changed - PRODUCTION READY IMPROVEMENTS ⚡
+- **🔒 HTTPS by Default**: Auto-detects SSL certificates in `/ssl/` directory
+- **🎙️ Enhanced Device Selection**: Better microphone enumeration with permission requests
+- **📊 Improved Error Messages**: HTTPS requirement clearly communicated to users
+- **🚀 Enterprise Code Quality**: Pre-commit hooks prevent unformatted code commits
+- **📝 Better Upload UX**: File selection immediately shows file information
+
+### Fixed - CRITICAL MICROPHONE ACCESS 🐛
+- **🎙️ Microphone Device List**: Fixed empty device dropdown by requesting permissions first
+- **🔐 HTTPS Requirement**: Clear error messages when HTTPS is required for microphone access
+- **📱 Device Label Display**: Proper microphone names instead of "Microphone undefined"
+- **🌐 Browser Compatibility**: Enhanced getUserMedia error handling across browsers
+
+### Security Enhancements 🔐
+- **🔒 SSL/TLS Support**: Self-signed certificates for local HTTPS development
+- **🎙️ Secure Microphone Access**: Modern browser security requirements fulfilled
+- **🛡️ Browser Security Warnings**: Clear instructions for accepting self-signed certificates
+
+### Developer Experience 🛠️
+- **🎨 Automated Code Formatting**: Pre-commit hooks ensure consistent code style
+- **📋 GitHub Actions Ready**: Prevents CI/CD failures through local formatting
+- **🔍 Shell Script Quality**: ShellCheck integration for robust bash scripts
+- **⚡ Enterprise Standards**: Consistent versioning across all modules
+
+### Testing Priorities & Open Questions 🔬
+**❓ High Priority Testing Needed:**
+- [ ] **WebSocket Stability**: Test long-duration live speech sessions (>10 minutes)
+- [ ] **SSL Certificate Acceptance**: Browser workflow for self-signed certificate acceptance
+- [ ] **Device Switching**: Hot-swapping microphones during active sessions
+- [ ] **File Upload Limits**: Test behavior with files near 100MB limit
+- [ ] **Concurrent Users**: Multiple WebSocket connections simultaneously
+
+**❓ Performance Questions:**
+- [ ] **Memory Usage**: Monitor memory consumption during extended live sessions
+- [ ] **Audio Quality**: Test different microphone bitrates and sample rates
+- [ ] **Network Latency**: WebSocket performance over slow connections
+- [ ] **Browser Support**: Test across Chrome/Firefox/Safari/Edge
+
+**❓ Production Deployment:**
+- [ ] **Let's Encrypt Integration**: Upgrade from self-signed to real certificates
+- [ ] **Reverse Proxy**: Nginx/Apache configuration for production
+- [ ] **Container Deployment**: HTTPS support in Docker/Proxmox containers
+- [ ] **Backup/Recovery**: SSL certificate management and renewal
+
+### Architecture Notes 🏗️
+- **SSL Path**: `/ssl/whisper-appliance.{crt,key}` (auto-detected)
+- **HTTPS Port**: 5001 (same as HTTP, auto-switches based on certificates)
+- **Fallback**: Graceful degradation to HTTP when SSL certificates not found
+- **Security**: Self-signed certificates valid for 365 days
+
+---
+
 ## [0.7.2] - 2025-06-30
 
 ### Fixed

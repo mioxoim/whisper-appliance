@@ -1,4 +1,4 @@
-# 🎤 Enhanced WhisperS2T Appliance v0.7.2
+# 🎤 Enhanced WhisperS2T Appliance v0.8.0
 
 **Advanced Speech-to-Text Appliance powered by OpenAI Whisper**
 

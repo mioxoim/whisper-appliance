@@ -206,6 +206,18 @@ def demo():
     return admin_panel.get_demo_interface()
 
 
+@app.route("/admin/check-updates")
+def check_updates():
+    """Check for available updates"""
+    return admin_panel.check_for_updates()
+
+
+@app.route("/admin/perform-update", methods=["POST"])
+def perform_update():
+    """Perform application update"""
+    return admin_panel.perform_update()
+
+
 # ==================== WEBSOCKET HANDLERS ====================
 
 
@@ -257,11 +269,27 @@ if __name__ == "__main__":
     logger.info("🎤 Starting Enhanced WhisperS2T Appliance v0.8.0...")
     logger.info("🏗️ Architecture: Modular (live_speech, upload_handler, admin_panel, api_docs)")
 
-    # Check for SSL certificates
-    ssl_cert_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "ssl", "whisper-appliance.crt")
-    ssl_key_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "ssl", "whisper-appliance.key")
+    # Check for SSL certificates (support both local dev and container paths)
+    ssl_cert_path = None
+    ssl_key_path = None
 
-    if os.path.exists(ssl_cert_path) and os.path.exists(ssl_key_path):
+    # Try container path first (Proxmox deployment)
+    container_ssl_cert = "/opt/whisper-appliance/ssl/whisper-appliance.crt"
+    container_ssl_key = "/opt/whisper-appliance/ssl/whisper-appliance.key"
+
+    if os.path.exists(container_ssl_cert) and os.path.exists(container_ssl_key):
+        ssl_cert_path = container_ssl_cert
+        ssl_key_path = container_ssl_key
+    else:
+        # Try local development path
+        local_ssl_cert = os.path.join(os.path.dirname(os.path.dirname(__file__)), "ssl", "whisper-appliance.crt")
+        local_ssl_key = os.path.join(os.path.dirname(os.path.dirname(__file__)), "ssl", "whisper-appliance.key")
+
+        if os.path.exists(local_ssl_cert) and os.path.exists(local_ssl_key):
+            ssl_cert_path = local_ssl_cert
+            ssl_key_path = local_ssl_key
+
+    if ssl_cert_path and ssl_key_path:
         logger.info("🔒 SSL certificates found - Starting with HTTPS support")
         logger.info("🌐 Main Interface: https://localhost:5001")
         logger.info("⚙️ Admin Panel: https://localhost:5001/admin")

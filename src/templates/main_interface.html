@@ -285,6 +285,18 @@
                 </div>
                 
                 <div class="form-group">
+                    <label for="modelSelect">🧠 Whisper Model:</label>
+                    <select id="modelSelect">
+                        <option value="base">Base (Recommended) - Fast & Accurate</option>
+                        <option value="tiny">Tiny - Fastest Processing</option>
+                        <option value="small">Small - Better Accuracy</option>
+                        <option value="medium">Medium - High Accuracy (Slower)</option>
+                        <option value="large">Large - Best Accuracy (Slowest)</option>
+                    </select>
+                    <small id="model-status" style="color: #666; font-size: 0.9em;"></small>
+                </div>
+                
+                <div class="form-group">
                     <label for="languageSelect">🌍 Language:</label>
                     <select id="languageSelect">
                         <option value="auto">Auto-detect</option>
@@ -324,6 +336,19 @@
                     <button class="btn" onclick="document.getElementById('audioFile').click()">📁 Select File</button>
                 </div>
                 
+                <!-- Upload Settings -->
+                <div class="form-group">
+                    <label for="uploadModelSelect">🧠 Whisper Model:</label>
+                    <select id="uploadModelSelect">
+                        <option value="base">Base (Recommended) - Fast & Accurate</option>
+                        <option value="tiny">Tiny - Fastest Processing</option>
+                        <option value="small">Small - Better Accuracy</option>
+                        <option value="medium">Medium - High Accuracy (Slower)</option>
+                        <option value="large">Large - Best Accuracy (Slowest)</option>
+                    </select>
+                    <small style="color: #666; font-size: 0.9em;">Model selection applies to this upload only</small>
+                </div>
+                
                 <!-- Upload Controls -->
                 <div class="live-controls">
                     <button id="uploadBtn" class="btn" onclick="uploadFile()" disabled>🚀 Upload & Transcribe</button>
@@ -357,6 +382,85 @@
             event.target.classList.add('active');
         }
         
+        // Model Management Functions
+        async function loadModels() {
+            try {
+                const response = await fetch('/api/models');
+                const data = await response.json();
+                
+                if (data.status === 'success') {
+                    updateModelStatus(data.current_model, data.model_loading);
+                    console.log('Available models:', data.available_models);
+                }
+            } catch (error) {
+                console.error('Failed to load models:', error);
+            }
+        }
+        
+        async function switchModel(modelName) {
+            try {
+                const modelStatus = document.getElementById('model-status');
+                modelStatus.textContent = `Loading ${modelName} model...`;
+                modelStatus.style.color = '#007bff';
+                
+                const response = await fetch(`/api/models/${modelName}`, {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                
+                if (data.status === 'loading') {
+                    modelStatus.textContent = `Loading ${modelName} model... Please wait.`;
+                    
+                    // Poll for completion
+                    const pollInterval = setInterval(async () => {
+                        try {
+                            const statusResponse = await fetch('/api/models');
+                            const statusData = await statusResponse.json();
+                            
+                            if (!statusData.model_loading) {
+                                clearInterval(pollInterval);
+                                if (statusData.current_model === modelName) {
+                                    modelStatus.textContent = `✅ Using ${modelName} model`;
+                                    modelStatus.style.color = '#28a745';
+                                } else {
+                                    modelStatus.textContent = `❌ Failed to load ${modelName} model`;
+                                    modelStatus.style.color = '#dc3545';
+                                }
+                            }
+                        } catch (error) {
+                            clearInterval(pollInterval);
+                            modelStatus.textContent = `❌ Error checking model status`;
+                            modelStatus.style.color = '#dc3545';
+                        }
+                    }, 2000);
+                } else {
+                    modelStatus.textContent = `❌ ${data.error || 'Failed to load model'}`;
+                    modelStatus.style.color = '#dc3545';
+                }
+            } catch (error) {
+                console.error('Failed to switch model:', error);
+                document.getElementById('model-status').textContent = `❌ Network error`;
+                document.getElementById('model-status').style.color = '#dc3545';
+            }
+        }
+        
+        function updateModelStatus(currentModel, isLoading) {
+            const modelSelect = document.getElementById('modelSelect');
+            const modelStatus = document.getElementById('model-status');
+            
+            if (modelSelect) {
+                modelSelect.value = currentModel;
+            }
+            
+            if (isLoading) {
+                modelStatus.textContent = `Loading ${currentModel} model...`;
+                modelStatus.style.color = '#007bff';
+            } else {
+                modelStatus.textContent = `✅ Using ${currentModel} model`;
+                modelStatus.style.color = '#28a745';
+            }
+        }
+
         // WebSocket and audio functionality
         let socket = null;
         let mediaRecorder = null;
@@ -543,6 +647,7 @@
         // File upload functionality
         function uploadFile() {
             const fileInput = document.getElementById('audioFile');
+            const uploadModelSelect = document.getElementById('uploadModelSelect');
             const file = fileInput.files[0];
             
             if (!file) {
@@ -553,7 +658,12 @@
             const formData = new FormData();
             formData.append('audio', file);
             
-            document.getElementById('uploadResult').innerHTML = '🔄 Processing...';
+            // Add selected model to form data (if different from current)
+            if (uploadModelSelect && uploadModelSelect.value) {
+                formData.append('model', uploadModelSelect.value);
+            }
+            
+            document.getElementById('uploadResult').innerHTML = '🔄 Processing with ' + (uploadModelSelect ? uploadModelSelect.value : 'current') + ' model...';
             document.getElementById('uploadBtn').disabled = true;
             
             fetch('/transcribe', {
@@ -568,7 +678,8 @@
                 } else {
                     document.getElementById('uploadResult').innerHTML = 
                         '<strong>📝 Transcription:</strong><br>' + data.text + 
-                        '<br><small>Language: ' + (data.language || 'unknown') + '</small>';
+                        '<br><small>Language: ' + (data.language || 'unknown') + 
+                        ' | Model: ' + (data.model_used || 'unknown') + '</small>';
                 }
                 document.getElementById('uploadBtn').disabled = false;
             })
@@ -590,6 +701,20 @@
         document.addEventListener('DOMContentLoaded', function() {
             const fileInput = document.getElementById('audioFile');
             const uploadBtn = document.getElementById('uploadBtn');
+            const modelSelect = document.getElementById('modelSelect');
+            
+            // Initialize model management
+            loadModels();
+            
+            // Model selection change handler
+            if (modelSelect) {
+                modelSelect.addEventListener('change', function() {
+                    const selectedModel = this.value;
+                    if (selectedModel) {
+                        switchModel(selectedModel);
+                    }
+                });
+            }
             
             fileInput.addEventListener('change', function() {
                 const file = this.files[0];

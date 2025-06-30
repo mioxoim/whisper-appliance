@@ -32,7 +32,7 @@ from flask_swagger_ui import get_swaggerui_blueprint
 from werkzeug.utils import secure_filename
 
 # Import our modular components
-from modules import AdminPanel, APIDocs, LiveSpeechHandler, UploadHandler
+from modules import AdminPanel, APIDocs, LiveSpeechHandler, ModelManager, UploadHandler
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -52,24 +52,27 @@ system_stats = {"uptime_start": datetime.now(), "total_transcriptions": 0, "acti
 connected_clients = []
 system_ready = True
 
-# Try to load Whisper model
-try:
-    import whisper
+# Initialize Model Manager
+model_manager = ModelManager()
 
-    logger.info("Loading Whisper model...")
-    model = whisper.load_model("base")
-    WHISPER_AVAILABLE = True
-    logger.info("✅ Whisper model loaded successfully")
+# Try to load default Whisper model
+try:
+    logger.info("Loading default Whisper model...")
+    if model_manager.load_model("base"):
+        WHISPER_AVAILABLE = True
+        logger.info("✅ Whisper model loaded successfully")
+    else:
+        WHISPER_AVAILABLE = False
+        logger.warning("⚠️ Failed to load default model, will try on-demand")
 except Exception as e:
     logger.error(f"❌ Failed to load Whisper model: {e}")
-    model = None
     WHISPER_AVAILABLE = False
 
-# Initialize module handlers
-upload_handler = UploadHandler(model, WHISPER_AVAILABLE, system_stats)
-live_speech_handler = LiveSpeechHandler(model, WHISPER_AVAILABLE, system_stats, connected_clients)
-admin_panel = AdminPanel(WHISPER_AVAILABLE, system_stats, connected_clients, model)
-api_docs = APIDocs(version="0.8.0")
+# Initialize module handlers with ModelManager
+upload_handler = UploadHandler(model_manager, WHISPER_AVAILABLE, system_stats)
+live_speech_handler = LiveSpeechHandler(model_manager, WHISPER_AVAILABLE, system_stats, connected_clients)
+admin_panel = AdminPanel(WHISPER_AVAILABLE, system_stats, connected_clients, model_manager)
+api_docs = APIDocs(version="0.9.0")
 
 # Configure SwaggerUI
 SWAGGER_URL = "/docs"
@@ -120,18 +123,61 @@ def index():
 def health():
     """Health check endpoint - Original functionality preserved"""
     uptime = (datetime.now() - system_stats["uptime_start"]).total_seconds()
+    model_status = model_manager.get_status()
     return jsonify(
         {
             "status": "healthy",
             "whisper_available": WHISPER_AVAILABLE,
-            "version": "0.8.0",
+            "version": "0.9.0",
             "uptime_seconds": uptime,
             "total_transcriptions": system_stats["total_transcriptions"],
             "active_connections": len(connected_clients),
             "system_ready": system_ready,
             "timestamp": datetime.now().isoformat(),
+            "model_status": model_status,
         }
     )
+
+
+# ==================== MODEL MANAGEMENT ROUTES ====================
+
+
+@app.route("/api/models", methods=["GET"])
+def get_models():
+    """Get available Whisper models"""
+    return jsonify(
+        {
+            "available_models": model_manager.get_available_models(),
+            "current_model": model_manager.get_current_model_name(),
+            "model_loading": model_manager.is_model_loading(),
+            "status": "success",
+        }
+    )
+
+
+@app.route("/api/models/<model_name>", methods=["POST"])
+def switch_model(model_name):
+    """Switch to a different Whisper model"""
+    if model_manager.is_model_loading():
+        return jsonify({"error": "Model loading already in progress", "status": "error"}), 429
+
+    if model_name not in model_manager.get_available_models():
+        return jsonify({"error": f"Invalid model: {model_name}", "status": "error"}), 400
+
+    # Load model in background to avoid blocking
+    import threading
+
+    def load_model():
+        success = model_manager.load_model(model_name)
+        if success:
+            logger.info(f"Model switched to: {model_name}")
+        else:
+            logger.error(f"Failed to switch to model: {model_name}")
+
+    thread = threading.Thread(target=load_model, daemon=True)
+    thread.start()
+
+    return jsonify({"message": f"Loading model: {model_name}", "target_model": model_name, "status": "loading"})
 
 
 @app.route("/transcribe", methods=["POST"])

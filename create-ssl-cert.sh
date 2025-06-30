@@ -24,6 +24,10 @@ print_warning() {
     echo -e "${YELLOW}[WARNING]${NC} $1"
 }
 
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+}
+
 echo "🔐 Creating Intelligent SSL Certificate for WhisperS2T Appliance v0.9.0..."
 
 # Auto-detect container/host IP addresses
@@ -58,8 +62,15 @@ fi
 print_status "🎯 SAN Configuration: $SAN_LIST"
 
 # Create SSL directory if it doesn't exist
-mkdir -p ssl || exit 1
-cd ssl || exit 1
+if ! mkdir -p ssl; then
+    print_error "Failed to create SSL directory"
+    exit 1
+fi
+
+if ! cd ssl; then
+    print_error "Failed to change to SSL directory"
+    exit 1
+fi
 
 # Use primary local IP for CN (Common Name)
 PRIMARY_IP=$(echo "$LOCAL_IPS" | head -1)

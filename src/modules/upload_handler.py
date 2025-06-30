@@ -18,8 +18,8 @@ logger = logging.getLogger(__name__)
 class UploadHandler:
     """Handles audio file upload and transcription"""
 
-    def __init__(self, model, whisper_available, system_stats):
-        self.model = model
+    def __init__(self, model_manager, whisper_available, system_stats):
+        self.model_manager = model_manager
         self.whisper_available = whisper_available
         self.system_stats = system_stats
 
@@ -43,9 +43,10 @@ class UploadHandler:
             with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp_file:
                 audio_file.save(tmp_file.name)
 
-                # Transcribe audio
-                logger.info(f"Transcribing file: {filename}")
-                result = self.model.transcribe(tmp_file.name)
+                # Transcribe audio using ModelManager
+                current_model = self.model_manager.get_current_model_name()
+                logger.info(f"Transcribing file: {filename} with model: {current_model}")
+                result = self.model_manager.transcribe(tmp_file.name)
 
                 # Clean up temp file
                 os.unlink(tmp_file.name)
@@ -54,13 +55,17 @@ class UploadHandler:
                 self.system_stats["total_transcriptions"] += 1
                 logger.info("Transcription completed successfully")
 
-                return jsonify(
-                    {
-                        "text": result["text"],
-                        "language": result.get("language", "unknown"),
-                        "timestamp": datetime.now().isoformat(),
-                    }
-                )
+                if result:
+                    return jsonify(
+                        {
+                            "text": result["text"],
+                            "language": result.get("language", "unknown"),
+                            "model_used": current_model,
+                            "timestamp": datetime.now().isoformat(),
+                        }
+                    )
+                else:
+                    return jsonify({"error": "Transcription failed"})
 
         except Exception as e:
             logger.error(f"Transcription error: {e}")
@@ -87,7 +92,7 @@ class UploadHandler:
                 if language != "auto":
                     kwargs["language"] = language
 
-                result = self.model.transcribe(tmp_file.name, **kwargs)
+                result = self.model_manager.transcribe(tmp_file.name, **kwargs)
                 os.unlink(tmp_file.name)
 
                 self.system_stats["total_transcriptions"] += 1

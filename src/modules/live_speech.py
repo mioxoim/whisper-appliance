@@ -18,8 +18,8 @@ logger = logging.getLogger(__name__)
 class LiveSpeechHandler:
     """Manages WebSocket connections and live speech transcription"""
 
-    def __init__(self, model, whisper_available, system_stats, connected_clients):
-        self.model = model
+    def __init__(self, model_manager, whisper_available, system_stats, connected_clients):
+        self.model_manager = model_manager
         self.whisper_available = whisper_available
         self.system_stats = system_stats
         self.connected_clients = connected_clients

@@ -15,11 +15,11 @@ logger = logging.getLogger(__name__)
 class AdminPanel:
     """Manages admin interface and system monitoring"""
 
-    def __init__(self, whisper_available, system_stats, connected_clients, model):
+    def __init__(self, whisper_available, system_stats, connected_clients, model_manager):
         self.whisper_available = whisper_available
         self.system_stats = system_stats
         self.connected_clients = connected_clients
-        self.model = model
+        self.model_manager = model_manager
 
     def get_admin_interface(self):
         """Enhanced Admin Panel with Navigation - Preserving original + adding navigation"""
@@ -207,12 +207,59 @@ class AdminPanel:
                     </div>
                 </div>
                 
+                <!-- Model Management Section -->
+                <div class="stat-card">
+                    <h3>🧠 Whisper Model Management</h3>
+                    <div class="model-management">
+                        <div class="current-model">
+                            <strong>Current Model:</strong> 
+                            <span id="current-model-name">{self.model_manager.get_current_model_name()}</span>
+                            <span id="model-loading-indicator" style="color: #007bff; font-style: italic;">
+                                {"(Loading...)" if self.model_manager.is_model_loading() else ""}
+                            </span>
+                        </div>
+                        
+                        <div class="model-selector" style="margin: 15px 0;">
+                            <label for="admin-model-select"><strong>Switch Model:</strong></label>
+                            <select id="admin-model-select" style="margin-left: 10px; padding: 5px;">
+                                {"".join([f'<option value="{model_id}" {"selected" if model_id == self.model_manager.get_current_model_name() else ""}>{model_info["name"]} - {model_info["description"]}</option>' for model_id, model_info in self.model_manager.get_available_models().items()])}
+                            </select>
+                            <button onclick="switchAdminModel()" style="margin-left: 10px; padding: 5px 10px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer;">
+                                Switch Model
+                            </button>
+                        </div>
+                        
+                        <div id="admin-model-status" style="margin-top: 10px; font-size: 0.9em;"></div>
+                        
+                        <div class="model-details" style="margin-top: 15px;">
+                            <h4>Available Models:</h4>
+                            <table style="width: 100%; margin-top: 10px; border-collapse: collapse;">
+                                <tr style="background: #f8f9fa;">
+                                    <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Model</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Size</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Speed</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Quality</th>
+                                    <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Description</th>
+                                </tr>
+                                {"".join([f'''
+                                <tr style="{'background: #e8f5e8;' if model_id == self.model_manager.get_current_model_name() else ''}">
+                                    <td style="padding: 8px; border: 1px solid #ddd;"><strong>{model_info["name"]}</strong> {"✅" if model_id == self.model_manager.get_current_model_name() else ""}</td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">{model_info["size"]}</td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">{model_info["speed"]}</td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">{model_info["quality"]}</td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">{model_info["description"]}</td>
+                                </tr>''' for model_id, model_info in self.model_manager.get_available_models().items()])}
+                            </table>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="stat-card">
                     <h3>🔧 System Information</h3>
                     <table>
                         <tr><th>Property</th><th>Value</th></tr>
                         <tr><td>Service Name</td><td>WhisperS2T Enhanced Appliance</td></tr>
-                        <tr><td>Version</td><td>0.8.0</td></tr>
+                        <tr><td>Version</td><td>0.9.0</td></tr>
                         <tr><td>Framework</td><td>Flask + SocketIO</td></tr>
                         <tr><td>Whisper Available</td><td>{"Yes" if self.whisper_available else "No"}</td></tr>
                         <tr><td>Model Type</td><td>{"base" if self.model else "Not loaded"}</td></tr>
@@ -224,6 +271,83 @@ class AdminPanel:
         </body>
         </html>
         """
+
+        # JavaScript for model management (separate to avoid Black parsing issues)
+        js_script = """
+            <script>
+                async function switchAdminModel() {
+                    const modelSelect = document.getElementById('admin-model-select');
+                    const statusDiv = document.getElementById('admin-model-status');
+                    const loadingIndicator = document.getElementById('model-loading-indicator');
+                    const currentModelName = document.getElementById('current-model-name');
+                    
+                    const selectedModel = modelSelect.value;
+                    
+                    try {
+                        statusDiv.innerHTML = '<span style="color: #007bff;">Loading ' + selectedModel + ' model...</span>';
+                        loadingIndicator.textContent = '(Loading...)';
+                        loadingIndicator.style.display = 'inline';
+                        
+                        const response = await fetch('/api/models/' + selectedModel, {
+                            method: 'POST'
+                        });
+                        const data = await response.json();
+                        
+                        if (data.status === 'loading') {
+                            const pollInterval = setInterval(async () => {
+                                try {
+                                    const statusResponse = await fetch('/api/models');
+                                    const statusData = await statusResponse.json();
+                                    
+                                    if (!statusData.model_loading) {
+                                        clearInterval(pollInterval);
+                                        loadingIndicator.style.display = 'none';
+                                        
+                                        if (statusData.current_model === selectedModel) {
+                                            statusDiv.innerHTML = '<span style="color: #28a745;">Successfully switched to ' + selectedModel + ' model</span>';
+                                            currentModelName.textContent = selectedModel;
+                                            setTimeout(() => location.reload(), 2000);
+                                        } else {
+                                            statusDiv.innerHTML = '<span style="color: #dc3545;">Failed to load ' + selectedModel + ' model</span>';
+                                        }
+                                    }
+                                } catch (error) {
+                                    clearInterval(pollInterval);
+                                    statusDiv.innerHTML = '<span style="color: #dc3545;">Error checking model status</span>';
+                                }
+                            }, 2000);
+                        }
+                    } catch (error) {
+                        statusDiv.innerHTML = '<span style="color: #dc3545;">Network error</span>';
+                    }
+                }
+                
+                setInterval(async () => {
+                    try {
+                        const response = await fetch('/api/models');
+                        const data = await response.json();
+                        
+                        const currentModelName = document.getElementById('current-model-name');
+                        const loadingIndicator = document.getElementById('model-loading-indicator');
+                        
+                        if (currentModelName) {
+                            currentModelName.textContent = data.current_model;
+                        }
+                        
+                        if (loadingIndicator) {
+                            loadingIndicator.textContent = data.model_loading ? '(Loading...)' : '';
+                            loadingIndicator.style.display = data.model_loading ? 'inline' : 'none';
+                        }
+                    } catch (error) {
+                        console.error('Model status update failed:', error);
+                    }
+                }, 30000);
+            </script>
+        """
+
+        # Insert JavaScript before closing body tag
+        admin_html = admin_html.replace("</body>", js_script + "</body>")
+
         return admin_html
 
     def get_demo_interface(self):

@@ -1,0 +1,43 @@
+# OpenAI Whisper Web Interface v1.0.0-rc1
+# Lightweight dependencies for development without OpenAI Whisper
+# Use this for quick development when ML dependencies cause issues
+
+# Web Framework
+flask>=3.0.0
+flask-cors>=4.0.0
+flask-socketio>=5.3.0
+flask-swagger-ui>=4.11.0
+
+# WebSocket Support
+python-socketio>=5.8.0
+python-engineio>=4.7.0
+
+# Basic Audio Processing (no ML)
+pydub>=0.25.0
+numpy>=1.21.0
+
+# HTTP & File Handling
+werkzeug>=3.0.0
+requests>=2.30.0
+
+# System Monitoring
+psutil>=5.9.0
+
+# Utilities
+python-dateutil>=2.8.0
+
+# Development Tools
+pytest>=7.4.0
+black>=23.0.0
+flake8>=6.0.0
+isort>=5.12.0
+
+# Development Utilities
+python-dotenv>=1.0.0
+
+# Note: This is for development testing of the web interface
+# without heavy ML dependencies. Whisper transcription will not work,
+# but all other features can be tested with mock responses.
+# 
+# To use: pip install -r requirements-lite.txt
+# Then run: python3 src/main_fallback.py

@@ -1,0 +1,123 @@
+version: '3.8'
+
+# Development version with hot-reload and debugging features
+services:
+  whisper-app-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # Add development dependencies if needed
+    container_name: whisper-web-interface-dev
+    restart: "no"  # Don't auto-restart in development
+    ports:
+      - "5001:5001"    # HTTPS access
+      - "5002:5002"    # Optional: Debug port
+    volumes:
+      # Mount source code for hot-reload development
+      - ./src:/app/src
+      - ./scripts:/app/scripts
+      - ./templates:/app/templates
+      
+      # Persistent volumes
+      - whisper_models_dev:/app/models
+      - whisper_ssl_dev:/app/ssl
+      - whisper_data_dev:/app/data
+      - whisper_logs_dev:/app/logs
+      
+      # Development logs (optional)
+      - ./logs:/app/logs/local
+    
+    environment:
+      # Development Configuration
+      - FLASK_ENV=development
+      - FLASK_DEBUG=true
+      - WHISPER_MODEL=base
+      - PRELOAD_MODEL=false
+      
+      # Development Features
+      - DEBUG_MODE=true
+      - LOG_LEVEL=DEBUG
+      
+      # Network Configuration
+      - HTTPS_PORT=5001
+      - MAX_UPLOAD_SIZE=100MB
+      
+      # Development SSL (less strict)
+      - SSL_VERIFY=false
+    
+    # Reduced resource limits for development
+    deploy:
+      resources:
+        limits:
+          memory: 4G
+          cpus: '2.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+    
+    # Development command (with auto-reload if supported)
+    command: >
+      sh -c "
+        echo '🔧 Starting in development mode...' &&
+        cd /app/src &&
+        python3 main.py
+      "
+    
+    # Health check with more lenient timing
+    healthcheck:
+      test: ["CMD", "curl", "-k", "-f", "https://localhost:5001/health"]
+      interval: 45s
+      timeout: 15s
+      retries: 5
+      start_period: 90s
+    
+    networks:
+      - whisper_network_dev
+
+  # Optional: Separate container for testing fallback mode
+  whisper-fallback-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: whisper-fallback-dev
+    restart: "no"
+    ports:
+      - "5003:5001"    # Different port for fallback testing
+    volumes:
+      - ./src:/app/src
+      - whisper_ssl_dev:/app/ssl
+      - whisper_logs_dev:/app/logs
+    environment:
+      - FLASK_ENV=development
+      - FLASK_DEBUG=true
+      - HTTPS_PORT=5001
+    command: >
+      sh -c "
+        echo '🔧 Starting fallback mode for testing...' &&
+        cd /app/src &&
+        python3 main_fallback.py
+      "
+    profiles:
+      - fallback  # Only start with: docker-compose --profile fallback up
+    networks:
+      - whisper_network_dev
+
+# Development volumes (separate from production)
+volumes:
+  whisper_models_dev:
+    driver: local
+    name: whisper_models_dev
+  whisper_ssl_dev:
+    driver: local
+    name: whisper_ssl_dev
+  whisper_data_dev:
+    driver: local
+    name: whisper_data_dev
+  whisper_logs_dev:
+    driver: local
+    name: whisper_logs_dev
+
+networks:
+  whisper_network_dev:
+    driver: bridge
+    name: whisper_network_dev

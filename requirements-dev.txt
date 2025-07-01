@@ -1,34 +1,43 @@
-# Enhanced WhisperS2T Appliance v0.5.0 - Development Requirements
-# Lightweight dependencies for development server (Python 3.13 compatible)
+# OpenAI Whisper Web Interface v1.0.0-rc1
+# Development dependencies for local testing
 
-# Core Web Framework Dependencies
-fastapi==0.115.13
-uvicorn==0.34.3
-websockets==15.0.1
-jinja2>=3.0.0
-
-# Audio Processing Dependencies (basic)
-pydub==0.25.1
-
-# Scientific Computing Dependencies (basic)
-numpy>=1.21.0
-
-# Web Framework Extensions
-starlette>=0.40.0
-python-multipart>=0.0.5
-
-# System Monitoring Dependencies
-psutil>=5.8.0
-
-# Utility Dependencies
-python-dateutil>=2.8.0
-typing-extensions>=4.8.0
+# Include all production dependencies
+-r requirements.txt
 
 # Development Tools
-pytest>=7.0.0
-black>=22.0.0
-flake8>=5.0.0
+pytest>=7.4.0
+pytest-flask>=1.2.0
+pytest-socketio>=0.3.0
+black>=23.0.0
+flake8>=6.0.0
+isort>=5.12.0
 
-# Note: This is a lightweight setup for development
-# ML dependencies (torch, whisper, etc.) are excluded to avoid Python 3.13 compatibility issues
-# For full ML features, use the container deployment: ./dev.sh container start
+# Development Web Framework
+flask[async]>=3.0.0
+
+# Audio Development (optional, lighter alternatives)
+sounddevice>=0.4.0  # For microphone testing
+matplotlib>=3.7.0   # For audio visualization/debugging
+
+# Development Utilities
+python-dotenv>=1.0.0  # For environment variables
+watchdog>=3.0.0       # For file watching in development
+
+# Documentation
+sphinx>=7.0.0
+sphinx-rtd-theme>=1.3.0
+
+# Type Checking (optional)
+mypy>=1.5.0
+types-requests>=2.31.0
+
+# Performance Profiling (optional)
+memory-profiler>=0.61.0
+line-profiler>=4.1.0
+
+# Jupyter for development/testing (optional)
+# jupyter>=1.0.0
+# ipykernel>=6.25.0
+
+# Note: This extends requirements.txt with development-specific tools
+# For lightweight development without ML dependencies, see requirements-lite.txt

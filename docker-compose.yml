@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+  whisper-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: whisper-web-interface
+    restart: unless-stopped
+    ports:
+      - "5001:5001"    # HTTPS access
+    volumes:
+      # Persistent model storage (so models don't re-download)
+      - whisper_models:/app/models
+      # Persistent SSL certificates
+      - whisper_ssl:/app/ssl
+      # Chat history and application data
+      - whisper_data:/app/data
+      # Application logs
+      - whisper_logs:/app/logs
+      # Optional: Mount local source for development
+      # - ./src:/app/src:ro
+    environment:
+      # Whisper Configuration
+      - WHISPER_MODEL=base
+      - PRELOAD_MODEL=false         # Set to 'true' to download model at startup
+      
+      # Flask Configuration
+      - FLASK_ENV=production
+      - MAX_UPLOAD_SIZE=100MB
+      - HTTPS_PORT=5001
+      
+      # Performance Tuning
+      - WORKER_PROCESSES=1
+      - MODEL_CACHE_SIZE=1
+      
+      # Security
+      - SSL_CERT_PATH=/app/ssl/whisper-appliance.crt
+      - SSL_KEY_PATH=/app/ssl/whisper-appliance.key
+      
+      # Optional: Custom model cache location
+      - WHISPER_CACHE_DIR=/app/models
+    
+    # Resource limits (adjust based on your system)
+    deploy:
+      resources:
+        limits:
+          memory: 6G        # Increase for larger models
+          cpus: '2.0'
+        reservations:
+          memory: 2G
+          cpus: '1.0'
+    
+    # Health check
+    healthcheck:
+      test: ["CMD", "curl", "-k", "-f", "https://localhost:5001/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    
+    # Network configuration
+    networks:
+      - whisper_network
+
+# Named volumes for persistent data
+volumes:
+  whisper_models:
+    driver: local
+    name: whisper_models
+  whisper_ssl:
+    driver: local  
+    name: whisper_ssl
+  whisper_data:
+    driver: local
+    name: whisper_data
+  whisper_logs:
+    driver: local
+    name: whisper_logs
+
+# Custom network
+networks:
+  whisper_network:
+    driver: bridge
+    name: whisper_network

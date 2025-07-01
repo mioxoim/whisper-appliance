@@ -1,339 +1,344 @@
-# 🎤 Enhanced WhisperS2T Appliance v0.9.0
+# 🎤 OpenAI Whisper Web Interface
 
-**Advanced Speech-to-Text Appliance powered by OpenAI Whisper with Intelligent Network SSL**
+**Modern web interface for OpenAI Whisper speech-to-text with Docker and Proxmox support**
 
-## ⚠️ **DEVELOPMENT STATUS WARNING**
+[![GitHub Release](https://img.shields.io/github/v/release/GaboCapo/whisper-appliance)](https://github.com/GaboCapo/whisper-appliance/releases)
+[![Docker Support](https://img.shields.io/badge/docker-supported-blue)](https://docs.docker.com/)
+[![Proxmox Ready](https://img.shields.io/badge/proxmox-ready-green)](https://www.proxmox.com/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-> **🚧 ACTIVE DEVELOPMENT - NOT PRODUCTION READY**  
-> This project is under heavy development and should **NOT** be used in production environments without thorough testing and security auditing. 
-> 
-> **🔍 SECURITY NOTICE:**  
-> - **Code Audit Required:** Please audit all code before production deployment
-> - **Test Environment Only:** Use only in isolated, non-critical environments  
-> - **No Warranty:** See [LICENSE](LICENSE) for complete disclaimer
-> - **Changes Tracked:** See [CHANGELOG.md](CHANGELOG.md) for all modifications
-> 
-> **📊 Current Status:** Container deployment functional, but expect breaking changes
+## ⚡ Quick Start
 
----
+### 🚀 One-Line Proxmox Deployment (Recommended)
 
-## 🎯 **NEW: Container-First Deployment**
+Deploy a complete LXC container with web interface in 10-15 minutes:
 
-**Priority Focus:** Proxmox LXC Container deployment for immediate production use
-
-### ⚡ One-Liner Installation (Easiest)
-
-**For Proxmox VE users - Robust Standalone Version:**
 ```bash
-# One command setup - run on Proxmox host as root:
+# Run on Proxmox host as root:
 bash <(curl -s https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/scripts/proxmox-standalone.sh)
 ```
-**⏱️ Total time: 10-15 minutes** - Creates container, installs everything, ready to use!
 
-### 🔧 Manual Container Setup (More Control)
+**What this does:**
+- ✅ Creates Ubuntu 22.04 LXC container automatically
+- ✅ Installs OpenAI Whisper + web interface
+- ✅ Configures HTTPS with SSL certificates
+- ✅ Sets up systemd services
+- ✅ Provides web interface URL
 
+### 🐳 Docker Deployment
+
+**Quick Start:**
 ```bash
-# 1. Create Ubuntu 22.04 LXC container in Proxmox
-# 2. SSH into container
-ssh root@container-ip
-
-# 3. Clone and install  
+# Clone repository
 git clone https://github.com/GaboCapo/whisper-appliance.git
 cd whisper-appliance
-./install-container.sh
 
-# 4. Access web interface
-# http://container-ip:5000
+# Start with Docker Compose
+docker-compose up -d
+
+# Access web interface
+open https://localhost:5001
 ```
 
-**📖 Detailed Guides:** 
-- **[One-Liner Method](PROXMOX-HELPER-SCRIPTS.md)** - Easiest deployment
-- **[Manual Method](PROXMOX-QUICKSTART.md)** - Step-by-step guide
+**Development Mode:**
+```bash
+# Start development container with hot-reload
+docker-compose -f docker-compose.dev.yml up -d
 
----
+# Test fallback mode
+docker-compose -f docker-compose.dev.yml --profile fallback up -d
 
-## 🔄 **Strategy Change in v0.6.0**
+# Access development interface
+open https://localhost:5001
+```
 
-### **Why Container-First?**
+**Testing & Management:**
+```bash
+# Quick test all features
+./scripts/docker-test.sh test
 
-**Previous Approach (v0.5.0):** Fedora ISO builds with livemedia-creator
-- ❌ 15+ hour build times
-- ❌ Complex library conflicts  
-- ❌ Unreliable Mock environments
-- ❌ Difficult to test and iterate
+# View container logs
+./scripts/docker-test.sh logs
 
-**New Approach (v0.6.0):** Proxmox LXC Containers
-- ✅ 10-minute deployment
-- ✅ Easy testing and updates
-- ✅ Resource efficient
-- ✅ Production-ready reliability
-- ✅ Git-based deployment workflow
+# Stop containers
+./scripts/docker-test.sh stop
 
-### **Deployment Strategy**
-1. **Phase 1 (Current):** Proxmox LXC Container - ✅ **READY**
-2. **Phase 2 (Future):** Debian-based Live ISO  
-3. **Phase 3 (Future):** Dedicated hardware appliance
+# Complete cleanup
+./scripts/docker-test.sh clean
+```
 
----
+### 💻 Local Development
 
-## 🏗️ System Architecture
+**Full Development Setup:**
+```bash
+# Clone and setup
+git clone https://github.com/GaboCapo/whisper-appliance.git
+cd whisper-appliance
 
-### **Container-Based Stack**
+# Install full development dependencies
+pip3 install -r requirements-dev.txt
+
+# Start development server
+cd src && python3 main.py
+```
+
+**Lightweight Development (without ML dependencies):**
+```bash
+# For quick web interface testing
+pip3 install -r requirements-lite.txt
+
+# Start fallback server (no AI transcription)
+cd src && python3 main_fallback.py
+```
+
+**Requirements Files:**
+- `requirements.txt` - Production dependencies
+- `requirements-dev.txt` - Development with testing tools
+- `requirements-lite.txt` - Web interface only (no Whisper)
+- `requirements-container.txt` - Container-optimized versions
+
+## 🎯 Features
+
+- **🎙️ Live Speech Recognition** - Real-time microphone transcription via WebSocket
+- **📁 File Upload Support** - Drag & drop audio files (MP3, WAV, M4A, etc.)
+- **🔒 HTTPS Ready** - Built-in SSL certificate generation
+- **🌐 Network Access** - Works across your local network
+- **⚙️ Admin Panel** - Model management and system monitoring
+- **📚 API Documentation** - RESTful API with Swagger UI
+- **🔄 Auto-Updates** - GitHub-based update system
+- **📊 Health Monitoring** - Service status and diagnostics
+
+## 🏗️ Architecture
+
 ```
 ┌─────────────────────────────────────────┐
-│     Web Interface (Port 5000)          │  ← Upload & Transcription UI
-├─────────────────────────────────────────┤
-│        Nginx Reverse Proxy             │  ← SSL termination & routing
+│     Web Interface (HTTPS:5001)         │  ← Upload & Live Speech UI
 ├─────────────────────────────────────────┤
 │        Flask Application               │  ← Core application logic
 ├─────────────────────────────────────────┤
-│        Whisper Model Engine            │  ← OpenAI Whisper processing
+│        OpenAI Whisper Engine           │  ← AI transcription processing
 ├─────────────────────────────────────────┤
-│        System Services                 │  ← Systemd integration
+│        Systemd Services                │  ← Auto-start and management
 └─────────────────────────────────────────┘
 ```
 
-### **Features in v0.6.0**
-- ✅ **Live Speech Recognition** - Real-time microphone transcription
-- ✅ **Web File Upload Interface** - Drag & drop audio transcription
-- ✅ **Dual Interface Design** - Live speech + file upload in tabbed UI
-- ✅ **Audio Input Manager** - Hardware/simulated microphone support
-- ✅ **Health Check Endpoints** - `/health` for monitoring
-- ✅ **Systemd Service Integration** - Auto-start and management
-- ✅ **Nginx Reverse Proxy** - Production-grade web serving
-- ✅ **Security Configuration** - Firewall setup and user isolation
-- ✅ **Resource Optimization** - Memory and CPU tuning
-- ✅ **Logging & Monitoring** - Structured logs and service status
+## 📋 Requirements
 
----
-
-## 📦 Container Requirements
-
-### **Proxmox Host**
+### **Proxmox LXC (Recommended)**
 - Proxmox VE 7.0+
-- Bridge network interface (vmbr0)
+- 2 CPU cores, 4GB RAM, 20GB storage
+- Ubuntu 22.04 LXC template
 
-### **Container Specs**
-- **Base:** Ubuntu 22.04 LTS (recommended) or Debian 12
-- **CPU:** 2 cores minimum
-- **RAM:** 4GB minimum (8GB for large models)
-- **Storage:** 20GB minimum (50GB recommended)
-- **Features:** Nesting enabled
+### **Docker**
+- Docker 20.10+
+- Docker Compose 2.0+
+- 4GB RAM available
 
-### **Automatic Dependencies**
-- Python 3.10+ with pip
-- FFmpeg and audio libraries
-- Build tools and development headers
-- Nginx web server
-- Systemd service management
-
----
-
-## 🚀 Deployment Options
-
-### **1. Proxmox LXC Container (Recommended)**
-```bash
-# Quick deployment in existing container
-./install-container.sh
-```
-**Time:** ~10 minutes  
-**Guide:** [PROXMOX-QUICKSTART.md](PROXMOX-QUICKSTART.md)
-
-### **2. Docker Container**
-```bash
-# Alternative for non-Proxmox environments
-docker build -t whisper-appliance .
-docker run -p 5000:5000 whisper-appliance
-```
-
-### **3. Manual Installation**
-```bash
-# Development setup
-./dev.sh dev start
-```
-
----
+### **Local Installation**
+- Python 3.8+
+- FFmpeg
+- 4GB RAM
 
 ## 🎤 Usage
 
 ### **Web Interface**
-1. **Access:** `http://container-ip:5000`
-2. **Live Speech:** Switch to "Live Speech" tab, click "Start Live Transcription", speak naturally
-3. **File Upload:** Switch to "Upload File" tab, drag & drop audio file (MP3, WAV, M4A, etc.)
-4. **Real-time Processing:** Live transcription updates continuously, file processing automatic
-5. **Results:** Copy or download transcribed text from either interface
+1. **Access:** Navigate to `https://your-ip:5001`
+2. **Live Speech:** Click microphone button, speak naturally
+3. **File Upload:** Drag & drop audio files
+4. **Real-time Results:** See transcription appear instantly
 
-### **Dual Interface Features**
-- **🎙️ Live Speech Tab**: Real-time microphone transcription with audio visualization
-- **📁 Upload File Tab**: Drag & drop file transcription up to 100MB
-- **⚙️ System Tab**: Device management, health checks, service controls
-
-### **API Endpoint**
+### **API Access**
 ```bash
-# Direct API access
-curl -X POST -F "audio=@file.wav" http://container-ip:5000/transcribe
+# Transcribe audio file
+curl -X POST -F "audio=@file.wav" https://your-ip:5001/transcribe
+
+# Health check
+curl https://your-ip:5001/health
+
+# API documentation
+open https://your-ip:5001/docs
 ```
 
-### **Health Monitoring**
-```bash
-# Service status
-curl http://container-ip:5000/health
+## ⚙️ Model Management
 
-# System status
-systemctl status whisper-appliance
-journalctl -u whisper-appliance -f
-```
+The interface supports multiple OpenAI Whisper models:
 
----
+| Model | RAM Usage | Speed | Quality |
+|-------|-----------|-------|---------|
+| tiny  | ~1GB      | 32x   | Good    |
+| base  | ~1GB      | 16x   | Better  |
+| small | ~2GB      | 6x    | Better  |
+| medium| ~5GB      | 2x    | Best    |
+| large | ~10GB     | 1x    | Best    |
+
+Models are downloaded automatically on first use or can be pre-installed via the admin panel.
 
 ## 🔧 Configuration
 
 ### **Environment Variables**
 ```bash
 # Model selection
-export WHISPER_MODEL=base  # base, small, medium, large
+WHISPER_MODEL=base
 
-# Performance tuning  
-export WORKER_PROCESSES=2
-export MAX_UPLOAD_SIZE=100MB
+# Performance tuning
+MAX_UPLOAD_SIZE=100MB
+WORKER_PROCESSES=2
+
+# Network configuration
+HTTPS_PORT=5001
+HTTP_REDIRECT=true
 ```
 
-### **System Service**
+### **SSL Certificates**
 ```bash
-# Service management
-systemctl start whisper-appliance
-systemctl stop whisper-appliance
-systemctl restart whisper-appliance
-systemctl enable whisper-appliance
+# Generate certificates for network access
+./create-ssl-cert.sh
+
+# Certificates support multiple IPs automatically
+# Includes localhost, hostname, and all network IPs
 ```
 
----
+## 🛠️ Development
 
-## 📊 Resource Requirements by Model
-
-| Model | RAM Usage | CPU Load | Transcription Speed |
-|-------|-----------|----------|-------------------|
-| base  | ~1GB      | Medium   | 1x realtime      |
-| small | ~2GB      | Medium   | 2x realtime      |
-| medium| ~5GB      | High     | 3x realtime      |
-| large | ~10GB     | High     | 5x realtime      |
-
----
-
-## 🛠 Troubleshooting
-
-### **Service Issues**
+### **Development Server**
 ```bash
-# Check service status
+# Start development environment
+./scripts/dev.sh dev start
+
+# Run tests
+./scripts/dev.sh test
+
+# Build container
+./scripts/dev.sh container build
+```
+
+### **Project Structure**
+```
+whisper-appliance/
+├── src/                    # Main application
+│   ├── main.py            # Flask application
+│   ├── modules/           # Modular components
+│   └── templates/         # Web interface
+├── scripts/               # Deployment & development
+│   ├── proxmox-standalone.sh
+│   ├── dev.sh
+│   └── debug-container.sh
+├── docs/                  # Documentation
+└── ssl/                   # SSL certificates
+```
+
+## 📊 Monitoring
+
+### **Service Status**
+```bash
+# Check service health
 systemctl status whisper-appliance
 
 # View logs
-journalctl -u whisper-appliance -n 50
+journalctl -u whisper-appliance -f
 
+# Web health check
+curl https://localhost:5001/health
+```
+
+### **Performance Monitoring**
+- CPU and memory usage in admin panel
+- Transcription speed metrics
+- Service uptime tracking
+- Error rate monitoring
+
+## 🔄 Updates
+
+### **Automatic Updates**
+```bash
+# Check for updates
+curl https://your-ip:5001/admin/check-updates
+
+# Perform update (via web interface)
+# Or manually:
+./auto-update.sh
+```
+
+### **Manual Updates**
+```bash
+cd whisper-appliance
+git pull origin main
+pip3 install -r requirements.txt
+systemctl restart whisper-appliance
+```
+
+## 🚨 Troubleshooting
+
+### **Service Issues**
+```bash
 # Restart service
 systemctl restart whisper-appliance
+
+# Check logs
+journalctl -u whisper-appliance -n 50
+
+# Test dependencies
+python3 -c "import whisper; print('OK')"
+```
+
+### **Network Access Issues**
+```bash
+# Check SSL certificates
+openssl x509 -in ssl/whisper-appliance.crt -text -noout
+
+# Test connectivity
+curl -k https://localhost:5001/health
+
+# Regenerate certificates
+./create-ssl-cert.sh
 ```
 
 ### **Model Loading Issues**
 ```bash
-# Test Whisper installation
-sudo -u whisper python3 -c "import whisper; print('OK')"
+# Clear model cache
+rm -rf ~/.cache/whisper/
 
-# Manually load model
-sudo -u whisper python3 -c "import whisper; whisper.load_model('base')"
+# Manually download model
+python3 -c "import whisper; whisper.load_model('base')"
 ```
-
-### **Network Issues**
-```bash
-# Check port binding
-netstat -tlnp | grep 5000
-
-# Test connectivity
-curl -I http://localhost:5000/health
-```
-
----
 
 ## 📚 Documentation
 
-- **[One-Liner Deployment](PROXMOX-HELPER-SCRIPTS.md)** - Single command installation
-- **[Manual Setup Guide](PROXMOX-QUICKSTART.md)** - Step-by-step deployment
-- **[Container Deployment](CONTAINER-DEPLOYMENT.md)** - Detailed setup guide
+- **[Proxmox Deployment Guide](PROXMOX-QUICKSTART.md)** - Step-by-step container setup
+- **[Container Installation](CONTAINER-DEPLOYMENT.md)** - Manual container deployment
 - **[Update Management](UPDATE-MANAGEMENT.md)** - Automated updates and rollbacks
-- **[CI/CD Pipeline](CI-CD-DOCUMENTATION.md)** - Quality assurance and testing
-- **[Architecture](ARCHITECTURE.md)** - System design and components
-- **[Development](QUICKSTART.md)** - Development environment setup
-- **[Changelog](CHANGELOG.md)** - Version history and changes
+- **[API Documentation](docs/api.md)** - RESTful API reference
+- **[Contributing Guide](CONTRIBUTING.md)** - Development guidelines
+- **[Legacy Documentation](docs/legacy/)** - Previous version docs
 
----
+## 🤝 Contributing
 
-## 🎯 Future Roadmap
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details.
 
-### **v0.6.x - Container Optimization**
-- [ ] Multi-model support (base, small, medium, large)
-- [ ] GPU acceleration support
-- [ ] Container template packaging
-- [ ] Performance monitoring dashboard
+### **Development Setup**
+```bash
+# Fork and clone
+git clone https://github.com/yourusername/whisper-appliance.git
+cd whisper-appliance
 
-### **v0.7.x - Debian ISO Build**
-- [ ] Switch to Debian stable base
-- [ ] Standard live-build toolchain  
-- [ ] Reliable ISO generation
-- [ ] Hardware compatibility testing
+# Install development dependencies
+pip3 install -r requirements-dev.txt
 
-### **v0.8.x - Production Features**
-- [ ] HTTPS/TLS support
-- [ ] User authentication
-- [ ] Batch processing queues
-- [ ] API rate limiting
-- [ ] Backup and restore
-
----
-
-## 🤖 Continuous Integration & Quality Assurance
-
-WhisperS2T uses **GitHub Actions** for automated testing and quality assurance to ensure reliable, professional-grade code:
-
-### 🔍 **Why GitHub Actions?**
-- **Automated Quality Checks**: Every code change is automatically tested
-- **Prevent Breaking Changes**: Catch issues before they reach production
-- **Community Contributions**: Ensure all pull requests meet quality standards
-- **Professional Standards**: Maintain enterprise-grade code quality
-
-### ⚙️ **CI/CD Pipeline Jobs**
-
-| Job | Purpose | What it Checks |
-|-----|---------|----------------|
-| **🐍 Lint** | Code Quality | Python syntax, PEP 8 compliance, import sorting |
-| **🔧 ShellCheck** | Script Quality | Shell script best practices, syntax validation |
-| **📦 Container Test** | Deployment | Installation scripts, file completeness |
-| **📚 Documentation** | Completeness | Required docs exist, version consistency |
-| **🛡️ Security** | Safety | No secrets committed, secure configurations |
-
-### 🎯 **Benefits for WhisperS2T**
-- **🚀 Reliable Deployments**: Installation scripts are tested before release
-- **🔒 Security**: Automatic scanning for potential security issues
-- **📝 Documentation**: Ensures guides stay up-to-date with code changes
-- **🤝 Community-Ready**: Contributors get immediate feedback on code quality
-- **⚡ Fast Feedback**: Know within minutes if changes break anything
-
-### 🏆 **Quality Standards Enforced**
-- **Python Code**: Black formatting, flake8 linting, import sorting
-- **Shell Scripts**: ShellCheck validation for all .sh files
-- **Documentation**: Version consistency, completeness checks
-- **Security**: No hardcoded secrets, safe file permissions
-- **Dependencies**: Proper package management and compatibility
-
-The green ✅ badges you see on GitHub mean all quality checks pass - your deployment will be reliable!
-
-**📖 Detailed Guide:** [CI/CD Documentation](CI-CD-DOCUMENTATION.md)
-
----
+# Start development server
+./scripts/dev.sh dev start
+```
 
 ## 📄 License
 
-MIT License - see [LICENSE](LICENSE) for details
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- **OpenAI** for the Whisper speech recognition model
+- **tteck/community-scripts** for Proxmox deployment inspiration
+- **Flask & SocketIO** for the web framework
+- **Contributors** who help improve this project
 
 ---
 
-**🎉 Ready to deploy? Start with the [Proxmox Quick Start](PROXMOX-QUICKSTART.md)!**
+**🎉 Ready to start? Try the [one-line Proxmox deployment](#-one-line-proxmox-deployment-recommended)!**

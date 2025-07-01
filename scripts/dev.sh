@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Enhanced WhisperS2T Appliance v0.5.0 - Developer Helper
-# Zentrale Steuerung für alle Entwicklungs- und Build-Aufgaben
+# OpenAI Whisper Web Interface v1.0.0 - Developer Helper
+# Development and deployment tools for Flask-based application
 
 set -e
 
@@ -15,9 +15,9 @@ BOLD='\033[1m'
 NC='\033[0m' # No Color
 
 # Project configuration
-PROJECT_NAME="Enhanced WhisperS2T Appliance"
-VERSION="0.6.0"
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_NAME="OpenAI Whisper Web Interface"
+VERSION="1.0.0"
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 print_header() {
     echo -e "${BOLD}${BLUE}================================================================${NC}"
@@ -86,23 +86,19 @@ dev_start() {
     if [ -f "$ROOT_DIR/requirements-dev.txt" ]; then
         print_step "Installing development dependencies..."
         pip install -q -r "$ROOT_DIR/requirements-dev.txt" || {
-            print_warning "Dev requirements failed, trying manual installation..."
+            print_warning "Full dev requirements failed, trying lightweight version..."
             
-            # Install core dependencies manually
-            print_step "Installing core web framework..."
-            pip install -q fastapi==0.115.13 uvicorn==0.34.3 websockets==15.0.1
-            
-            print_step "Installing audio processing..."
-            pip install -q pydub==0.25.1 numpy
-            
-            print_step "Installing system monitoring..."
-            pip install -q psutil python-dateutil typing-extensions
-            
-            print_step "Installing web extensions..."
-            pip install -q starlette python-multipart
-            
-            print_warning "Skipping problematic ML dependencies for dev server"
-            print_info "For full ML features, use the container deployment"
+            # Try lightweight requirements for development
+            if [ -f "$ROOT_DIR/requirements-lite.txt" ]; then
+                print_step "Installing lightweight dependencies..."
+                pip install -q -r "$ROOT_DIR/requirements-lite.txt" || {
+                    print_error "Lightweight requirements also failed"
+                    print_info "Manual fallback installation..."
+                    pip install -q flask flask-cors flask-socketio pydub numpy
+                }
+                print_warning "Using lightweight mode - Whisper features may not work"
+                print_info "Run main_fallback.py for basic testing"
+            fi
         }
     else
         print_step "Installing full requirements..."
@@ -114,34 +110,33 @@ dev_start() {
         }
     fi
     
-    print_step "Starting development server..."
-    cd "$ROOT_DIR/src/webgui/backend"
+    print_step "Starting Flask development server..."
+    cd "$ROOT_DIR/src"
     
-    # Use the dedicated development server
-    if [ -f "dev_server.py" ]; then
-        MAIN_SCRIPT="dev_server.py"
-    elif [ -f "appliance_server.py" ]; then
-        MAIN_SCRIPT="appliance_server.py"
-    elif [ -f "main.py" ]; then
+    # Check for available main scripts
+    if [ -f "main.py" ]; then
         MAIN_SCRIPT="main.py"
+    elif [ -f "main_fallback.py" ]; then
+        MAIN_SCRIPT="main_fallback.py"
+        print_warning "Using fallback version (Whisper may not be available)"
     else
-        print_error "No main script found in backend directory"
+        print_error "No main script found in src directory"
         return 1
     fi
     
-    print_success "Development server starting..."
+    print_success "Flask development server starting..."
     print_info "Using script: $MAIN_SCRIPT"
-    print_info "Web Interface: http://localhost:5000"
-    print_info "Admin Panel: http://localhost:5000/admin"
-    print_info "Demo Interface: http://localhost:5000/demo"
-    print_info "API Docs: http://localhost:5000/docs"
+    print_info "Web Interface: https://localhost:5001 (HTTPS)"
+    print_info "Admin Panel: https://localhost:5001/admin"
+    print_info "API Docs: https://localhost:5001/docs"
+    print_info "Health Check: https://localhost:5001/health"
     echo ""
-    print_warning "Note: Running in lite mode - some ML features may be limited"
-    print_info "For full features, use: ./dev.sh container start"
+    print_warning "Note: SSL certificate warnings are normal for development"
+    print_info "For container deployment: ./dev.sh container start"
     print_info "Press Ctrl+C to stop the server"
     echo ""
     
-    python "$MAIN_SCRIPT"
+    python3 "$MAIN_SCRIPT"
 }
 
 dev_stop() {
@@ -210,7 +205,9 @@ dev_status() {
 
 # Build functions
 build_quick_iso() {
-    print_section "📀 Building Quick Deploy ISO"
+    print_section "📀 Building Quick Deploy ISO (LEGACY)"
+    print_warning "ISO building is now in LEGACY mode"
+    print_info "ISO builders moved to scripts/legacy/ - use container deployment instead"
     
     BUILD_SCRIPT="$ROOT_DIR/scripts/build-quick-iso.sh"
     
@@ -511,9 +508,11 @@ container_logs() {
 }
 
 # Full ISO Build functions
-# Full ISO Build functions - Simplified Installation ISO
+# Full ISO Build functions - LEGACY MODE
 build_full_iso() {
-    print_section "🌍 Building Installation ISO"
+    print_section "🌍 Building Installation ISO (LEGACY)"
+    print_warning "Full ISO building is now in LEGACY mode"
+    print_info "ISO builders moved to scripts/legacy/ - use container deployment instead"
     
     print_step "Creating installation package..."
     
@@ -753,9 +752,11 @@ EOF
     print_info "Mount this ISO on any Linux system and run: sudo ./install.sh"
 }
 
-# Fedora Live ISO Build functions
+# Fedora Live ISO Build functions - LEGACY MODE
 build_fedora_bootable_iso() {
-    print_section "🎤 Building Fedora Live ISO (New Method)"
+    print_section "🎤 Building Fedora Live ISO (LEGACY)"
+    print_warning "Fedora ISO building is now in LEGACY mode"
+    print_info "ISO builders moved to scripts/legacy/ - use container deployment instead"
     
     print_step "Using official Fedora live templates..."
     

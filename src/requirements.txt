@@ -1,8 +1,17 @@
-flask
-flask-cors
-flask-socketio
-flask-swagger-ui
-python-socketio
-openai-whisper
-torch
-torchaudio
+# OpenAI Whisper Web Interface - Source Dependencies
+# 
+# This file is deprecated. Use the requirements files in the project root:
+#
+# Production:   ../requirements.txt
+# Development:  ../requirements-dev.txt  
+# Lightweight:  ../requirements-lite.txt
+# Container:    ../requirements-container.txt
+#
+# To install for development:
+# pip install -r ../requirements-dev.txt
+#
+# To install for production:
+# pip install -r ../requirements.txt
+
+# For backward compatibility, include basic dependencies:
+-r ../requirements.txt

@@ -167,24 +167,33 @@ chown -R whisper:whisper /opt/whisper-appliance
 
 print_status "Installing Python dependencies..."
 sudo -u whisper python3 -m pip install --user --upgrade pip >/dev/null 2>&1
-sudo -u whisper python3 -m pip install --user \
-    torch torchaudio --index-url https://download.pytorch.org/whl/cpu >/dev/null 2>&1
-sudo -u whisper python3 -m pip install --user \
-    openai-whisper \
-    flask \
-    flask-cors \
-    flask-socketio \
-    flask-swagger-ui \
-    gunicorn \
-    librosa \
-    soundfile \
-    pydub \
-    requests \
-    python-multipart \
-    werkzeug \
-    psutil \
-    sounddevice \
-    numpy >/dev/null 2>&1
+
+# Install production requirements from downloaded file
+if [ -f "/opt/whisper-appliance/requirements.txt" ]; then
+    print_status "Installing from requirements.txt..."
+    sudo -u whisper python3 -m pip install --user -r /opt/whisper-appliance/requirements.txt >/dev/null 2>&1
+else
+    print_warning "Requirements file not found, installing manually..."
+    # Fallback manual installation
+    sudo -u whisper python3 -m pip install --user \
+        torch torchaudio --index-url https://download.pytorch.org/whl/cpu >/dev/null 2>&1
+    sudo -u whisper python3 -m pip install --user \
+        openai-whisper \
+        flask \
+        flask-cors \
+        flask-socketio \
+        flask-swagger-ui \
+        python-socketio \
+        python-engineio \
+        gunicorn \
+        librosa \
+        soundfile \
+        pydub \
+        requests \
+        werkzeug \
+        psutil \
+        numpy >/dev/null 2>&1
+fi
 
 # Function to create fallback app if GitHub download fails
 create_fallback_app() {
@@ -493,10 +502,10 @@ download_file "https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main
               "/opt/whisper-appliance/src/templates/main_interface.html" \
               "Main Interface Template"
 
-# Download requirements
-download_file "https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/src/requirements.txt" \
-              "/opt/whisper-appliance/src/requirements.txt" \
-              "Requirements File"
+# Download requirements from project root (not src/)
+download_file "https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/requirements.txt" \
+              "/opt/whisper-appliance/requirements.txt" \
+              "Production Requirements File"
 
 # Download audio input manager
 if ! download_file "https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/src/whisper-service/audio_input_manager.py" \

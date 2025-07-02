@@ -92,9 +92,14 @@ class LiveSpeechHandler:
                 tmp_file.write(audio_bytes)
                 tmp_file.flush()
 
-                # Transcribe in real-time
+                # Transcribe in real-time using model manager
                 logger.info("Processing live audio chunk...")
-                result = self.model.transcribe(tmp_file.name, fp16=False)
+                model = self.model_manager.get_model()
+                if model is None:
+                    emit("transcription_error", {"error": "No model loaded"})
+                    return
+
+                result = model.transcribe(tmp_file.name, fp16=False)
 
                 # Clean up
                 os.unlink(tmp_file.name)

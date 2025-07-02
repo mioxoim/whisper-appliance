@@ -164,6 +164,10 @@ class ModelManager:
             logger.error(f"Transcription failed: {e}")
             return None
 
+    def get_model(self):
+        """Get the current loaded model instance"""
+        return self.current_model
+
     def get_status(self) -> Dict:
         """Get current model manager status"""
         return {

@@ -507,7 +507,42 @@ class AdminPanel:
             <meta charset="utf-8">
             <style>
                 * { margin: 0; padding: 0; box-sizing: border-box; }
-                body { font-family: Arial, sans-serif; background: #f8f9fa; margin: 0; }
+                
+                /* CSS Variables for theming */
+                :root {
+                    --bg-primary: #f8f9fa;
+                    --bg-secondary: white;
+                    --text-primary: #333;
+                    --text-secondary: #666;
+                    --border-color: rgba(0,0,0,0.1);
+                    --card-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                    --result-bg: #e8f5e8;
+                    --result-border: #28a745;
+                    --error-bg: #f8d7da;
+                    --error-border: #dc3545;
+                }
+                
+                /* Dark mode variables */
+                [data-theme="dark"] {
+                    --bg-primary: #1a1a1a;
+                    --bg-secondary: #2d2d2d;
+                    --text-primary: #e0e0e0;
+                    --text-secondary: #b0b0b0;
+                    --border-color: rgba(255,255,255,0.1);
+                    --card-shadow: 0 2px 10px rgba(0,0,0,0.3);
+                    --result-bg: #1e3a1e;
+                    --result-border: #4caf50;
+                    --error-bg: #3a1e1e;
+                    --error-border: #f44336;
+                }
+                
+                body { 
+                    font-family: Arial, sans-serif; 
+                    background: var(--bg-primary); 
+                    margin: 0;
+                    color: var(--text-primary);
+                    transition: background 0.3s, color 0.3s;
+                }
                 
                 /* Navigation */
                 .nav-header {
@@ -536,17 +571,78 @@ class AdminPanel:
                 .nav-links a:hover { background: rgba(255,255,255,0.2); }
                 .nav-links a.active { background: rgba(255,255,255,0.3); }
                 
-                .container { max-width: 800px; margin: 20px auto; background: white; padding: 30px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                .container { 
+                    max-width: 800px; 
+                    margin: 20px auto; 
+                    background: var(--bg-secondary); 
+                    padding: 30px; 
+                    border-radius: 10px; 
+                    box-shadow: var(--card-shadow);
+                    transition: background 0.3s, box-shadow 0.3s;
+                }
                 .header { text-align: center; margin-bottom: 30px; }
-                .demo-section { background: #f8f9fa; padding: 20px; border-radius: 5px; margin: 20px 0; }
-                button { background: #667eea; color: white; border: none; padding: 12px 24px; border-radius: 5px; cursor: pointer; margin: 10px; }
+                .demo-section { 
+                    background: var(--bg-primary); 
+                    padding: 20px; 
+                    border-radius: 5px; 
+                    margin: 20px 0;
+                    transition: background 0.3s;
+                }
+                button { 
+                    background: #667eea; 
+                    color: white; 
+                    border: none; 
+                    padding: 12px 24px; 
+                    border-radius: 5px; 
+                    cursor: pointer; 
+                    margin: 10px;
+                    transition: background 0.3s;
+                }
                 button:hover { background: #5a67d8; }
-                .result { background: #e8f5e8; padding: 15px; border-radius: 5px; margin: 10px 0; border-left: 4px solid #28a745; }
-                .error { background: #f8d7da; border-left-color: #dc3545; }
-                input[type="file"] { margin: 10px 0; }
+                .result { 
+                    background: var(--result-bg); 
+                    padding: 15px; 
+                    border-radius: 5px; 
+                    margin: 10px 0; 
+                    border-left: 4px solid var(--result-border);
+                    transition: background 0.3s, border-color 0.3s;
+                }
+                .error { 
+                    background: var(--error-bg); 
+                    border-left-color: var(--error-border); 
+                }
+                input[type="file"], select { 
+                    margin: 10px 0; 
+                    padding: 8px;
+                    background: var(--bg-secondary);
+                    color: var(--text-primary);
+                    border: 1px solid var(--border-color);
+                    border-radius: 4px;
+                    transition: background 0.3s, color 0.3s, border-color 0.3s;
+                }
+                
+                /* Dark mode toggle */
+                .theme-toggle {
+                    position: fixed;
+                    top: 20px;
+                    right: 20px;
+                    background: #667eea;
+                    color: white;
+                    border: none;
+                    padding: 10px 15px;
+                    border-radius: 50px;
+                    cursor: pointer;
+                    font-size: 16px;
+                    z-index: 1000;
+                    transition: background 0.3s;
+                }
+                .theme-toggle:hover { background: #5a67d8; }
             </style>
         </head>
         <body>
+            <!-- Dark Mode Toggle -->
+            <button class="theme-toggle" onclick="toggleTheme()" id="themeToggle">🌙</button>
+            
             <!-- Navigation -->
             <div class="nav-header">
                 <div class="nav-container">
@@ -795,6 +891,35 @@ class AdminPanel:
                             '<div class="result error"><strong>Error:</strong> ' + error.message + '</div>';
                     }
                 }
+                
+                // Dark mode functionality
+                function toggleTheme() {
+                    const body = document.body;
+                    const toggle = document.getElementById('themeToggle');
+                    
+                    if (body.getAttribute('data-theme') === 'dark') {
+                        body.removeAttribute('data-theme');
+                        toggle.textContent = '🌙';
+                        localStorage.setItem('theme', 'light');
+                    } else {
+                        body.setAttribute('data-theme', 'dark');
+                        toggle.textContent = '☀️';
+                        localStorage.setItem('theme', 'dark');
+                    }
+                }
+                
+                // Load saved theme on page load
+                document.addEventListener('DOMContentLoaded', function() {
+                    const savedTheme = localStorage.getItem('theme');
+                    const toggle = document.getElementById('themeToggle');
+                    
+                    if (savedTheme === 'dark') {
+                        document.body.setAttribute('data-theme', 'dark');
+                        toggle.textContent = '☀️';
+                    } else {
+                        toggle.textContent = '🌙';
+                    }
+                });
             </script>
             <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.0.0/socket.io.js"></script>
         </body>

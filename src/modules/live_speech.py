@@ -73,8 +73,9 @@ class LiveSpeechHandler:
             return
 
         try:
-            # Get audio data from WebSocket
+            # Get audio data and language from WebSocket
             audio_data = data.get("audio_data")
+            language = data.get("language", "auto")  # Get language from frontend
             if not audio_data:
                 emit("transcription_error", {"error": "No audio data received"})
                 return
@@ -93,13 +94,18 @@ class LiveSpeechHandler:
                 tmp_file.flush()
 
                 # Transcribe in real-time using model manager
-                logger.info("Processing live audio chunk...")
+                logger.info(f"Processing live audio chunk with language: {language}")
                 model = self.model_manager.get_model()
                 if model is None:
                     emit("transcription_error", {"error": "No model loaded"})
                     return
 
-                result = model.transcribe(tmp_file.name, fp16=False)
+                # Use language parameter if specified
+                transcribe_options = {"fp16": False}
+                if language and language != "auto":
+                    transcribe_options["language"] = language
+
+                result = model.transcribe(tmp_file.name, **transcribe_options)
 
                 # Clean up
                 os.unlink(tmp_file.name)

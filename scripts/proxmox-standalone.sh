@@ -497,6 +497,14 @@ download_file "https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main
               "/opt/whisper-appliance/src/modules/api_docs.py" \
               "API Documentation Module"
 
+download_file "https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/src/modules/chat_history.py" \
+              "/opt/whisper-appliance/src/modules/chat_history.py" \
+              "Chat History Module"
+
+download_file "https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/src/modules/model_manager.py" \
+              "/opt/whisper-appliance/src/modules/model_manager.py" \
+              "Model Manager Module"
+
 # Download templates
 download_file "https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/src/templates/main_interface.html" \
               "/opt/whisper-appliance/src/templates/main_interface.html" \

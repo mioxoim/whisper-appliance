@@ -7,7 +7,7 @@
 
 # Container Audio Support
 sounddevice>=0.4.0  # Hardware audio device access
-portaudio19>=1.0.0  # Cross-platform audio I/O
+# Note: PortAudio is installed via apt-get (libportaudio2-dev) in container setup
 
 # Container Utilities
 supervisor>=4.2.0   # Process management (optional)

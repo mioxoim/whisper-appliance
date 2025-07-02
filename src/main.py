@@ -465,3 +465,47 @@ if __name__ == "__main__":
         socketio.run(app, host="0.0.0.0", port=5001, debug=False, allow_unsafe_werkzeug=True)
 
     logger.info("✨ Features: Purple Gradient UI + REAL Live Speech + Upload + Full Navigation + HTTPS Support")
+
+
+@app.route("/api/chat-history/update/<int:transcription_id>", methods=["PUT"])
+def update_chat_history(transcription_id):
+    """Update transcription text"""
+    if not chat_history:
+        return jsonify({"error": "Chat history not available"}), 503
+
+    data = request.get_json()
+    if not data or "text" not in data:
+        return jsonify({"error": "Text field required", "status": "error"}), 400
+
+    success = chat_history.update_transcription(transcription_id, data["text"])
+    if success:
+        return jsonify({"message": "Transcription updated", "status": "success"})
+    else:
+        return jsonify({"error": "Failed to update transcription", "status": "error"}), 400
+
+
+@app.route("/api/chat-history/delete/<int:transcription_id>", methods=["DELETE"])
+def delete_chat_history(transcription_id):
+    """Delete transcription"""
+    if not chat_history:
+        return jsonify({"error": "Chat history not available"}), 503
+
+    success = chat_history.delete_transcription(transcription_id)
+    if success:
+        return jsonify({"message": "Transcription deleted", "status": "success"})
+    else:
+        return jsonify({"error": "Failed to delete transcription", "status": "error"}), 400
+
+
+@app.route("/api/chat-history/filter", methods=["GET"])
+def filter_chat_history():
+    """Get chat history filtered by date range"""
+    if not chat_history:
+        return jsonify({"error": "Chat history not available"}), 503
+
+    start_date = request.args.get("start_date", None)
+    end_date = request.args.get("end_date", None)
+    limit = request.args.get("limit", 100, type=int)
+
+    transcriptions = chat_history.get_transcriptions_by_date_range(start_date, end_date, limit)
+    return jsonify({"transcriptions": transcriptions, "count": len(transcriptions), "status": "success"})

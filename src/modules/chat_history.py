@@ -340,3 +340,68 @@ class ChatHistoryManager:
                 return f"timestamp,text,language,model_used,source_type,filename\n# Export failed: {str(e)}"
             else:
                 return f'{{"error": "Export failed: {str(e)}", "transcriptions": []}}'
+            logger.error(f"Failed to export history: {e}")
+            if format == "csv":
+                return f"timestamp,text,language,model_used,source_type,filename\n# Export failed: {str(e)}"
+            else:
+                return f'{{"error": "Export failed: {str(e)}", "transcriptions": []}}'
+
+    def update_transcription(self, transcription_id: int, text: str) -> bool:
+        """Update transcription text by ID"""
+        if not self.database_enabled:
+            logger.warning("⚠️ Database disabled, transcription not updated")
+            return False
+
+        try:
+            with self.db_lock:
+                with sqlite3.connect(self.db_path) as conn:
+                    cursor = conn.execute("UPDATE transcriptions SET text = ? WHERE id = ?", (text, transcription_id))
+                    return cursor.rowcount > 0
+        except Exception as e:
+            logger.error(f"Failed to update transcription {transcription_id}: {e}")
+            return False
+
+    def delete_transcription(self, transcription_id: int) -> bool:
+        """Delete transcription by ID"""
+        if not self.database_enabled:
+            logger.warning("⚠️ Database disabled, transcription not deleted")
+            return False
+
+        try:
+            with self.db_lock:
+                with sqlite3.connect(self.db_path) as conn:
+                    cursor = conn.execute("DELETE FROM transcriptions WHERE id = ?", (transcription_id,))
+                    return cursor.rowcount > 0
+        except Exception as e:
+            logger.error(f"Failed to delete transcription {transcription_id}: {e}")
+            return False
+
+    def get_transcriptions_by_date_range(self, start_date: str = None, end_date: str = None, limit: int = 100) -> List[Dict]:
+        """Get transcriptions filtered by date range"""
+        if not self.database_enabled:
+            return []
+
+        try:
+            with sqlite3.connect(self.db_path) as conn:
+                conn.row_factory = sqlite3.Row
+
+                query = "SELECT * FROM transcriptions WHERE 1=1"
+                params = []
+
+                if start_date:
+                    query += " AND DATE(timestamp) >= ?"
+                    params.append(start_date)
+
+                if end_date:
+                    query += " AND DATE(timestamp) <= ?"
+                    params.append(end_date)
+
+                query += " ORDER BY timestamp DESC LIMIT ?"
+                params.append(limit)
+
+                cursor = conn.execute(query, params)
+                return [dict(row) for row in cursor.fetchall()]
+
+        except Exception as e:
+            logger.error(f"Failed to get transcriptions by date range: {e}")
+            return []

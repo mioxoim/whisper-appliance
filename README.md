@@ -342,3 +342,6 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 **🎉 Ready to start? Try the [one-line Proxmox deployment](#-one-line-proxmox-deployment-recommended)!**
+# 🎤 OpenAI Whisper Web Interface v0.10.0
+
+**Modern web interface for OpenAI Whisper speech-to-text with Docker and Proxmox support**

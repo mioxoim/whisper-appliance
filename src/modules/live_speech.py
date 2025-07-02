@@ -110,16 +110,28 @@ class LiveSpeechHandler:
                 # Clean up
                 os.unlink(tmp_file.name)
 
-                # Send result back via WebSocket
-                emit(
-                    "transcription_result",
-                    {
-                        "text": result["text"],
-                        "language": result.get("language", "unknown"),
-                        "timestamp": datetime.now().isoformat(),
-                        "confidence": getattr(result, "confidence", 0.0),
-                    },
-                )
+                # Send result back via WebSocket AND save to history
+                transcription_data = {
+                    "text": result["text"],
+                    "language": result.get("language", "unknown"),
+                    "timestamp": datetime.now().isoformat(),
+                    "confidence": getattr(result, "confidence", 0.0),
+                }
+
+                # Save to chat history
+                try:
+                    self.chat_history.add_transcription(
+                        text=result["text"],
+                        language=result.get("language", "unknown"),
+                        model_used=self.model_manager.get_current_model_name(),
+                        source_type="live",
+                        metadata={"timestamp": datetime.now().isoformat()},
+                    )
+                    logger.info(f"✅ Saved live speech to history: {result['text'][:50]}...")
+                except Exception as e:
+                    logger.warning(f"Failed to save live speech to history: {e}")
+
+                emit("transcription_result", transcription_data)
 
                 # Update stats
                 self.system_stats["total_transcriptions"] += 1

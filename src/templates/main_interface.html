@@ -407,12 +407,13 @@
                     data.transcriptions.forEach(item => {
                         const date = new Date(item.timestamp).toLocaleString();
                         html += `
-                            <div style="border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 15px; margin: 10px 0; background: rgba(255,255,255,0.05);">
+                            <div style="border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 15px; margin: 10px 0; background: rgba(255,255,255,0.05);" data-id="${item.id}">
                                 <div style="font-size: 0.9em; color: #ccc; margin-bottom: 8px;">
                                     📅 ${date} | 🎯 ${item.source_type || 'unknown'} | 🧠 ${item.model_used || 'unknown'}
                                 </div>
-                                <div style="line-height: 1.5; word-wrap: break-word;">${item.text || 'No text'}</div>
-                                <div style="margin-top: 10px;">
+                                <div class="transcription-text" style="line-height: 1.5; word-wrap: break-word;">${item.text || 'No text'}</div>
+                                <div class="transcription-actions" style="margin-top: 10px;">
+                                    <button onclick="editTranscription(${item.id})" style="background: #007bff; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.8em; cursor: pointer; margin-right: 5px;">✏️ Edit</button>
                                     <button onclick="deleteTranscription(${item.id})" style="background: #ff4444; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.8em; cursor: pointer;">🗑️ Delete</button>
                                 </div>
                             </div>
@@ -428,6 +429,69 @@
             }
         }
         
+        let currentEditingId = null;
+        
+        function editTranscription(id) {
+            if (currentEditingId && currentEditingId !== id) {
+                cancelEdit(currentEditingId);
+            }
+            
+            currentEditingId = id;
+            const item = document.querySelector(`[data-id="${id}"]`);
+            if (!item) return;
+            
+            const textDiv = item.querySelector('.transcription-text');
+            const actionsDiv = item.querySelector('.transcription-actions');
+            const originalText = textDiv.textContent;
+            
+            // Replace text with textarea
+            textDiv.innerHTML = `<textarea style="width: 100%; min-height: 60px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.3); border-radius: 4px; padding: 8px; color: white; font-family: inherit; resize: vertical;" id="edit-text-${id}">${originalText}</textarea>`;
+            
+            // Replace actions with save/cancel buttons
+            actionsDiv.innerHTML = `
+                <button onclick="saveEdit(${id})" style="background: #28a745; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.8em; cursor: pointer; margin-right: 5px;">💾 Save</button>
+                <button onclick="cancelEdit(${id})" style="background: #6c757d; color: white; border: none; padding: 4px 8px; border-radius: 4px; font-size: 0.8em; cursor: pointer;">❌ Cancel</button>
+            `;
+            
+            // Focus the textarea
+            document.getElementById(`edit-text-${id}`).focus();
+        }
+        
+        async function saveEdit(id) {
+            const textarea = document.getElementById(`edit-text-${id}`);
+            const newText = textarea.value.trim();
+            
+            if (!newText) {
+                alert('Text cannot be empty');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/api/chat-history/update/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ text: newText })
+                });
+                
+                const data = await response.json();
+                if (data.status === 'success') {
+                    currentEditingId = null;
+                    loadHistory(); // Reload to show updated text
+                    alert('✅ Transcription updated successfully');
+                } else {
+                    alert('❌ Failed to update transcription');
+                }
+            } catch (error) {
+                console.error('Edit failed:', error);
+                alert('❌ Edit error');
+            }
+        }
+        
+        function cancelEdit(id) {
+            currentEditingId = null;
+            loadHistory(); // Reload to restore original view
+        }
+
         async function deleteTranscription(id) {
             if (!confirm('Delete this transcription?')) return;
             

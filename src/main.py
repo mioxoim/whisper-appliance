@@ -593,11 +593,45 @@ def simple_update():
 
         app_dir = find_git_repository()
         if not app_dir:
+            # Try more aggressive git detection
+            try:
+                # Try git command from current working directory
+                cwd_result = subprocess.run(
+                    ["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, timeout=10, cwd=os.getcwd()
+                )
+                if cwd_result.returncode == 0:
+                    app_dir = cwd_result.stdout.strip()
+                    logger.info(f"Found git repository using CWD git command: {app_dir}")
+                else:
+                    # Try from main.py directory
+                    main_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                    main_result = subprocess.run(
+                        ["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, timeout=10, cwd=main_dir
+                    )
+                    if main_result.returncode == 0:
+                        app_dir = main_result.stdout.strip()
+                        logger.info(f"Found git repository using main.py dir: {app_dir}")
+            except Exception as e:
+                logger.error(f"Extended git detection failed: {e}")
+
+        if not app_dir:
             return (
                 jsonify(
                     {
                         "error": "Git repository not found. Checked paths include /opt/whisper-appliance, /app, current directory and parents.",
                         "status": "error",
+                        "debug_info": {
+                            "cwd": os.getcwd(),
+                            "main_file_dir": os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            "paths_checked": [
+                                "/opt/whisper-appliance",
+                                "/app",
+                                "/opt/app",
+                                "/workspace",
+                                "/code",
+                                os.getcwd(),
+                            ],
+                        },
                     }
                 ),
                 400,
@@ -690,7 +724,50 @@ def check_git_updates():
 
         app_dir = find_git_repository()
         if not app_dir:
-            return jsonify({"error": "Git repository not found", "status": "error"}), 400
+            # Try more aggressive git detection like in simple-update
+            try:
+                # Try git command from current working directory
+                cwd_result = subprocess.run(
+                    ["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, timeout=10, cwd=os.getcwd()
+                )
+                if cwd_result.returncode == 0:
+                    app_dir = cwd_result.stdout.strip()
+                    logger.info(f"Found git repository using CWD git command: {app_dir}")
+                else:
+                    # Try from main.py directory
+                    main_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                    main_result = subprocess.run(
+                        ["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, timeout=10, cwd=main_dir
+                    )
+                    if main_result.returncode == 0:
+                        app_dir = main_result.stdout.strip()
+                        logger.info(f"Found git repository using main.py dir: {app_dir}")
+            except Exception as e:
+                logger.error(f"Extended git detection failed: {e}")
+
+        if not app_dir:
+            return (
+                jsonify(
+                    {
+                        "error": "Git repository not found",
+                        "status": "error",
+                        "debug_info": {
+                            "cwd": os.getcwd(),
+                            "main_file_dir": os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                            "checked_paths": [
+                                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                                "/opt/whisper-appliance",
+                                "/app",
+                                "/opt/app",
+                                "/workspace",
+                                "/code",
+                                os.getcwd(),
+                            ],
+                        },
+                    }
+                ),
+                400,
+            )
 
         os.chdir(app_dir)
 
@@ -702,15 +779,40 @@ def check_git_updates():
         # Fetch latest changes
         subprocess.run(["git", "fetch", "origin", "main"], env=env, check=True, capture_output=True)
 
-        # Get current and remote commits
+        # Get current and remote commits with detailed information
         local_commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
         remote_commit = subprocess.run(
             ["git", "rev-parse", "origin/main"], capture_output=True, text=True, check=True
         ).stdout.strip()
 
+        # Get current commit details
+        local_commit_info = (
+            subprocess.run(
+                ["git", "log", "-1", "--format=%H|%s|%an|%ad", "--date=iso", local_commit],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+            .stdout.strip()
+            .split("|")
+        )
+
         if local_commit == remote_commit:
             return jsonify(
-                {"updates_available": False, "commits_behind": 0, "current_commit": local_commit[:8], "status": "success"}
+                {
+                    "updates_available": False,
+                    "commits_behind": 0,
+                    "current_commit": local_commit[:8],
+                    "current_commit_full": local_commit,
+                    "current_commit_info": {
+                        "hash": local_commit,
+                        "short_hash": local_commit[:8],
+                        "message": local_commit_info[1] if len(local_commit_info) > 1 else "Unknown",
+                        "author": local_commit_info[2] if len(local_commit_info) > 2 else "Unknown",
+                        "date": local_commit_info[3] if len(local_commit_info) > 3 else "Unknown",
+                    },
+                    "status": "success",
+                }
             )
         else:
             # Count commits behind
@@ -719,12 +821,57 @@ def check_git_updates():
             )
             commits_behind = int(commits_behind_result.stdout.strip())
 
+            # Get remote commit details
+            remote_commit_info = (
+                subprocess.run(
+                    ["git", "log", "-1", "--format=%H|%s|%an|%ad", "--date=iso", remote_commit],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+                .stdout.strip()
+                .split("|")
+            )
+
+            # Get list of new commits
+            new_commits_result = subprocess.run(
+                ["git", "log", "--format=%h|%s|%an|%ad", "--date=short", f"{local_commit}..origin/main"],
+                capture_output=True,
+                text=True,
+                check=True,
+            )
+
+            new_commits = []
+            if new_commits_result.stdout.strip():
+                for line in new_commits_result.stdout.strip().split("\n"):
+                    if line.strip():
+                        parts = line.split("|")
+                        if len(parts) >= 4:
+                            new_commits.append({"hash": parts[0], "message": parts[1], "author": parts[2], "date": parts[3]})
+
             return jsonify(
                 {
                     "updates_available": True,
                     "commits_behind": commits_behind,
                     "current_commit": local_commit[:8],
+                    "current_commit_full": local_commit,
                     "remote_commit": remote_commit[:8],
+                    "remote_commit_full": remote_commit,
+                    "current_commit_info": {
+                        "hash": local_commit,
+                        "short_hash": local_commit[:8],
+                        "message": local_commit_info[1] if len(local_commit_info) > 1 else "Unknown",
+                        "author": local_commit_info[2] if len(local_commit_info) > 2 else "Unknown",
+                        "date": local_commit_info[3] if len(local_commit_info) > 3 else "Unknown",
+                    },
+                    "remote_commit_info": {
+                        "hash": remote_commit,
+                        "short_hash": remote_commit[:8],
+                        "message": remote_commit_info[1] if len(remote_commit_info) > 1 else "Unknown",
+                        "author": remote_commit_info[2] if len(remote_commit_info) > 2 else "Unknown",
+                        "date": remote_commit_info[3] if len(remote_commit_info) > 3 else "Unknown",
+                    },
+                    "new_commits": new_commits[:10],  # Limit to 10 most recent commits
                     "status": "success",
                 }
             )

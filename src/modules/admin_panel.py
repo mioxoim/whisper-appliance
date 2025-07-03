@@ -600,13 +600,51 @@ class AdminPanel:
                 const response = await fetch('/api/check-git-updates');
                 const data = await response.json();
                 
+                if (data.status === 'error') {{
+                    statusIndicator.innerHTML = '<span style="color: #dc3545;">(Check failed: ' + data.error + ')</span>';
+                    console.error('Update check failed:', data);
+                    return;
+                }}
+                
                 if (data.updates_available) {{
-                    statusIndicator.innerHTML = '<span style="color: #ffc107;">(' + data.commits_behind + ' updates available)</span>';
+                    statusIndicator.innerHTML = `
+                        <span style="color: #ffc107;">
+                            (${{data.commits_behind}} updates available)
+                            <br><small style="font-size: 0.8em;">
+                                Current: ${{data.current_commit}} → Latest: ${{data.remote_commit}}
+                            </small>
+                        </span>
+                    `;
+                    
+                    // Show detailed update information if available
+                    if (data.new_commits && data.new_commits.length > 0) {{
+                        let updateDetails = '<div style="margin-top: 10px; padding: 10px; background: #fff3cd; border-radius: 4px; border: 1px solid #ffeaa7;">';
+                        updateDetails += '<strong>📋 Latest Updates:</strong><br>';
+                        data.new_commits.slice(0, 3).forEach(commit => {{
+                            updateDetails += `<div style="margin: 5px 0; font-family: monospace; font-size: 0.9em;">`;
+                            updateDetails += `<span style="color: #666;">${{commit.hash}}</span> `;
+                            updateDetails += `<span style="font-weight: bold;">${{commit.message}}</span><br>`;
+                            updateDetails += `<small style="color: #888;">by ${{commit.author}} on ${{commit.date}}</small>`;
+                            updateDetails += `</div>`;
+                        }});
+                        if (data.commits_behind > 3) {{
+                            updateDetails += `<small style="color: #666;">... and ${{data.commits_behind - 3}} more commits</small>`;
+                        }}
+                        updateDetails += '</div>';
+                        statusIndicator.innerHTML += updateDetails;
+                    }}
                 }} else {{
-                    statusIndicator.innerHTML = '<span style="color: #28a745;">(Up to date)</span>';
+                    statusIndicator.innerHTML = `
+                        <span style="color: #28a745;">(Up to date)</span>
+                        <br><small style="font-size: 0.8em;">
+                            Current: ${{data.current_commit}} 
+                            <br>Latest commit: ${{data.current_commit_info ? data.current_commit_info.message : 'Unknown'}}
+                        </small>
+                    `;
                 }}
             }} catch (error) {{
-                statusIndicator.innerHTML = '<span style="color: #dc3545;">(Check failed)</span>';
+                statusIndicator.innerHTML = '<span style="color: #dc3545;">(Network error: ' + error.message + ')</span>';
+                console.error('Update check network error:', error);
             }}
         }}
         

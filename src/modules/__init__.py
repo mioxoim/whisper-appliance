@@ -13,8 +13,16 @@ from .chat_history import ChatHistoryManager
 # Module exports
 from .live_speech import LiveSpeechHandler
 from .model_manager import ModelManager
-from .update_manager import UpdateManager
 from .upload_handler import UploadHandler
+
+# Optional UpdateManager for backward compatibility
+try:
+    from .update_manager import UpdateManager
+
+    UPDATE_MANAGER_AVAILABLE = True
+except ImportError:
+    UpdateManager = None
+    UPDATE_MANAGER_AVAILABLE = False
 
 __all__ = [
     "LiveSpeechHandler",
@@ -24,4 +32,5 @@ __all__ = [
     "ModelManager",
     "ChatHistoryManager",
     "UpdateManager",
+    "UPDATE_MANAGER_AVAILABLE",
 ]

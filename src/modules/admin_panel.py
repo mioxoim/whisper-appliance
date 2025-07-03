@@ -15,13 +15,14 @@ logger = logging.getLogger(__name__)
 class AdminPanel:
     """Manages admin interface and system monitoring"""
 
-    def __init__(self, whisper_available, system_stats, connected_clients, model_manager, chat_history, update_manager):
+    def __init__(self, whisper_available, system_stats, connected_clients, model_manager, chat_history, update_manager=None):
         self.whisper_available = whisper_available
         self.system_stats = system_stats
         self.connected_clients = connected_clients
         self.model_manager = model_manager
         self.chat_history = chat_history
         self.update_manager = update_manager
+        self.update_available = update_manager is not None
 
     def get_admin_interface(self):
         """Enhanced Admin Panel with Navigation - Preserving original + adding navigation"""
@@ -256,6 +257,7 @@ class AdminPanel:
                     </div>
                 </div>
                 
+                {"" if not self.update_available else f"""
                 <!-- Update Management Section -->
                 <div class="stat-card">
                     <h3>🔄 System Updates</h3>
@@ -312,6 +314,7 @@ class AdminPanel:
                         </div>
                     </div>
                 </div>
+                """}
                 
                 <div class="stat-card">
                     <h3>🔧 System Information</h3>
@@ -509,28 +512,11 @@ class AdminPanel:
                             window.URL.revokeObjectURL(url);
                         }
                         
-                        if (currentVersion) {
-                            currentVersion.textContent = data.current_version || 'unknown';
-                        }
-                        
-                        // Update buttons based on status
-                        const checkBtn = document.getElementById('check-updates-btn');
-                        const applyBtn = document.getElementById('apply-updates-btn');
-                        
-                        if (data.checking || data.updating) {
-                            checkBtn.disabled = true;
-                            applyBtn.disabled = true;
-                        } else if (!data.updating) {
-                            checkBtn.disabled = false;
-                            if (data.updates_available) {
-                                applyBtn.disabled = false;
-                            }
-                        }
-                        
+                        alert('Chat history exported successfully!');
                     } catch (error) {
-                        console.error('Update status refresh failed:', error);
+                        alert('Export failed: ' + error.message);
                     }
-                }, 30000);
+                }
             </script>
         """
 

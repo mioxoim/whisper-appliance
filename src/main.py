@@ -32,7 +32,16 @@ from flask_swagger_ui import get_swaggerui_blueprint
 from werkzeug.utils import secure_filename
 
 # Import our modular components
-from modules import AdminPanel, APIDocs, ChatHistoryManager, LiveSpeechHandler, ModelManager, UpdateManager, UploadHandler
+from modules import (
+    UPDATE_MANAGER_AVAILABLE,
+    AdminPanel,
+    APIDocs,
+    ChatHistoryManager,
+    LiveSpeechHandler,
+    ModelManager,
+    UpdateManager,
+    UploadHandler,
+)
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -56,8 +65,13 @@ system_ready = True
 try:
     model_manager = ModelManager()
     chat_history = ChatHistoryManager()
-    update_manager = UpdateManager()
-    logger.info("✅ Model Manager, Chat History, and Update Manager initialized")
+    if UPDATE_MANAGER_AVAILABLE:
+        update_manager = UpdateManager()
+        logger.info("✅ Model Manager, Chat History, and Update Manager initialized")
+    else:
+        update_manager = None
+        logger.warning("⚠️ Update Manager not available (backward compatibility mode)")
+        logger.info("✅ Model Manager and Chat History initialized")
 except Exception as e:
     logger.error(f"❌ Failed to initialize core components: {e}")
     # Use minimal fallback components
@@ -86,7 +100,16 @@ else:
 try:
     upload_handler = UploadHandler(model_manager, WHISPER_AVAILABLE, system_stats, chat_history)
     live_speech_handler = LiveSpeechHandler(model_manager, WHISPER_AVAILABLE, system_stats, connected_clients, chat_history)
-    admin_panel = AdminPanel(WHISPER_AVAILABLE, system_stats, connected_clients, model_manager, chat_history, update_manager)
+
+    # AdminPanel initialization with optional UpdateManager
+    if update_manager:
+        admin_panel = AdminPanel(
+            WHISPER_AVAILABLE, system_stats, connected_clients, model_manager, chat_history, update_manager
+        )
+    else:
+        # Fallback AdminPanel initialization without UpdateManager
+        admin_panel = AdminPanel(WHISPER_AVAILABLE, system_stats, connected_clients, model_manager, chat_history)
+
     api_docs = APIDocs(version="0.10.0")
     logger.info("✅ All module handlers initialized")
 except Exception as e:

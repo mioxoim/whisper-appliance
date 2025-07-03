@@ -260,7 +260,7 @@ class AdminPanel:
                 {"" if not self.update_available else f"""
                 <!-- Update Management Section -->
                 <div class="stat-card">
-                    <h3>🔄 System Updates</h3>
+                    <h3>&#x1F504; System Updates</h3>
                     <div class="update-management">
                         <div class="current-version">
                             <strong>Current Version:</strong> 
@@ -281,16 +281,16 @@ class AdminPanel:
                         <div class="update-controls" style="margin: 15px 0;">
                             <button id="check-updates-btn" onclick="checkForUpdates()" 
                                     style="margin-right: 10px; padding: 8px 15px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                                🔍 Check for Updates
+                                &#x1F50D; Check for Updates
                             </button>
                             <button id="apply-updates-btn" onclick="applyUpdates()" 
                                     style="margin-right: 10px; padding: 8px 15px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;" 
                                     disabled>
-                                ⬇️ Install Updates
+                                &#x2B07; Install Updates
                             </button>
                             <button id="rollback-btn" onclick="rollbackUpdate()" 
                                     style="padding: 8px 15px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                                ↩️ Rollback
+                                &#x21A9; Rollback
                             </button>
                         </div>
                         
@@ -307,10 +307,10 @@ class AdminPanel:
                         
                         <div class="update-info" style="margin-top: 15px; padding: 10px; background: #e9ecef; border-radius: 4px; font-size: 0.9em;">
                             <strong>Update Features:</strong><br>
-                            • Automatic backup before updates<br>
-                            • Rollback capability to previous version<br>
-                            • Safe update process with service restart<br>
-                            • GitHub-based updates with SSL verification
+                            &bull; Automatic backup before updates<br>
+                            &bull; Rollback capability to previous version<br>
+                            &bull; Safe update process with service restart<br>
+                            &bull; GitHub-based updates with SSL verification
                         </div>
                     </div>
                 </div>

@@ -438,18 +438,6 @@ def demo():
     return admin_panel.get_demo_interface()
 
 
-@app.route("/admin/check-updates")
-def check_updates():
-    """Check for available updates"""
-    return admin_panel.check_for_updates()
-
-
-@app.route("/admin/perform-update", methods=["POST"])
-def perform_update():
-    """Perform application update"""
-    return admin_panel.perform_update()
-
-
 # ==================== WEBSOCKET HANDLERS ====================
 
 

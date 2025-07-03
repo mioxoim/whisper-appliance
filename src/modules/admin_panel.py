@@ -470,45 +470,173 @@ class AdminPanel:
 
     def _get_update_management_html(self):
         """Generate HTML for update management section"""
-        if not self.update_available:
-            # Show update section even without UpdateManager, but with instructions
-            return f"""
-            <!-- Update Management Section (Legacy Mode) -->
-            <div class="stat-card">
-                <h3>&#x1F504; System Updates</h3>
-                <div class="update-management">
-                    <div class="update-info" style="margin: 15px 0; padding: 15px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px;">
-                        <h4 style="color: #856404; margin-bottom: 10px;">Update Manager Not Available</h4>
-                        <p style="color: #856404; margin-bottom: 15px;">
-                            <strong>This container is running an older version.</strong><br>
-                            To enable the web-based update system, please update manually first:
-                        </p>
-                        
-                        <div style="background: #2d3748; color: #e2e8f0; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 0.9em; margin: 10px 0;">
-                            # SSH into your container<br>
-                            cd /opt/whisper-appliance<br>
-                            sudo ./auto-update.sh apply
+        # Always show update section with simple update button
+        update_available_class = "available" if self.update_available else "legacy"
+
+        return f"""
+        <!-- Update Management Section -->
+        <div class="stat-card">
+            <h3>&#x1F504; System Updates</h3>
+            <div class="update-management">
+                <div class="current-version" style="margin-bottom: 15px;">
+                    <strong>Current Version:</strong> 
+                    <span id="current-version-display">
+                        {self.update_manager.get_current_version() if self.update_available else "Legacy Version"}
+                    </span>
+                    <span id="update-status-indicator" style="margin-left: 10px; font-style: italic; color: #666;"></span>
+                </div>
+                
+                <div class="update-controls" style="margin: 15px 0;">
+                    <button id="simple-update-btn" onclick="performSimpleUpdate()" 
+                            style="margin-right: 10px; padding: 12px 20px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold;">
+                        &#x1F504; Update Now
+                    </button>
+                    <button id="check-updates-btn" onclick="checkSystemUpdates()" 
+                            style="margin-right: 10px; padding: 12px 20px; background: #17a2b8; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                        &#x1F50D; Check Updates
+                    </button>
+                    <button id="restart-service-btn" onclick="restartService()" 
+                            style="padding: 12px 20px; background: #ffc107; color: black; border: none; border-radius: 6px; cursor: pointer;">
+                        &#x1F504; Restart Service
+                    </button>
+                </div>
+                
+                <div id="update-progress-container" style="margin: 15px 0; display: none;">
+                    <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; border: 1px solid #dee2e6;">
+                        <h4 style="margin-bottom: 10px;">Update Progress:</h4>
+                        <div id="update-progress-bar-container" style="background: #e9ecef; border-radius: 4px; height: 20px; margin: 10px 0;">
+                            <div id="update-progress-bar" style="background: #007bff; height: 100%; border-radius: 4px; width: 0%; transition: width 0.3s;"></div>
                         </div>
-                        
-                        <p style="color: #856404; margin-top: 15px;">
-                            <strong>After updating:</strong> The web-based update interface will appear here with buttons for:
-                        </p>
-                        <ul style="color: #856404; margin-left: 20px;">
-                            <li>&#x1F50D; Check for Updates</li>
-                            <li>&#x2B07; Install Updates</li>
-                            <li>&#x21A9; Rollback</li>
-                            <li>Real-time update progress tracking</li>
-                        </ul>
-                    </div>
-                    
-                    <div class="current-version" style="margin-top: 15px;">
-                        <strong>Current Version:</strong> <span style="color: #dc3545;">Legacy (needs update)</span>
+                        <div id="update-status-text" style="font-size: 14px; color: #495057;">Ready to update...</div>
+                        <div id="update-log-container" style="margin-top: 10px; max-height: 200px; overflow-y: auto; background: #2d3748; color: #e2e8f0; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px; display: none;">
+                        </div>
                     </div>
                 </div>
+                
+                <div class="update-info" style="margin-top: 15px; padding: 12px; background: #e8f5e8; border-radius: 4px; font-size: 14px;">
+                    <strong>&#x2728; Enterprise Update System:</strong><br>
+                    &bull; One-click updates from GitHub<br>
+                    &bull; Automatic service restart after update<br>
+                    &bull; Safe rollback capability<br>
+                    &bull; No SSH or manual commands required
+                </div>
             </div>
-            """
+        </div>
+        
+        <script>
+        let updateInProgress = false;
+        
+        async function performSimpleUpdate() {{
+            if (updateInProgress) {{
+                alert('Update already in progress...');
+                return;
+            }}
+            
+            if (!confirm('🔄 Start system update now?\\n\\nThis will:\\n• Pull latest changes from GitHub\\n• Restart the service\\n• Take 1-2 minutes\\n\\nContinue?')) {{
+                return;
+            }}
+            
+            updateInProgress = true;
+            const updateBtn = document.getElementById('simple-update-btn');
+            const progressContainer = document.getElementById('update-progress-container');
+            const progressBar = document.getElementById('update-progress-bar');
+            const statusText = document.getElementById('update-status-text');
+            const logContainer = document.getElementById('update-log-container');
+            
+            try {{
+                // Show progress
+                updateBtn.disabled = true;
+                updateBtn.innerHTML = '&#x1F504; Updating...';
+                progressContainer.style.display = 'block';
+                progressBar.style.width = '10%';
+                statusText.innerHTML = '🔄 Starting update process...';
+                
+                // Call simple update endpoint
+                const response = await fetch('/api/simple-update', {{
+                    method: 'POST',
+                    headers: {{ 'Content-Type': 'application/json' }}
+                }});
+                
+                progressBar.style.width = '50%';
+                statusText.innerHTML = '⬇️ Downloading updates...';
+                
+                const data = await response.json();
+                
+                if (data.status === 'success') {{
+                    progressBar.style.width = '90%';
+                    statusText.innerHTML = '🔄 Restarting service...';
+                    
+                    // Wait a moment for service restart
+                    setTimeout(() => {{
+                        progressBar.style.width = '100%';
+                        statusText.innerHTML = '✅ Update completed successfully!';
+                        
+                        setTimeout(() => {{
+                            alert('✅ Update completed successfully!\\n\\nThe page will reload to show the updated version.');
+                            location.reload();
+                        }}, 2000);
+                    }}, 3000);
+                    
+                }} else {{
+                    throw new Error(data.error || 'Update failed');
+                }}
+                
+            }} catch (error) {{
+                console.error('Update failed:', error);
+                progressBar.style.width = '0%';
+                statusText.innerHTML = '❌ Update failed: ' + error.message;
+                updateBtn.disabled = false;
+                updateBtn.innerHTML = '&#x1F504; Update Now';
+                alert('❌ Update failed: ' + error.message);
+            }} finally {{
+                updateInProgress = false;
+            }}
+        }}
+        
+        async function checkSystemUpdates() {{
+            const statusIndicator = document.getElementById('update-status-indicator');
+            try {{
+                statusIndicator.innerHTML = '(Checking...)';
+                const response = await fetch('/api/check-git-updates');
+                const data = await response.json();
+                
+                if (data.updates_available) {{
+                    statusIndicator.innerHTML = `<span style="color: #ffc107;">(${data.commits_behind} updates available)</span>`;
+                }} else {{
+                    statusIndicator.innerHTML = '<span style="color: #28a745;">(Up to date)</span>';
+                }}
+            }} catch (error) {{
+                statusIndicator.innerHTML = '<span style="color: #dc3545;">(Check failed)</span>';
+            }}
+        }}
+        
+        async function restartService() {{
+            if (!confirm('🔄 Restart the WhisperS2T service?\\n\\nThis will temporarily interrupt the service.')) {{
+                return;
+            }}
+            
+            try {{
+                const response = await fetch('/api/restart-service', {{ method: 'POST' }});
+                const data = await response.json();
+                
+                if (data.status === 'success') {{
+                    alert('✅ Service restart initiated!\\n\\nThe page will reload in a few seconds.');
+                    setTimeout(() => location.reload(), 3000);
+                }} else {{
+                    alert('❌ Failed to restart service: ' + data.error);
+                }}
+            }} catch (error) {{
+                alert('❌ Network error: ' + error.message);
+            }}
+        }}
+        
+        // Auto-check for updates on page load
+        setTimeout(checkSystemUpdates, 1000);
+        </script>
+        """
 
-        current_version = self.update_manager.get_current_version()
+        if not self.update_available:
+            return update_html
 
         return f"""
         <!-- Update Management Section -->

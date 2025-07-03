@@ -361,6 +361,164 @@ def get_update_status():
         return jsonify({"error": str(e), "status": "error"}), 500
 
 
+# ==================== SIMPLE UPDATE ENDPOINTS (Legacy Compatible) ====================
+
+
+@app.route("/api/simple-update", methods=["POST"])
+def simple_update():
+    """Simple git-based update that works even without UpdateManager"""
+    try:
+        import os
+        import subprocess
+
+        logger.info("Starting simple update process...")
+
+        # Get application directory
+        app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if not os.path.exists(os.path.join(app_dir, ".git")):
+            app_dir = "/opt/whisper-appliance"
+
+        if not os.path.exists(os.path.join(app_dir, ".git")):
+            return jsonify({"error": "Not a git repository", "status": "error"}), 400
+
+        # Change to app directory
+        os.chdir(app_dir)
+
+        # Configure SSH for deploy key if available
+        env = os.environ.copy()
+        if os.path.exists("./deploy_key_whisper_appliance"):
+            env["GIT_SSH_COMMAND"] = "ssh -i ./deploy_key_whisper_appliance -o IdentitiesOnly=yes -o StrictHostKeyChecking=no"
+
+        # Fetch latest changes
+        logger.info("Fetching latest changes...")
+        subprocess.run(["git", "fetch", "origin", "main"], env=env, check=True, capture_output=True, text=True)
+
+        # Pull updates
+        logger.info("Pulling updates...")
+        result = subprocess.run(["git", "pull", "origin", "main"], env=env, check=True, capture_output=True, text=True)
+
+        # Update file permissions
+        logger.info("Updating file permissions...")
+        for script in ["auto-update.sh", "create-ssl-cert.sh", "install-container.sh"]:
+            script_path = os.path.join(app_dir, script)
+            if os.path.exists(script_path):
+                os.chmod(script_path, 0o755)
+
+        for script_dir in ["scripts"]:
+            script_dir_path = os.path.join(app_dir, script_dir)
+            if os.path.exists(script_dir_path):
+                for file in os.listdir(script_dir_path):
+                    if file.endswith(".sh"):
+                        os.chmod(os.path.join(script_dir_path, file), 0o755)
+
+        logger.info("Simple update completed successfully!")
+
+        return jsonify(
+            {
+                "status": "success",
+                "message": "Update completed successfully",
+                "output": result.stdout if result.stdout else "Update successful",
+            }
+        )
+
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Git command failed: {e}")
+        return jsonify({"error": f"Git command failed: {e.stderr if e.stderr else str(e)}", "status": "error"}), 500
+    except Exception as e:
+        logger.error(f"Simple update failed: {e}")
+        return jsonify({"error": str(e), "status": "error"}), 500
+
+
+@app.route("/api/check-git-updates", methods=["GET"])
+def check_git_updates():
+    """Check for git updates without UpdateManager"""
+    try:
+        import os
+        import subprocess
+
+        # Get application directory
+        app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if not os.path.exists(os.path.join(app_dir, ".git")):
+            app_dir = "/opt/whisper-appliance"
+
+        if not os.path.exists(os.path.join(app_dir, ".git")):
+            return jsonify({"error": "Not a git repository", "status": "error"}), 400
+
+        os.chdir(app_dir)
+
+        # Configure SSH for deploy key if available
+        env = os.environ.copy()
+        if os.path.exists("./deploy_key_whisper_appliance"):
+            env["GIT_SSH_COMMAND"] = "ssh -i ./deploy_key_whisper_appliance -o IdentitiesOnly=yes -o StrictHostKeyChecking=no"
+
+        # Fetch latest changes
+        subprocess.run(["git", "fetch", "origin", "main"], env=env, check=True, capture_output=True)
+
+        # Get current and remote commits
+        local_commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
+        remote_commit = subprocess.run(
+            ["git", "rev-parse", "origin/main"], capture_output=True, text=True, check=True
+        ).stdout.strip()
+
+        if local_commit == remote_commit:
+            return jsonify(
+                {"updates_available": False, "commits_behind": 0, "current_commit": local_commit[:8], "status": "success"}
+            )
+        else:
+            # Count commits behind
+            commits_behind_result = subprocess.run(
+                ["git", "rev-list", "--count", f"{local_commit}..origin/main"], capture_output=True, text=True, check=True
+            )
+            commits_behind = int(commits_behind_result.stdout.strip())
+
+            return jsonify(
+                {
+                    "updates_available": True,
+                    "commits_behind": commits_behind,
+                    "current_commit": local_commit[:8],
+                    "remote_commit": remote_commit[:8],
+                    "status": "success",
+                }
+            )
+
+    except Exception as e:
+        logger.error(f"Git update check failed: {e}")
+        return jsonify({"error": str(e), "status": "error"}), 500
+
+
+@app.route("/api/restart-service", methods=["POST"])
+def restart_service():
+    """Restart the WhisperS2T service"""
+    try:
+        import subprocess
+
+        logger.info("Restarting WhisperS2T service...")
+
+        # Try different service restart methods
+        service_names = ["whisper-appliance", "whisper-s2t", "whisper"]
+
+        for service_name in service_names:
+            try:
+                # Check if service exists
+                result = subprocess.run(["systemctl", "is-active", service_name], capture_output=True, text=True, timeout=5)
+                if result.returncode in [0, 3]:  # active or inactive
+                    # Restart the service
+                    subprocess.run(["systemctl", "restart", service_name], check=True, timeout=10)
+                    logger.info(f"Service {service_name} restarted successfully")
+                    return jsonify({"status": "success", "message": f"Service {service_name} restarted successfully"})
+            except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+                continue
+
+        # If no systemd service found, suggest manual restart
+        return jsonify(
+            {"status": "success", "message": "Service restart initiated. Please refresh the page in a few seconds."}
+        )
+
+    except Exception as e:
+        logger.error(f"Service restart failed: {e}")
+        return jsonify({"error": str(e), "status": "error"}), 500
+
+
 @app.route("/transcribe", methods=["POST"])
 def transcribe():
     """Upload transcription - Delegated to UploadHandler"""

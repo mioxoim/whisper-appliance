@@ -471,7 +471,42 @@ class AdminPanel:
     def _get_update_management_html(self):
         """Generate HTML for update management section"""
         if not self.update_available:
-            return ""
+            # Show update section even without UpdateManager, but with instructions
+            return f"""
+            <!-- Update Management Section (Legacy Mode) -->
+            <div class="stat-card">
+                <h3>&#x1F504; System Updates</h3>
+                <div class="update-management">
+                    <div class="update-info" style="margin: 15px 0; padding: 15px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px;">
+                        <h4 style="color: #856404; margin-bottom: 10px;">Update Manager Not Available</h4>
+                        <p style="color: #856404; margin-bottom: 15px;">
+                            <strong>This container is running an older version.</strong><br>
+                            To enable the web-based update system, please update manually first:
+                        </p>
+                        
+                        <div style="background: #2d3748; color: #e2e8f0; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 0.9em; margin: 10px 0;">
+                            # SSH into your container<br>
+                            cd /opt/whisper-appliance<br>
+                            sudo ./auto-update.sh apply
+                        </div>
+                        
+                        <p style="color: #856404; margin-top: 15px;">
+                            <strong>After updating:</strong> The web-based update interface will appear here with buttons for:
+                        </p>
+                        <ul style="color: #856404; margin-left: 20px;">
+                            <li>&#x1F50D; Check for Updates</li>
+                            <li>&#x2B07; Install Updates</li>
+                            <li>&#x21A9; Rollback</li>
+                            <li>Real-time update progress tracking</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="current-version" style="margin-top: 15px;">
+                        <strong>Current Version:</strong> <span style="color: #dc3545;">Legacy (needs update)</span>
+                    </div>
+                </div>
+            </div>
+            """
 
         current_version = self.update_manager.get_current_version()
 

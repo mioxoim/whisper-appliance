@@ -20,19 +20,12 @@ class UpdateManager:
     """Manages application updates with web interface"""
 
     def __init__(self, app_root=None):
-        # Auto-detect application root
+        # Robust auto-detection of application root
         if app_root is None:
-            # Try to find the actual root directory
-            current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # Go up from src/modules/
-            if os.path.exists(os.path.join(current_dir, ".git")):
-                app_root = current_dir
-            elif os.path.exists("/opt/whisper-appliance/.git"):
-                app_root = "/opt/whisper-appliance"
-            else:
-                app_root = current_dir  # Fallback to project directory
+            app_root = self._find_git_repository()
 
         self.app_root = app_root
-        self.auto_update_script = os.path.join(app_root, "auto-update.sh")
+        self.auto_update_script = os.path.join(app_root, "auto-update.sh") if app_root else None
         logger.info(f"UpdateManager initialized with app_root: {self.app_root}")
         logger.info(f"Auto-update script path: {self.auto_update_script}")
         self.update_status = {
@@ -49,9 +42,54 @@ class UpdateManager:
         }
         self._update_lock = threading.Lock()
 
+    def _find_git_repository(self) -> Optional[str]:
+        """Find the git repository root by checking multiple locations"""
+        # First try using git command to find the repository root
+        try:
+            result = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, timeout=10)
+            if result.returncode == 0:
+                git_root = result.stdout.strip()
+                if os.path.exists(git_root) and os.path.exists(os.path.join(git_root, ".git")):
+                    logger.info(f"Found git repository using git command: {git_root}")
+                    return git_root
+        except Exception as e:
+            logger.debug(f"Git command failed: {e}")
+
+        # Fallback to checking possible paths
+        possible_paths = [
+            # Current application directory (development)
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            # Standard production paths
+            "/opt/whisper-appliance",
+            "/app",
+            "/opt/app",
+            # Container paths
+            "/workspace",
+            "/code",
+            # Current working directory and its parents
+            os.getcwd(),
+        ]
+
+        # Also check parent directories up to root
+        current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        while current_dir != "/" and current_dir:
+            possible_paths.append(current_dir)
+            current_dir = os.path.dirname(current_dir)
+
+        for path in possible_paths:
+            if os.path.exists(os.path.join(path, ".git")):
+                logger.info(f"Found git repository at: {path}")
+                return path
+
+        logger.warning("No git repository found in any of the checked paths")
+        return None
+
     def get_current_version(self) -> str:
         """Get current application version from git"""
         try:
+            if not self.app_root:
+                return "unknown - no git repository"
+
             if os.path.exists(os.path.join(self.app_root, ".git")):
                 result = subprocess.run(
                     ["git", "describe", "--tags", "--always"], cwd=self.app_root, capture_output=True, text=True, timeout=10
@@ -251,7 +289,10 @@ class UpdateManager:
 
     def _run_auto_update_script(self, command: str) -> Dict:
         """Run the auto-update.sh script with specified command"""
-        if not os.path.exists(self.auto_update_script):
+        if not self.app_root:
+            raise FileNotFoundError("No git repository found - cannot run auto-update script")
+
+        if not self.auto_update_script or not os.path.exists(self.auto_update_script):
             raise FileNotFoundError(f"Auto-update script not found: {self.auto_update_script}")
 
         try:

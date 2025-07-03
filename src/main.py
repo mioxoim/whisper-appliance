@@ -433,13 +433,60 @@ def simple_update():
 
         logger.info("Starting simple update process...")
 
-        # Get application directory
-        app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        if not os.path.exists(os.path.join(app_dir, ".git")):
-            app_dir = "/opt/whisper-appliance"
+        # Robust git repository detection
+        def find_git_repository():
+            """Find the git repository root by checking multiple locations"""
+            possible_paths = [
+                # Current application directory (development)
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                # Standard production path
+                "/opt/whisper-appliance",
+                # Alternative production paths
+                "/app",
+                "/opt/app",
+                # Container paths
+                "/workspace",
+                "/code",
+                # Current working directory and its parents
+                os.getcwd(),
+            ]
 
-        if not os.path.exists(os.path.join(app_dir, ".git")):
-            return jsonify({"error": "Not a git repository", "status": "error"}), 400
+            # Also check parent directories up to root
+            current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            while current_dir != "/" and current_dir:
+                possible_paths.append(current_dir)
+                current_dir = os.path.dirname(current_dir)
+
+            # Check if we're inside a git repository using git command
+            try:
+                result = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, timeout=10)
+                if result.returncode == 0:
+                    git_root = result.stdout.strip()
+                    if os.path.exists(git_root):
+                        logger.info(f"Found git repository using git command: {git_root}")
+                        return git_root
+            except Exception as e:
+                logger.debug(f"Git command failed: {e}")
+
+            # Fallback to checking possible paths
+            for path in possible_paths:
+                if os.path.exists(os.path.join(path, ".git")):
+                    logger.info(f"Found git repository at: {path}")
+                    return path
+
+            return None
+
+        app_dir = find_git_repository()
+        if not app_dir:
+            return (
+                jsonify(
+                    {
+                        "error": "Git repository not found. Checked paths include /opt/whisper-appliance, /app, current directory and parents.",
+                        "status": "error",
+                    }
+                ),
+                400,
+            )
 
         # Change to app directory
         os.chdir(app_dir)
@@ -496,13 +543,39 @@ def check_git_updates():
         import os
         import subprocess
 
-        # Get application directory
-        app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        if not os.path.exists(os.path.join(app_dir, ".git")):
-            app_dir = "/opt/whisper-appliance"
+        # Use the same robust git repository detection
+        def find_git_repository():
+            """Find the git repository root by checking multiple locations"""
+            # Check if we're inside a git repository using git command first
+            try:
+                result = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, timeout=10)
+                if result.returncode == 0:
+                    git_root = result.stdout.strip()
+                    if os.path.exists(git_root):
+                        return git_root
+            except Exception:
+                pass
 
-        if not os.path.exists(os.path.join(app_dir, ".git")):
-            return jsonify({"error": "Not a git repository", "status": "error"}), 400
+            # Fallback to checking possible paths
+            possible_paths = [
+                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                "/opt/whisper-appliance",
+                "/app",
+                "/opt/app",
+                "/workspace",
+                "/code",
+                os.getcwd(),
+            ]
+
+            for path in possible_paths:
+                if os.path.exists(os.path.join(path, ".git")):
+                    return path
+
+            return None
+
+        app_dir = find_git_repository()
+        if not app_dir:
+            return jsonify({"error": "Git repository not found", "status": "error"}), 400
 
         os.chdir(app_dir)
 

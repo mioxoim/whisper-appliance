@@ -301,6 +301,66 @@ def export_chat_history():
         return jsonify({"data": exported_data, "format": format, "status": "success"})
 
 
+@app.route("/api/chat-history/update/<int:transcription_id>", methods=["PUT"])
+def update_chat_history_entry(transcription_id):
+    """Update a specific chat history entry"""
+    try:
+        if not request.is_json:
+            return jsonify({"error": "Content-Type must be application/json", "status": "error"}), 400
+
+        data = request.get_json()
+        if not data or "text" not in data:
+            return jsonify({"error": "Text field is required", "status": "error"}), 400
+
+        new_text = data["text"]
+        if not new_text or not new_text.strip():
+            return jsonify({"error": "Text cannot be empty", "status": "error"}), 400
+
+        # Update the transcription
+        success = chat_history.update_transcription(transcription_id, new_text.strip())
+
+        if success:
+            return jsonify({"message": "Transcription updated successfully", "id": transcription_id, "status": "success"})
+        else:
+            return (
+                jsonify(
+                    {
+                        "error": f"Failed to update transcription with ID {transcription_id}. Entry may not exist.",
+                        "status": "error",
+                    }
+                ),
+                404,
+            )
+
+    except Exception as e:
+        logger.error(f"Failed to update chat history entry {transcription_id}: {e}")
+        return jsonify({"error": f"Internal server error: {str(e)}", "status": "error"}), 500
+
+
+@app.route("/api/chat-history/delete/<int:transcription_id>", methods=["DELETE"])
+def delete_chat_history_entry(transcription_id):
+    """Delete a specific chat history entry"""
+    try:
+        success = chat_history.delete_transcription(transcription_id)
+
+        if success:
+            return jsonify({"message": "Transcription deleted successfully", "id": transcription_id, "status": "success"})
+        else:
+            return (
+                jsonify(
+                    {
+                        "error": f"Failed to delete transcription with ID {transcription_id}. Entry may not exist.",
+                        "status": "error",
+                    }
+                ),
+                404,
+            )
+
+    except Exception as e:
+        logger.error(f"Failed to delete chat history entry {transcription_id}: {e}")
+        return jsonify({"error": f"Internal server error: {str(e)}", "status": "error"}), 500
+
+
 # ==================== UPDATE MANAGEMENT ROUTES ====================
 
 

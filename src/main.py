@@ -361,6 +361,121 @@ def delete_chat_history_entry(transcription_id):
         return jsonify({"error": f"Internal server error: {str(e)}", "status": "error"}), 500
 
 
+@app.route("/api/chat-history/import", methods=["POST"])
+def import_chat_history():
+    """Import chat history from JSON or CSV file"""
+    try:
+        # Check if file is present
+        if "file" not in request.files:
+            return jsonify({"error": "No file provided", "status": "error"}), 400
+
+        file = request.files["file"]
+        if file.filename == "":
+            return jsonify({"error": "No file selected", "status": "error"}), 400
+
+        # Check file extension
+        filename = secure_filename(file.filename)
+        file_ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+
+        if file_ext not in ["json", "csv"]:
+            return (
+                jsonify(
+                    {
+                        "error": f"Unsupported file format: {file_ext}. Only JSON and CSV files are supported.",
+                        "status": "error",
+                    }
+                ),
+                400,
+            )
+
+        # Read file content
+        try:
+            file_content = file.read().decode("utf-8")
+        except UnicodeDecodeError:
+            return jsonify({"error": "File encoding error. Please ensure the file is UTF-8 encoded.", "status": "error"}), 400
+
+        if not file_content.strip():
+            return jsonify({"error": "File is empty", "status": "error"}), 400
+
+        # Import the data
+        result = chat_history.import_history(file_content, file_ext, filename)
+
+        # Return appropriate HTTP status based on result
+        if result["status"] == "error":
+            return jsonify(result), 400
+        elif result["status"] == "partial_success":
+            return jsonify(result), 206  # Partial Content
+        else:
+            return jsonify(result), 200
+
+    except Exception as e:
+        logger.error(f"Failed to import chat history: {e}")
+        return jsonify({"error": f"Import failed: {str(e)}", "status": "error"}), 500
+
+
+@app.route("/api/chat-history/import/template/<format>", methods=["GET"])
+def get_import_template(format):
+    """Get import template for JSON or CSV format"""
+    try:
+        if format not in ["json", "csv"]:
+            return jsonify({"error": "Invalid format. Use 'json' or 'csv'", "status": "error"}), 400
+
+        if format == "json":
+            template = {
+                "transcriptions": [
+                    {
+                        "text": "Example transcription text here",
+                        "language": "en",
+                        "model_used": "whisper-large",
+                        "source_type": "upload",
+                        "filename": "example.mp3",
+                        "duration": 30.5,
+                        "confidence": 0.95,
+                        "metadata": {"example_key": "example_value"},
+                    },
+                    {
+                        "text": "Another example transcription",
+                        "language": "de",
+                        "model_used": "whisper-medium",
+                        "source_type": "live",
+                        "filename": None,
+                        "duration": None,
+                        "confidence": None,
+                        "metadata": None,
+                    },
+                ]
+            }
+
+            import json
+
+            from flask import Response
+
+            return Response(
+                json.dumps(template, indent=2),
+                mimetype="application/json",
+                headers={"Content-Disposition": "attachment; filename=chat_history_template.json"},
+            )
+
+        else:  # CSV format
+            template_csv = """text,language,model_used,source_type,filename,duration,confidence
+"Example transcription text here","en","whisper-large","upload","example.mp3","30.5","0.95"
+"Another example transcription","de","whisper-medium","live","","",""
+"Minimal example with just text","","","","","",""
+"""
+
+            from flask import Response
+
+            return Response(
+                template_csv,
+                mimetype="text/csv",
+                headers={"Content-Disposition": "attachment; filename=chat_history_template.csv"},
+            )
+
+    except Exception as e:
+        logger.error(f"Failed to generate import template: {e}")
+        return jsonify({"error": f"Template generation failed: {str(e)}", "status": "error"}), 500
+
+
 # ==================== UPDATE MANAGEMENT ROUTES ====================
 
 

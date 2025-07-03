@@ -376,6 +376,209 @@ class ChatHistoryManager:
             logger.error(f"Failed to delete transcription {transcription_id}: {e}")
             return False
 
+    def import_history(self, file_content: str, file_format: str, filename: str = None) -> Dict:
+        """Import chat history from JSON or CSV content"""
+        if not self.database_enabled:
+            return {"status": "error", "error": "Database disabled, cannot import history", "imported_count": 0}
+
+        try:
+            imported_count = 0
+            errors = []
+
+            if file_format.lower() == "json":
+                imported_count, errors = self._import_from_json(file_content)
+            elif file_format.lower() == "csv":
+                imported_count, errors = self._import_from_csv(file_content)
+            else:
+                return {
+                    "status": "error",
+                    "error": f"Unsupported format: {file_format}. Use 'json' or 'csv'",
+                    "imported_count": 0,
+                }
+
+            if errors:
+                return {
+                    "status": "partial_success",
+                    "message": f"Imported {imported_count} transcriptions with {len(errors)} errors",
+                    "imported_count": imported_count,
+                    "errors": errors[:10],  # Limit error list
+                }
+            else:
+                return {
+                    "status": "success",
+                    "message": f"Successfully imported {imported_count} transcriptions",
+                    "imported_count": imported_count,
+                }
+
+        except Exception as e:
+            logger.error(f"Failed to import history: {e}")
+            return {"status": "error", "error": f"Import failed: {str(e)}", "imported_count": 0}
+
+    def _import_from_json(self, content: str) -> tuple:
+        """Import transcriptions from JSON content"""
+        import json
+
+        imported_count = 0
+        errors = []
+
+        try:
+            data = json.loads(content)
+
+            # Handle different JSON structures
+            transcriptions = []
+            if isinstance(data, dict):
+                if "transcriptions" in data:
+                    transcriptions = data["transcriptions"]
+                elif "data" in data:
+                    transcriptions = data["data"]
+                else:
+                    # Assume the dict itself is a single transcription
+                    transcriptions = [data]
+            elif isinstance(data, list):
+                transcriptions = data
+            else:
+                raise ValueError(
+                    "Invalid JSON structure. Expected object with 'transcriptions' key or array of transcriptions"
+                )
+
+            for i, item in enumerate(transcriptions):
+                try:
+                    if not isinstance(item, dict):
+                        errors.append(f"Line {i+1}: Invalid item type, expected object")
+                        continue
+
+                    # Extract required text field
+                    text = item.get("text", "").strip()
+                    if not text:
+                        errors.append(f"Line {i+1}: Missing or empty 'text' field")
+                        continue
+
+                    # Extract optional fields with defaults
+                    language = item.get("language")
+                    model_used = item.get("model_used")
+                    source_type = item.get("source_type", "imported")
+                    filename = item.get("filename")
+                    duration = item.get("duration")
+                    confidence = item.get("confidence")
+                    metadata = item.get("metadata")
+
+                    # Convert string numbers to float if needed
+                    if duration and isinstance(duration, str):
+                        try:
+                            duration = float(duration)
+                        except ValueError:
+                            duration = None
+
+                    if confidence and isinstance(confidence, str):
+                        try:
+                            confidence = float(confidence)
+                        except ValueError:
+                            confidence = None
+
+                    # Add to database
+                    result_id = self.add_transcription(
+                        text=text,
+                        language=language,
+                        model_used=model_used,
+                        source_type=source_type,
+                        filename=filename,
+                        duration=duration,
+                        confidence=confidence,
+                        metadata=metadata,
+                    )
+
+                    if result_id > 0:
+                        imported_count += 1
+                    else:
+                        errors.append(f"Line {i+1}: Failed to insert transcription")
+
+                except Exception as e:
+                    errors.append(f"Line {i+1}: {str(e)}")
+                    continue
+
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid JSON format: {str(e)}")
+
+        return imported_count, errors
+
+    def _import_from_csv(self, content: str) -> tuple:
+        """Import transcriptions from CSV content"""
+        import csv
+        import io
+
+        imported_count = 0
+        errors = []
+
+        try:
+            # Parse CSV content
+            csv_file = io.StringIO(content)
+            csv_reader = csv.DictReader(csv_file)
+
+            # Check for required columns
+            if not csv_reader.fieldnames:
+                raise ValueError("CSV file appears to be empty or invalid")
+
+            required_fields = ["text"]
+            missing_fields = [field for field in required_fields if field not in csv_reader.fieldnames]
+            if missing_fields:
+                raise ValueError(f"Missing required CSV columns: {', '.join(missing_fields)}")
+
+            for row_num, row in enumerate(csv_reader, start=2):  # Start from 2 (header is line 1)
+                try:
+                    # Extract and validate text
+                    text = row.get("text", "").strip()
+                    if not text:
+                        errors.append(f"Line {row_num}: Missing or empty 'text' field")
+                        continue
+
+                    # Extract optional fields
+                    language = row.get("language", "").strip() or None
+                    model_used = row.get("model_used", "").strip() or None
+                    source_type = row.get("source_type", "").strip() or "imported"
+                    filename = row.get("filename", "").strip() or None
+
+                    # Handle numeric fields
+                    duration = None
+                    confidence = None
+
+                    if row.get("duration"):
+                        try:
+                            duration = float(row["duration"])
+                        except ValueError:
+                            errors.append(f"Line {row_num}: Invalid duration value")
+
+                    if row.get("confidence"):
+                        try:
+                            confidence = float(row["confidence"])
+                        except ValueError:
+                            errors.append(f"Line {row_num}: Invalid confidence value")
+
+                    # Add to database
+                    result_id = self.add_transcription(
+                        text=text,
+                        language=language,
+                        model_used=model_used,
+                        source_type=source_type,
+                        filename=filename,
+                        duration=duration,
+                        confidence=confidence,
+                        metadata=None,
+                    )
+
+                    if result_id > 0:
+                        imported_count += 1
+                    else:
+                        errors.append(f"Line {row_num}: Failed to insert transcription")
+
+                except Exception as e:
+                    errors.append(f"Line {row_num}: {str(e)}")
+                    continue
+
+        except Exception as e:
+            raise ValueError(f"CSV parsing error: {str(e)}")
+
+        return imported_count, errors
+
     def get_transcriptions_by_date_range(self, start_date: str = None, end_date: str = None, limit: int = 100) -> List[Dict]:
         """Get transcriptions filtered by date range"""
         if not self.database_enabled:

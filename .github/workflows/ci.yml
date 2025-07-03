@@ -58,11 +58,13 @@ jobs:
       run: |
         # Test script syntax
         bash -n install-container.sh
-        bash -n test-container.sh
+        bash -n scripts/test-container.sh
+        bash -n scripts/proxmox-standalone.sh
         
         # Test that required files exist
         test -f install-container.sh
-        test -f test-container.sh
+        test -f scripts/test-container.sh
+        test -f scripts/proxmox-standalone.sh
         test -f requirements-container.txt
         
         # Test installation script can run (dry run mode)

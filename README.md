@@ -1,4 +1,4 @@
-# 🎤 OpenAI Whisper Web Interface v0.9.0
+# 🎤 OpenAI Whisper Web Interface v0.10.0
 
 **Modern web interface for OpenAI Whisper speech-to-text with Docker and Proxmox support**
 

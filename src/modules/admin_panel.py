@@ -15,12 +15,13 @@ logger = logging.getLogger(__name__)
 class AdminPanel:
     """Manages admin interface and system monitoring"""
 
-    def __init__(self, whisper_available, system_stats, connected_clients, model_manager, chat_history):
+    def __init__(self, whisper_available, system_stats, connected_clients, model_manager, chat_history, update_manager):
         self.whisper_available = whisper_available
         self.system_stats = system_stats
         self.connected_clients = connected_clients
         self.model_manager = model_manager
         self.chat_history = chat_history
+        self.update_manager = update_manager
 
     def get_admin_interface(self):
         """Enhanced Admin Panel with Navigation - Preserving original + adding navigation"""
@@ -255,12 +256,69 @@ class AdminPanel:
                     </div>
                 </div>
                 
+                <!-- Update Management Section -->
+                <div class="stat-card">
+                    <h3>🔄 System Updates</h3>
+                    <div class="update-management">
+                        <div class="current-version">
+                            <strong>Current Version:</strong> 
+                            <span id="current-version">{self.update_manager.get_current_version()}</span>
+                        </div>
+                        
+                        <div class="update-status" style="margin: 15px 0;">
+                            <div id="update-status-display">
+                                <span id="update-status-text">Click "Check for Updates" to see if updates are available</span>
+                                <div id="update-progress" style="margin-top: 10px; display: none;">
+                                    <div style="background: #f0f0f0; border-radius: 4px; padding: 2px;">
+                                        <div id="update-progress-bar" style="background: #007bff; height: 20px; border-radius: 2px; width: 0%; transition: width 0.3s;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="update-controls" style="margin: 15px 0;">
+                            <button id="check-updates-btn" onclick="checkForUpdates()" 
+                                    style="margin-right: 10px; padding: 8px 15px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                🔍 Check for Updates
+                            </button>
+                            <button id="apply-updates-btn" onclick="applyUpdates()" 
+                                    style="margin-right: 10px; padding: 8px 15px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;" 
+                                    disabled>
+                                ⬇️ Install Updates
+                            </button>
+                            <button id="rollback-btn" onclick="rollbackUpdate()" 
+                                    style="padding: 8px 15px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                                ↩️ Rollback
+                            </button>
+                        </div>
+                        
+                        <div id="update-details" style="margin-top: 15px; display: none;">
+                            <h4>Update Information:</h4>
+                            <div id="update-info-content"></div>
+                        </div>
+                        
+                        <div id="update-log" style="margin-top: 15px; display: none;">
+                            <h4>Update Log:</h4>
+                            <div id="update-log-content" style="max-height: 200px; overflow-y: auto; background: #f8f9fa; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 0.9em;">
+                            </div>
+                        </div>
+                        
+                        <div class="update-info" style="margin-top: 15px; padding: 10px; background: #e9ecef; border-radius: 4px; font-size: 0.9em;">
+                            <strong>Update Features:</strong><br>
+                            • Automatic backup before updates<br>
+                            • Rollback capability to previous version<br>
+                            • Safe update process with service restart<br>
+                            • GitHub-based updates with SSL verification
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="stat-card">
                     <h3>🔧 System Information</h3>
                     <table>
                         <tr><th>Property</th><th>Value</th></tr>
                         <tr><td>Service Name</td><td>WhisperS2T Enhanced Appliance</td></tr>
-                        <tr><td>Version</td><td>0.9.0</td></tr>
+                        <tr><td>Version</td><td>0.10.0</td></tr>
                         <tr><td>Framework</td><td>Flask + SocketIO + SQLite</td></tr>
                         <tr><td>Whisper Available</td><td>{"Yes" if self.whisper_available else "No"}</td></tr>
                         <tr><td>Model Type</td><td>{self.model_manager.get_current_model_name()}</td></tr>
@@ -451,11 +509,28 @@ class AdminPanel:
                             window.URL.revokeObjectURL(url);
                         }
                         
-                        alert('Chat history exported successfully!');
+                        if (currentVersion) {
+                            currentVersion.textContent = data.current_version || 'unknown';
+                        }
+                        
+                        // Update buttons based on status
+                        const checkBtn = document.getElementById('check-updates-btn');
+                        const applyBtn = document.getElementById('apply-updates-btn');
+                        
+                        if (data.checking || data.updating) {
+                            checkBtn.disabled = true;
+                            applyBtn.disabled = true;
+                        } else if (!data.updating) {
+                            checkBtn.disabled = false;
+                            if (data.updates_available) {
+                                applyBtn.disabled = false;
+                            }
+                        }
+                        
                     } catch (error) {
-                        alert('Export failed: ' + error.message);
+                        console.error('Update status refresh failed:', error);
                     }
-                }
+                }, 30000);
             </script>
         """
 

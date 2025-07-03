@@ -32,7 +32,7 @@ from flask_swagger_ui import get_swaggerui_blueprint
 from werkzeug.utils import secure_filename
 
 # Import our modular components
-from modules import AdminPanel, APIDocs, ChatHistoryManager, LiveSpeechHandler, ModelManager, UploadHandler
+from modules import AdminPanel, APIDocs, ChatHistoryManager, LiveSpeechHandler, ModelManager, UpdateManager, UploadHandler
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -56,12 +56,14 @@ system_ready = True
 try:
     model_manager = ModelManager()
     chat_history = ChatHistoryManager()
-    logger.info("✅ Model Manager and Chat History initialized")
+    update_manager = UpdateManager()
+    logger.info("✅ Model Manager, Chat History, and Update Manager initialized")
 except Exception as e:
     logger.error(f"❌ Failed to initialize core components: {e}")
     # Use minimal fallback components
     model_manager = None
     chat_history = None
+    update_manager = None
 
 # Try to load default Whisper model
 WHISPER_AVAILABLE = False
@@ -84,8 +86,8 @@ else:
 try:
     upload_handler = UploadHandler(model_manager, WHISPER_AVAILABLE, system_stats, chat_history)
     live_speech_handler = LiveSpeechHandler(model_manager, WHISPER_AVAILABLE, system_stats, connected_clients, chat_history)
-    admin_panel = AdminPanel(WHISPER_AVAILABLE, system_stats, connected_clients, model_manager, chat_history)
-    api_docs = APIDocs(version="0.9.0")
+    admin_panel = AdminPanel(WHISPER_AVAILABLE, system_stats, connected_clients, model_manager, chat_history, update_manager)
+    api_docs = APIDocs(version="0.10.0")
     logger.info("✅ All module handlers initialized")
 except Exception as e:
     logger.error(f"❌ Failed to initialize module handlers: {e}")
@@ -274,6 +276,66 @@ def export_chat_history():
         )
     else:
         return jsonify({"data": exported_data, "format": format, "status": "success"})
+
+
+# ==================== UPDATE MANAGEMENT ROUTES ====================
+
+
+@app.route("/api/updates/check", methods=["POST"])
+def check_updates():
+    """Check for available updates"""
+    if not update_manager:
+        return jsonify({"error": "Update manager not available", "status": "error"}), 503
+
+    try:
+        background = request.json.get("background", False) if request.is_json else False
+        result = update_manager.check_for_updates(background=background)
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Update check failed: {e}")
+        return jsonify({"error": str(e), "status": "error"}), 500
+
+
+@app.route("/api/updates/apply", methods=["POST"])
+def apply_updates():
+    """Apply available updates"""
+    if not update_manager:
+        return jsonify({"error": "Update manager not available", "status": "error"}), 503
+
+    try:
+        result = update_manager.apply_updates()
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Update apply failed: {e}")
+        return jsonify({"error": str(e), "status": "error"}), 500
+
+
+@app.route("/api/updates/rollback", methods=["POST"])
+def rollback_updates():
+    """Rollback to previous version"""
+    if not update_manager:
+        return jsonify({"error": "Update manager not available", "status": "error"}), 503
+
+    try:
+        result = update_manager.rollback_update()
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Update rollback failed: {e}")
+        return jsonify({"error": str(e), "status": "error"}), 500
+
+
+@app.route("/api/updates/status", methods=["GET"])
+def get_update_status():
+    """Get current update status"""
+    if not update_manager:
+        return jsonify({"error": "Update manager not available", "status": "error"}), 503
+
+    try:
+        status = update_manager.get_update_status()
+        return jsonify(status)
+    except Exception as e:
+        logger.error(f"Update status check failed: {e}")
+        return jsonify({"error": str(e), "status": "error"}), 500
 
 
 @app.route("/transcribe", methods=["POST"])

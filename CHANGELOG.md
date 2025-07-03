@@ -5,6 +5,53 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.10.0] - 2025-07-03
+
+### 🆕 Added - WEB-BASED UPDATE SYSTEM
+- **🔄 Update Manager Module**: New `UpdateManager` class for web-based application updates
+- **🎛️ Admin Panel Update Section**: Integrated update controls in admin interface with:
+  - ✅ "Check for Updates" button with real-time status
+  - ⬇️ "Install Updates" button with progress tracking
+  - ↩️ "Rollback" button for reverting to previous version
+  - 📊 Update status display with version information
+  - 📝 Real-time update log with scrollable output
+- **🔗 Update API Endpoints**: Full REST API for update management:
+  - `POST /api/updates/check` - Check for available updates
+  - `POST /api/updates/apply` - Apply updates with background processing
+  - `POST /api/updates/rollback` - Rollback to previous version
+  - `GET /api/updates/status` - Get current update status
+- **🔒 Safety Features**: Comprehensive update safety mechanisms:
+  - Automatic backup creation before updates
+  - Rollback capability with previous version restoration
+  - Update progress tracking with visual indicators
+  - Error handling and status reporting
+  - Service restart management during updates
+
+### 🔧 Enhanced - UPDATE INTEGRATION
+- **🛠️ Auto-Update Script Integration**: Leverages existing `auto-update.sh` script
+- **📍 Smart Path Detection**: Auto-detects application root (`/opt/whisper-appliance` or development path)
+- **⚡ Background Processing**: Updates run in background threads with real-time status
+- **📊 Version Tracking**: Displays current version, latest available, and commits behind
+- **🔄 Auto-Refresh**: Admin panel automatically refreshes update status every 30 seconds
+
+### 🎯 Improved - PROXMOX HELPER-SCRIPT COMPATIBILITY
+- **📦 Container Update Support**: Designed for Proxmox LXC container environments
+- **🔧 Production Ready**: Follows patterns from established Proxmox helper scripts
+- **🛡️ Enterprise Safety**: Backup-first approach inspired by BassT23's Proxmox Updater
+- **📝 Update Logging**: Comprehensive logging for troubleshooting and monitoring
+
+### 🔧 Technical Implementation
+- **🏗️ Modular Architecture**: Update functionality cleanly separated in `modules/update_manager.py`
+- **🔒 Thread Safety**: Proper locking mechanisms for concurrent update operations
+- **⚙️ Error Handling**: Comprehensive exception handling with user-friendly error messages
+- **🔄 Status Management**: Persistent status tracking across update operations
+- **📊 Progress Tracking**: Visual progress indicators during update processes
+
+### 📈 Version Bumps
+- **📦 Core Version**: `0.9.0` → `0.10.0`
+- **🔧 API Version**: Updated to reflect new update management capabilities
+- **📚 Documentation**: Version consistency across all modules and interfaces
+
 ## [1.0.0-rc1] - 2025-07-01
 
 ### 🎯 **MAJOR REFACTORING - Release Candidate 1**

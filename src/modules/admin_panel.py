@@ -601,7 +601,7 @@ class AdminPanel:
                 const data = await response.json();
                 
                 if (data.updates_available) {{
-                    statusIndicator.innerHTML = `<span style="color: #ffc107;">(${data.commits_behind} updates available)</span>`;
+                    statusIndicator.innerHTML = '<span style="color: #ffc107;">(' + data.commits_behind + ' updates available)</span>';
                 }} else {{
                     statusIndicator.innerHTML = '<span style="color: #28a745;">(Up to date)</span>';
                 }}

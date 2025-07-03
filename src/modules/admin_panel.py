@@ -257,64 +257,7 @@ class AdminPanel:
                     </div>
                 </div>
                 
-                {"" if not self.update_available else f"""
-                <!-- Update Management Section -->
-                <div class="stat-card">
-                    <h3>&#x1F504; System Updates</h3>
-                    <div class="update-management">
-                        <div class="current-version">
-                            <strong>Current Version:</strong> 
-                            <span id="current-version">{self.update_manager.get_current_version()}</span>
-                        </div>
-                        
-                        <div class="update-status" style="margin: 15px 0;">
-                            <div id="update-status-display">
-                                <span id="update-status-text">Click "Check for Updates" to see if updates are available</span>
-                                <div id="update-progress" style="margin-top: 10px; display: none;">
-                                    <div style="background: #f0f0f0; border-radius: 4px; padding: 2px;">
-                                        <div id="update-progress-bar" style="background: #007bff; height: 20px; border-radius: 2px; width: 0%; transition: width 0.3s;"></div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="update-controls" style="margin: 15px 0;">
-                            <button id="check-updates-btn" onclick="checkForUpdates()" 
-                                    style="margin-right: 10px; padding: 8px 15px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                                &#x1F50D; Check for Updates
-                            </button>
-                            <button id="apply-updates-btn" onclick="applyUpdates()" 
-                                    style="margin-right: 10px; padding: 8px 15px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;" 
-                                    disabled>
-                                &#x2B07; Install Updates
-                            </button>
-                            <button id="rollback-btn" onclick="rollbackUpdate()" 
-                                    style="padding: 8px 15px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                                &#x21A9; Rollback
-                            </button>
-                        </div>
-                        
-                        <div id="update-details" style="margin-top: 15px; display: none;">
-                            <h4>Update Information:</h4>
-                            <div id="update-info-content"></div>
-                        </div>
-                        
-                        <div id="update-log" style="margin-top: 15px; display: none;">
-                            <h4>Update Log:</h4>
-                            <div id="update-log-content" style="max-height: 200px; overflow-y: auto; background: #f8f9fa; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 0.9em;">
-                            </div>
-                        </div>
-                        
-                        <div class="update-info" style="margin-top: 15px; padding: 10px; background: #e9ecef; border-radius: 4px; font-size: 0.9em;">
-                            <strong>Update Features:</strong><br>
-                            &bull; Automatic backup before updates<br>
-                            &bull; Rollback capability to previous version<br>
-                            &bull; Safe update process with service restart<br>
-                            &bull; GitHub-based updates with SSL verification
-                        </div>
-                    </div>
-                </div>
-                """}
+                {self._get_update_management_html()}
                 
                 <div class="stat-card">
                     <h3>🔧 System Information</h3>
@@ -524,6 +467,72 @@ class AdminPanel:
         admin_html = admin_html.replace("</body>", js_script + "</body>")
 
         return admin_html
+
+    def _get_update_management_html(self):
+        """Generate HTML for update management section"""
+        if not self.update_available:
+            return ""
+
+        current_version = self.update_manager.get_current_version()
+
+        return f"""
+        <!-- Update Management Section -->
+        <div class="stat-card">
+            <h3>&#x1F504; System Updates</h3>
+            <div class="update-management">
+                <div class="current-version">
+                    <strong>Current Version:</strong> 
+                    <span id="current-version">{current_version}</span>
+                </div>
+                
+                <div class="update-status" style="margin: 15px 0;">
+                    <div id="update-status-display">
+                        <span id="update-status-text">Click "Check for Updates" to see if updates are available</span>
+                        <div id="update-progress" style="margin-top: 10px; display: none;">
+                            <div style="background: #f0f0f0; border-radius: 4px; padding: 2px;">
+                                <div id="update-progress-bar" style="background: #007bff; height: 20px; border-radius: 2px; width: 0%; transition: width 0.3s;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="update-controls" style="margin: 15px 0;">
+                    <button id="check-updates-btn" onclick="checkForUpdates()" 
+                            style="margin-right: 10px; padding: 8px 15px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        &#x1F50D; Check for Updates
+                    </button>
+                    <button id="apply-updates-btn" onclick="applyUpdates()" 
+                            style="margin-right: 10px; padding: 8px 15px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;" 
+                            disabled>
+                        &#x2B07; Install Updates
+                    </button>
+                    <button id="rollback-btn" onclick="rollbackUpdate()" 
+                            style="padding: 8px 15px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                        &#x21A9; Rollback
+                    </button>
+                </div>
+                
+                <div id="update-details" style="margin-top: 15px; display: none;">
+                    <h4>Update Information:</h4>
+                    <div id="update-info-content"></div>
+                </div>
+                
+                <div id="update-log" style="margin-top: 15px; display: none;">
+                    <h4>Update Log:</h4>
+                    <div id="update-log-content" style="max-height: 200px; overflow-y: auto; background: #f8f9fa; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 0.9em;">
+                    </div>
+                </div>
+                
+                <div class="update-info" style="margin-top: 15px; padding: 10px; background: #e9ecef; border-radius: 4px; font-size: 0.9em;">
+                    <strong>Update Features:</strong><br>
+                    &bull; Automatic backup before updates<br>
+                    &bull; Rollback capability to previous version<br>
+                    &bull; Safe update process with service restart<br>
+                    &bull; GitHub-based updates with SSL verification
+                </div>
+            </div>
+        </div>
+        """
 
     def _get_chat_history_stats_html(self):
         """Generate HTML for chat history statistics"""

@@ -1,7 +1,7 @@
 """
 Update Configuration Manager
 Handles configuration for different deployment types (git-based vs file-download-based)
-Provides narrensicher (foolproof) update system for all deployment scenarios
+Provides smart update system for all deployment scenarios
 """
 
 import json

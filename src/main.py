@@ -541,194 +541,456 @@ def get_update_status():
 
 @app.route("/api/simple-update", methods=["POST"])
 def simple_update():
-    """Narrensicher update for all deployment types"""
+    """Enterprise-grade update system - GitHub Releases first, Git fallback"""
     try:
-        logger.info("Starting narrensicher update process...")
+        import shutil
+        import subprocess
+        import tempfile
+        import time
 
-        # Use the new UpdateManager if available
-        if update_manager:
-            logger.info(f"Using UpdateManager with deployment type: {update_manager.deployment_type}")
+        import requests
 
-            # Start update
-            result = update_manager.apply_updates()
+        logger.info("Starting enterprise update process...")
 
-            if result.get("status") == "updating":
+        # 1. Try GitHub Releases first (tteck's preferred method)
+        try:
+            response = requests.get("https://api.github.com/repos/GaboCapo/whisper-appliance/releases/latest", timeout=10)
+            if response.status_code == 200:
+                # GitHub Releases update method
+                return _update_via_github_releases(response.json())
+        except Exception as e:
+            logger.info(f"GitHub Releases not available ({e}), falling back to Git method")
+
+        # 2. Fallback to Git-based update (for development)
+        logger.info("Using Git-based update...")
+        return _update_via_git()
+
+    except Exception as e:
+        logger.error(f"Enterprise update failed: {e}")
+        return jsonify({"error": f"Update failed: {str(e)}", "status": "error"}), 500
+
+
+def _update_via_git():
+    """Git-based update for development environments"""
+    try:
+        import subprocess
+        import sys
+
+        # Find git repository
+        app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if not os.path.exists(os.path.join(app_dir, ".git")):
+            return jsonify({"error": "Git repository not found", "status": "error"}), 400
+
+        # Change to app directory
+        original_cwd = os.getcwd()
+        os.chdir(app_dir)
+
+        try:
+            # Configure SSH if deploy key exists
+            env = os.environ.copy()
+            if os.path.exists("./deploy_key_whisper_appliance"):
+                env["GIT_SSH_COMMAND"] = (
+                    "ssh -i ./deploy_key_whisper_appliance -o IdentitiesOnly=yes -o StrictHostKeyChecking=no"
+                )
+
+            # Get current commit before update
+            current_commit = subprocess.run(
+                ["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True
+            ).stdout.strip()
+
+            # Fetch and pull latest changes
+            logger.info("Fetching latest changes...")
+            subprocess.run(["git", "fetch", "origin", "main"], env=env, check=True, capture_output=True, timeout=30)
+
+            logger.info("Pulling updates...")
+            result = subprocess.run(
+                ["git", "pull", "origin", "main"], env=env, check=True, capture_output=True, text=True, timeout=60
+            )
+
+            # Check if anything was updated
+            new_commit = subprocess.run(
+                ["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True
+            ).stdout.strip()
+
+            if current_commit == new_commit:
                 return jsonify(
                     {
                         "status": "success",
-                        "message": "Update started successfully using modern update system",
-                        "deployment_type": update_manager.deployment_type,
-                        "update_method": update_manager.update_method,
+                        "message": "Already up to date",
+                        "update_method": "git",
+                        "changes": False,
+                        "current_commit": current_commit[:8],
                     }
                 )
-            else:
-                return jsonify(result), 400
-        else:
-            # Fallback to legacy file-download update
-            logger.warning("UpdateManager not available, using legacy update")
-            return _legacy_simple_update()
 
-    except Exception as e:
-        logger.error(f"Narrensicher update failed: {e}")
-        return jsonify({"error": f"Update failed: {str(e)}", "status": "error", "fallback_available": True}), 500
-
-
-def _legacy_simple_update():
-    """Legacy simple update as fallback"""
-    try:
-        import os
-        import subprocess
-
-        logger.info("Starting simple update process...")
-
-        # Robust git repository detection
-        def find_git_repository():
-            """Find the git repository root by checking multiple locations"""
-            possible_paths = [
-                # Current application directory (development)
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                # Standard production path
-                "/opt/whisper-appliance",
-                # Alternative production paths
-                "/app",
-                "/opt/app",
-                # Container paths
-                "/workspace",
-                "/code",
-                # Current working directory and its parents
-                os.getcwd(),
-            ]
-
-            # Also check parent directories up to root
-            current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            while current_dir != "/" and current_dir:
-                possible_paths.append(current_dir)
-                current_dir = os.path.dirname(current_dir)
-
-            # Check if we're inside a git repository using git command
-            try:
-                result = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, timeout=10)
-                if result.returncode == 0:
-                    git_root = result.stdout.strip()
-                    if os.path.exists(git_root):
-                        logger.info(f"Found git repository using git command: {git_root}")
-                        return git_root
-            except Exception as e:
-                logger.debug(f"Git command failed: {e}")
-
-            # Fallback to checking possible paths
-            for path in possible_paths:
-                if os.path.exists(os.path.join(path, ".git")):
-                    logger.info(f"Found git repository at: {path}")
-                    return path
-
-            return None
-
-        app_dir = find_git_repository()
-        if not app_dir:
-            # Try more aggressive git detection
-            try:
-                # Try git command from current working directory
-                cwd_result = subprocess.run(
-                    ["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, timeout=10, cwd=os.getcwd()
-                )
-                if cwd_result.returncode == 0:
-                    app_dir = cwd_result.stdout.strip()
-                    logger.info(f"Found git repository using CWD git command: {app_dir}")
-                else:
-                    # Try from main.py directory
-                    main_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                    main_result = subprocess.run(
-                        ["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, timeout=10, cwd=main_dir
+            # Update dependencies if requirements.txt exists
+            requirements_file = os.path.join(app_dir, "src", "requirements.txt")
+            if os.path.exists(requirements_file):
+                try:
+                    logger.info("Updating dependencies...")
+                    subprocess.run(
+                        [sys.executable, "-m", "pip", "install", "-r", requirements_file],
+                        check=True,
+                        capture_output=True,
+                        text=True,
+                        timeout=120,
                     )
-                    if main_result.returncode == 0:
-                        app_dir = main_result.stdout.strip()
-                        logger.info(f"Found git repository using main.py dir: {app_dir}")
-            except Exception as e:
-                logger.error(f"Extended git detection failed: {e}")
+                    logger.info("Dependencies updated successfully")
+                except subprocess.CalledProcessError as e:
+                    logger.warning(f"Failed to update dependencies: {e}")
 
-        if not app_dir:
-            return (
-                jsonify(
-                    {
-                        "error": "Git repository not found. Checked paths include /opt/whisper-appliance, /app, current directory and parents.",
-                        "status": "error",
-                        "debug_info": {
-                            "cwd": os.getcwd(),
-                            "main_file_dir": os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                            "paths_checked": [
-                                "/opt/whisper-appliance",
-                                "/app",
-                                "/opt/app",
-                                "/workspace",
-                                "/code",
-                                os.getcwd(),
-                            ],
-                        },
-                    }
-                ),
-                400,
+            # Update script permissions
+            for script in ["auto-update.sh", "create-ssl-cert.sh", "install-container.sh"]:
+                script_path = os.path.join(app_dir, script)
+                if os.path.exists(script_path):
+                    os.chmod(script_path, 0o755)
+
+            logger.info("Git-based update completed successfully!")
+
+            return jsonify(
+                {
+                    "status": "success",
+                    "message": "Update completed successfully",
+                    "update_method": "git",
+                    "changes": True,
+                    "previous_commit": current_commit[:8],
+                    "new_commit": new_commit[:8],
+                    "restart_recommended": True,
+                }
             )
 
-        # Change to app directory
-        os.chdir(app_dir)
+        finally:
+            os.chdir(original_cwd)
 
-        # Configure SSH for deploy key if available
-        env = os.environ.copy()
-        if os.path.exists("./deploy_key_whisper_appliance"):
-            env["GIT_SSH_COMMAND"] = "ssh -i ./deploy_key_whisper_appliance -o IdentitiesOnly=yes -o StrictHostKeyChecking=no"
+    except subprocess.CalledProcessError as e:
+        logger.error(f"Git command failed: {e}")
+        return jsonify({"error": f"Git update failed: {e.stderr if e.stderr else str(e)}", "status": "error"}), 500
+    except Exception as e:
+        logger.error(f"Git update failed: {e}")
+        return jsonify({"error": f"Update failed: {str(e)}", "status": "error"}), 500
 
-        # Fetch latest changes
-        logger.info("Fetching latest changes...")
-        subprocess.run(["git", "fetch", "origin", "main"], env=env, check=True, capture_output=True, text=True)
 
-        # Pull updates
-        logger.info("Pulling updates...")
-        result = subprocess.run(["git", "pull", "origin", "main"], env=env, check=True, capture_output=True, text=True)
+def _update_via_github_releases(release_data):
+    """GitHub Releases update method (tteck's approach)"""
+    try:
+        import shutil
+        import tempfile
+        import time
 
-        # Update file permissions
-        logger.info("Updating file permissions...")
-        for script in ["auto-update.sh", "create-ssl-cert.sh", "install-container.sh"]:
-            script_path = os.path.join(app_dir, script)
-            if os.path.exists(script_path):
-                os.chmod(script_path, 0o755)
+        import requests
 
-        for script_dir in ["scripts"]:
-            script_dir_path = os.path.join(app_dir, script_dir)
-            if os.path.exists(script_dir_path):
-                for file in os.listdir(script_dir_path):
-                    if file.endswith(".sh"):
-                        os.chmod(os.path.join(script_dir_path, file), 0o755)
+        logger.info("Starting enterprise update process...")
 
-        logger.info("Simple update completed successfully!")
+        # 1. Get latest release info from GitHub API
+        try:
+            response = requests.get("https://api.github.com/repos/GaboCapo/whisper-appliance/releases/latest", timeout=10)
+            if response.status_code != 200:
+                raise Exception(f"GitHub API error: {response.status_code}")
+
+            release_data = response.json()
+            latest_version = release_data["tag_name"].lstrip("v")
+            download_url = f"https://github.com/GaboCapo/whisper-appliance/archive/refs/tags/{release_data['tag_name']}.tar.gz"
+
+            logger.info(f"Latest version available: {latest_version}")
+
+        except Exception as e:
+            logger.error(f"Failed to get release info: {e}")
+            return jsonify({"error": f"Failed to get release info: {str(e)}", "status": "error"}), 500
+
+        # 2. Check current version
+        app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        version_file = os.path.join(app_dir, "whisper-appliance_version.txt")
+
+        current_version = None
+        if os.path.exists(version_file):
+            try:
+                with open(version_file, "r") as f:
+                    current_version = f.read().strip()
+            except:
+                pass
+
+        if current_version == latest_version:
+            return jsonify(
+                {
+                    "status": "success",
+                    "message": f"Already up to date (v{current_version})",
+                    "current_version": current_version,
+                    "latest_version": latest_version,
+                }
+            )
+
+        logger.info(f"Updating from {current_version or 'unknown'} to {latest_version}")
+
+        # 3. Create backup of current installation
+        backup_dir = f"{app_dir}_backup_{int(time.time())}"
+        logger.info(f"Creating backup at {backup_dir}")
+
+        if os.path.exists(app_dir):
+            shutil.copytree(app_dir, backup_dir, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".git"))
+
+        # 4. Download and extract new version
+        with tempfile.TemporaryDirectory() as temp_dir:
+            logger.info(f"Downloading {download_url}")
+
+            # Download with requests for better error handling
+            download_response = requests.get(download_url, stream=True, timeout=30)
+            download_response.raise_for_status()
+
+            tar_path = os.path.join(temp_dir, "update.tar.gz")
+            with open(tar_path, "wb") as f:
+                for chunk in download_response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+
+            # Extract tarball
+            import tarfile
+
+            with tarfile.open(tar_path, "r:gz") as tar:
+                tar.extractall(temp_dir)
+
+            # Find extracted directory (should be whisper-appliance-{version})
+            extracted_dirs = [
+                d
+                for d in os.listdir(temp_dir)
+                if d.startswith("whisper-appliance-") and os.path.isdir(os.path.join(temp_dir, d))
+            ]
+            if not extracted_dirs:
+                raise Exception("Could not find extracted directory")
+
+            extracted_dir = os.path.join(temp_dir, extracted_dirs[0])
+
+            # 5. Replace current installation (preserve data directories)
+            logger.info("Installing new version...")
+
+            # Preserve important data directories if they exist
+            preserve_dirs = ["ssl", "data", "logs"]
+            preserved_data = {}
+
+            for preserve_dir in preserve_dirs:
+                old_path = os.path.join(app_dir, preserve_dir)
+                if os.path.exists(old_path):
+                    preserved_data[preserve_dir] = os.path.join(temp_dir, f"preserved_{preserve_dir}")
+                    shutil.copytree(old_path, preserved_data[preserve_dir])
+
+            # Remove old installation (except preserved dirs)
+            if os.path.exists(app_dir):
+                shutil.rmtree(app_dir)
+
+            # Move new installation
+            shutil.move(extracted_dir, app_dir)
+
+            # Restore preserved directories
+            for preserve_dir, preserved_path in preserved_data.items():
+                target_path = os.path.join(app_dir, preserve_dir)
+                if os.path.exists(target_path):
+                    shutil.rmtree(target_path)
+                shutil.move(preserved_path, target_path)
+
+        # 6. Write version file
+        with open(version_file, "w") as f:
+            f.write(latest_version)
+
+        # 7. Update dependencies if requirements.txt changed
+        requirements_file = os.path.join(app_dir, "src", "requirements.txt")
+        if os.path.exists(requirements_file):
+            try:
+                logger.info("Updating dependencies...")
+                subprocess.run(
+                    [sys.executable, "-m", "pip", "install", "-r", requirements_file],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+                logger.info("Dependencies updated successfully")
+            except subprocess.CalledProcessError as e:
+                logger.warning(f"Failed to update dependencies: {e}")
+
+        # 8. Cleanup old backup (keep only latest 3)
+        try:
+            parent_dir = os.path.dirname(app_dir)
+            backup_dirs = [d for d in os.listdir(parent_dir) if d.startswith(os.path.basename(app_dir) + "_backup_")]
+            backup_dirs.sort(reverse=True)  # Newest first
+
+            for old_backup in backup_dirs[3:]:  # Keep only 3 newest
+                backup_path = os.path.join(parent_dir, old_backup)
+                if os.path.exists(backup_path):
+                    shutil.rmtree(backup_path)
+                    logger.info(f"Cleaned up old backup: {old_backup}")
+        except Exception as e:
+            logger.warning(f"Failed to cleanup old backups: {e}")
+
+        logger.info(f"Enterprise update completed successfully to v{latest_version}")
 
         return jsonify(
             {
                 "status": "success",
-                "message": "Update completed successfully",
-                "output": result.stdout if result.stdout else "Update successful",
+                "message": f"Successfully updated to v{latest_version}",
+                "previous_version": current_version,
+                "new_version": latest_version,
+                "backup_location": backup_dir,
+                "restart_required": True,
             }
         )
 
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Git command failed: {e}")
-        return jsonify({"error": f"Git command failed: {e.stderr if e.stderr else str(e)}", "status": "error"}), 500
     except Exception as e:
-        logger.error(f"Simple update failed: {e}")
-        return jsonify({"error": str(e), "status": "error"}), 500
+        logger.error(f"Enterprise update failed: {e}")
+        return (
+            jsonify(
+                {
+                    "error": f"Update failed: {str(e)}",
+                    "status": "error",
+                    "backup_available": locals().get("backup_dir") is not None,
+                }
+            ),
+            500,
+        )
 
 
 @app.route("/api/check-git-updates", methods=["GET"])
 def check_git_updates():
-    """Check for git updates without UpdateManager"""
+    """Enterprise update check - GitHub Releases first, Git fallback"""
     try:
-        import os
         import subprocess
 
-        # Use the same robust git repository detection
+        import requests
+
+        logger.info("Checking for available updates...")
+
+        # 1. Try GitHub Releases first (tteck's preferred method)
+        try:
+            response = requests.get("https://api.github.com/repos/GaboCapo/whisper-appliance/releases/latest", timeout=10)
+            if response.status_code == 200:
+                release_data = response.json()
+                latest_version = release_data["tag_name"].lstrip("v")
+                release_date = release_data.get("published_at", "Unknown")
+                release_notes = release_data.get("body", "No release notes available")
+
+                # Check current version
+                app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+                version_file = os.path.join(app_dir, "whisper-appliance_version.txt")
+
+                current_version = None
+                if os.path.exists(version_file):
+                    try:
+                        with open(version_file, "r") as f:
+                            current_version = f.read().strip()
+                    except:
+                        pass
+
+                updates_available = current_version != latest_version
+
+                return jsonify(
+                    {
+                        "status": "success",
+                        "update_method": "github_releases",
+                        "updates_available": updates_available,
+                        "current_version": current_version or "Unknown",
+                        "latest_version": latest_version,
+                        "release_date": release_date,
+                        "release_notes": release_notes[:500] + "..." if len(release_notes) > 500 else release_notes,
+                        "message": f"Updates available: {latest_version}" if updates_available else "System is up to date",
+                    }
+                )
+
+        except Exception as e:
+            logger.info(f"GitHub Releases not available ({e}), falling back to Git method")
+
+        # 2. Fallback to Git-based update check
+        logger.info("Using Git-based update check...")
+
+        # Find git repository
+        app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if not os.path.exists(os.path.join(app_dir, ".git")):
+            # Try alternative locations
+            for alt_path in ["/opt/whisper-appliance", "/app", "/workspace"]:
+                if os.path.exists(os.path.join(alt_path, ".git")):
+                    app_dir = alt_path
+                    break
+            else:
+                return jsonify({"error": "No git repository found and no GitHub releases available", "status": "error"}), 400
+
+        # Change to app directory for git operations
+        original_cwd = os.getcwd()
+        os.chdir(app_dir)
+
+        try:
+            # Configure SSH if deploy key exists
+            env = os.environ.copy()
+            if os.path.exists("./deploy_key_whisper_appliance"):
+                env["GIT_SSH_COMMAND"] = (
+                    "ssh -i ./deploy_key_whisper_appliance -o IdentitiesOnly=yes -o StrictHostKeyChecking=no"
+                )
+
+            # Fetch latest changes
+            subprocess.run(["git", "fetch", "origin", "main"], env=env, check=True, capture_output=True, timeout=30)
+
+            # Get current and remote commits
+            local_commit = subprocess.run(
+                ["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True
+            ).stdout.strip()
+            remote_commit = subprocess.run(
+                ["git", "rev-parse", "origin/main"], capture_output=True, text=True, check=True
+            ).stdout.strip()
+
+            # Get commit info
+            local_info = (
+                subprocess.run(
+                    ["git", "log", "-1", "--format=%h|%s|%an|%ad", "--date=short", local_commit],
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                )
+                .stdout.strip()
+                .split("|")
+            )
+
+            commits_behind = 0
+            if local_commit != remote_commit:
+                commits_result = subprocess.run(
+                    ["git", "rev-list", "--count", f"{local_commit}..origin/main"], capture_output=True, text=True, check=True
+                )
+                commits_behind = int(commits_result.stdout.strip())
+
+            return jsonify(
+                {
+                    "status": "success",
+                    "update_method": "git_commits",
+                    "updates_available": commits_behind > 0,
+                    "commits_behind": commits_behind,
+                    "current_commit": local_info[0] if local_info else local_commit[:8],
+                    "current_commit_message": local_info[1] if len(local_info) > 1 else "Unknown",
+                    "current_commit_author": local_info[2] if len(local_info) > 2 else "Unknown",
+                    "current_commit_date": local_info[3] if len(local_info) > 3 else "Unknown",
+                    "message": f"{commits_behind} commits behind" if commits_behind > 0 else "Up to date",
+                }
+            )
+
+        finally:
+            os.chdir(original_cwd)
+
+    except Exception as e:
+        logger.error(f"Update check failed: {e}")
+        return jsonify({"error": f"Update check failed: {str(e)}", "status": "error"}), 500
+
         def find_git_repository():
             """Find the git repository root by checking multiple locations"""
-            # Check if we're inside a git repository using git command first
+            # Priority 1: Check where main.py is located (current app location)
+            current_app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+            if os.path.exists(os.path.join(current_app_dir, ".git")):
+                return current_app_dir
+
+            # Priority 2: Use git command from current app directory
+            try:
+                result = subprocess.run(
+                    ["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, timeout=10, cwd=current_app_dir
+                )
+                if result.returncode == 0:
+                    git_root = result.stdout.strip()
+                    if os.path.exists(git_root):
+                        return git_root
+            except Exception:
+                pass
+
+            # Priority 3: Use git command from current working directory
             try:
                 result = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, timeout=10)
                 if result.returncode == 0:
@@ -738,15 +1000,16 @@ def check_git_updates():
             except Exception:
                 pass
 
-            # Fallback to checking possible paths
+            # Fallback to checking standard deployment paths
             possible_paths = [
-                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                "/opt/whisper-appliance",
-                "/app",
-                "/opt/app",
-                "/workspace",
-                "/code",
-                os.getcwd(),
+                current_app_dir,  # Where the app is actually running
+                "/home/commander/Code/whisper-appliance",  # Known actual location
+                "/opt/whisper-appliance",  # Standard production path
+                "/app",  # Docker standard
+                "/opt/app",  # Alternative production
+                "/workspace",  # Development
+                "/code",  # Alternative development
+                os.getcwd(),  # Current working directory
             ]
 
             for path in possible_paths:

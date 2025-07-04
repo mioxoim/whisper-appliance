@@ -488,11 +488,11 @@ class AdminPanel:
                 </div>
                 
                 <div class="update-controls" style="margin: 15px 0;">
-                    <button id="simple-update-btn" onclick="performNarrensicherUpdate()" 
+                    <button id="simple-update-btn" onclick="performUpdate()" 
                             style="margin-right: 10px; padding: 12px 20px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold;">
-                        &#x1F504; Update Now (Narrensicher)
+                        &#x1F504; Update Now
                     </button>
-                    <button id="check-updates-btn" onclick="checkNarrensicherUpdates()" 
+                    <button id="check-updates-btn" onclick="checkUpdates()" 
                             style="margin-right: 10px; padding: 12px 20px; background: #17a2b8; color: white; border: none; border-radius: 6px; cursor: pointer;">
                         &#x1F50D; Check Updates
                     </button>
@@ -527,7 +527,7 @@ class AdminPanel:
         <script>
         let updateInProgress = false;
         
-        async function performNarrensicherUpdate() {{
+        async function performUpdate() {{
             if (updateInProgress) {{
                 alert('Update already in progress...');
                 return;
@@ -594,7 +594,7 @@ class AdminPanel:
             }}
         }}
         
-        async function checkNarrensicherUpdates() {{
+        async function checkUpdates() {{
             const statusIndicator = document.getElementById('update-status-indicator');
             try {{
                 statusIndicator.innerHTML = '(Checking...)';
@@ -670,7 +670,7 @@ class AdminPanel:
         }}
         
         // Auto-check for updates on page load
-        setTimeout(checkNarrensicherUpdates, 1000);
+        setTimeout(checkUpdates, 1000);
         </script>
         """
 

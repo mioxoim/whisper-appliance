@@ -17,10 +17,12 @@ from .upload_handler import UploadHandler
 
 # Optional UpdateManager for backward compatibility
 try:
+    from .update_config import UpdateConfig
     from .update_manager import UpdateManager
 
     UPDATE_MANAGER_AVAILABLE = True
 except ImportError:
+    UpdateConfig = None
     UpdateManager = None
     UPDATE_MANAGER_AVAILABLE = False
 
@@ -31,6 +33,7 @@ __all__ = [
     "APIDocs",
     "ModelManager",
     "ChatHistoryManager",
+    "UpdateConfig",
     "UpdateManager",
     "UPDATE_MANAGER_AVAILABLE",
 ]

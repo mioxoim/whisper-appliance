@@ -541,7 +541,40 @@ def get_update_status():
 
 @app.route("/api/simple-update", methods=["POST"])
 def simple_update():
-    """Simple git-based update that works even without UpdateManager"""
+    """Narrensicher update for all deployment types"""
+    try:
+        logger.info("Starting narrensicher update process...")
+
+        # Use the new UpdateManager if available
+        if update_manager:
+            logger.info(f"Using UpdateManager with deployment type: {update_manager.deployment_type}")
+
+            # Start update
+            result = update_manager.apply_updates()
+
+            if result.get("status") == "updating":
+                return jsonify(
+                    {
+                        "status": "success",
+                        "message": "Update started successfully using modern update system",
+                        "deployment_type": update_manager.deployment_type,
+                        "update_method": update_manager.update_method,
+                    }
+                )
+            else:
+                return jsonify(result), 400
+        else:
+            # Fallback to legacy file-download update
+            logger.warning("UpdateManager not available, using legacy update")
+            return _legacy_simple_update()
+
+    except Exception as e:
+        logger.error(f"Narrensicher update failed: {e}")
+        return jsonify({"error": f"Update failed: {str(e)}", "status": "error", "fallback_available": True}), 500
+
+
+def _legacy_simple_update():
+    """Legacy simple update as fallback"""
     try:
         import os
         import subprocess

@@ -346,3 +346,12 @@ class UpdateManager:
                 self.update_status["update_log"] = self.update_status["update_log"][-50:]
 
         logger.info(log_entry)
+
+
+# Legacy compatibility - keep old interface working
+def _find_git_repository() -> Optional[str]:
+    """Legacy function for backwards compatibility"""
+    config = UpdateConfig()
+    if config.get_deployment_type() == "git_based":
+        return config.get_target_dir()
+    return None

@@ -481,17 +481,18 @@ class AdminPanel:
                 <div class="current-version" style="margin-bottom: 15px;">
                     <strong>Current Version:</strong> 
                     <span id="current-version-display">
-                        {self.update_manager.get_current_version() if self.update_available else "Legacy Version"}
+                        {self.update_manager.get_current_version() if self.update_available else "file-based"}
                     </span>
+                    <br><small><strong>Deployment:</strong> <span id="deployment-type">{"git_based" if self.update_available else "file_download_based"}</span></small>
                     <span id="update-status-indicator" style="margin-left: 10px; font-style: italic; color: #666;"></span>
                 </div>
                 
                 <div class="update-controls" style="margin: 15px 0;">
-                    <button id="simple-update-btn" onclick="performSimpleUpdate()" 
+                    <button id="simple-update-btn" onclick="performNarrensicherUpdate()" 
                             style="margin-right: 10px; padding: 12px 20px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold;">
-                        &#x1F504; Update Now
+                        &#x1F504; Update Now (Narrensicher)
                     </button>
-                    <button id="check-updates-btn" onclick="checkSystemUpdates()" 
+                    <button id="check-updates-btn" onclick="checkNarrensicherUpdates()" 
                             style="margin-right: 10px; padding: 12px 20px; background: #17a2b8; color: white; border: none; border-radius: 6px; cursor: pointer;">
                         &#x1F50D; Check Updates
                     </button>
@@ -526,13 +527,13 @@ class AdminPanel:
         <script>
         let updateInProgress = false;
         
-        async function performSimpleUpdate() {{
+        async function performNarrensicherUpdate() {{
             if (updateInProgress) {{
                 alert('Update already in progress...');
                 return;
             }}
             
-            if (!confirm('🔄 Start system update now?\\n\\nThis will:\\n• Pull latest changes from GitHub\\n• Restart the service\\n• Take 1-2 minutes\\n\\nContinue?')) {{
+            if (!confirm('🚀 Start narrensicher update now?\\n\\nThis will:\\n• Detect deployment type automatically\\n• Use appropriate update method (Git or File-Download)\\n• Create backup before update\\n• Restart the service\\n• Take 1-3 minutes\\n\\nContinue?')) {{
                 return;
             }}
             
@@ -593,7 +594,7 @@ class AdminPanel:
             }}
         }}
         
-        async function checkSystemUpdates() {{
+        async function checkNarrensicherUpdates() {{
             const statusIndicator = document.getElementById('update-status-indicator');
             try {{
                 statusIndicator.innerHTML = '(Checking...)';
@@ -669,7 +670,7 @@ class AdminPanel:
         }}
         
         // Auto-check for updates on page load
-        setTimeout(checkSystemUpdates, 1000);
+        setTimeout(checkNarrensicherUpdates, 1000);
         </script>
         """
 

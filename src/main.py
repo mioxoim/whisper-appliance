@@ -674,6 +674,153 @@ def _update_via_github_releases(release_data):
     """GitHub Releases update method (tteck's approach)"""
     try:
         import shutil
+        import tarfile
+        import tempfile
+        import time
+
+        import requests
+
+        latest_version = release_data["tag_name"].lstrip("v")
+        download_url = f"https://github.com/GaboCapo/whisper-appliance/archive/refs/tags/{release_data['tag_name']}.tar.gz"
+
+        logger.info(f"Latest version available: {latest_version}")
+
+        # Get current app directory (where we're actually running from)
+        app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        version_file = os.path.join(app_dir, "whisper-appliance_version.txt")
+
+        # Check current version
+        current_version = None
+        if os.path.exists(version_file):
+            try:
+                with open(version_file, "r") as f:
+                    current_version = f.read().strip()
+            except:
+                pass
+
+        if current_version == latest_version:
+            return jsonify(
+                {
+                    "status": "success",
+                    "message": f"Already up to date (v{current_version})",
+                    "current_version": current_version,
+                    "latest_version": latest_version,
+                    "update_method": "github_releases",
+                }
+            )
+
+        logger.info(f"Updating from {current_version or 'unknown'} to {latest_version}")
+
+        # Create backup in same directory (not /opt) - PERMISSION FIX
+        backup_dir = f"{app_dir}_backup_{int(time.time())}"
+        logger.info(f"Creating backup at {backup_dir}")
+
+        # Check if we have write permissions for backup
+        parent_dir = os.path.dirname(app_dir)
+        if not os.access(parent_dir, os.W_OK):
+            # Fallback: create backup in temp directory
+            backup_dir = os.path.join(tempfile.gettempdir(), f"whisper-appliance_backup_{int(time.time())}")
+            logger.warning(f"No write permission in {parent_dir}, using temp backup: {backup_dir}")
+
+        if os.path.exists(app_dir):
+            shutil.copytree(app_dir, backup_dir, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".git"))
+
+        # Download and extract new version
+        with tempfile.TemporaryDirectory() as temp_dir:
+            logger.info(f"Downloading {download_url}")
+
+            download_response = requests.get(download_url, stream=True, timeout=30)
+            download_response.raise_for_status()
+
+            tar_path = os.path.join(temp_dir, "update.tar.gz")
+            with open(tar_path, "wb") as f:
+                for chunk in download_response.iter_content(chunk_size=8192):
+                    f.write(chunk)
+
+            # Extract tarball
+            with tarfile.open(tar_path, "r:gz") as tar:
+                tar.extractall(temp_dir)
+
+            # Find extracted directory
+            extracted_dirs = [
+                d
+                for d in os.listdir(temp_dir)
+                if d.startswith("whisper-appliance-") and os.path.isdir(os.path.join(temp_dir, d))
+            ]
+            if not extracted_dirs:
+                raise Exception("Could not find extracted directory")
+
+            extracted_dir = os.path.join(temp_dir, extracted_dirs[0])
+
+            # Preserve important directories
+            preserve_dirs = ["ssl", "data", "logs"]
+            preserved_data = {}
+
+            for preserve_dir in preserve_dirs:
+                old_path = os.path.join(app_dir, preserve_dir)
+                if os.path.exists(old_path):
+                    preserved_data[preserve_dir] = os.path.join(temp_dir, f"preserved_{preserve_dir}")
+                    shutil.copytree(old_path, preserved_data[preserve_dir])
+
+            # Replace installation
+            if os.path.exists(app_dir):
+                shutil.rmtree(app_dir)
+
+            shutil.move(extracted_dir, app_dir)
+
+            # Restore preserved directories
+            for preserve_dir, preserved_path in preserved_data.items():
+                target_path = os.path.join(app_dir, preserve_dir)
+                if os.path.exists(target_path):
+                    shutil.rmtree(target_path)
+                shutil.move(preserved_path, target_path)
+
+        # Write version file
+        with open(version_file, "w") as f:
+            f.write(latest_version)
+
+        # Update dependencies
+        requirements_file = os.path.join(app_dir, "src", "requirements.txt")
+        if os.path.exists(requirements_file):
+            try:
+                logger.info("Updating dependencies...")
+                subprocess.run(
+                    [sys.executable, "-m", "pip", "install", "-r", requirements_file],
+                    check=True,
+                    capture_output=True,
+                    text=True,
+                )
+            except subprocess.CalledProcessError as e:
+                logger.warning(f"Failed to update dependencies: {e}")
+
+        logger.info(f"GitHub Releases update completed successfully to v{latest_version}")
+
+        return jsonify(
+            {
+                "status": "success",
+                "message": f"Successfully updated to v{latest_version}",
+                "previous_version": current_version,
+                "new_version": latest_version,
+                "backup_location": backup_dir,
+                "update_method": "github_releases",
+                "restart_required": True,
+            }
+        )
+
+    except Exception as e:
+        logger.error(f"GitHub Releases update failed: {e}")
+        return (
+            jsonify(
+                {
+                    "error": f"GitHub Releases update failed: {str(e)}",
+                    "status": "error",
+                    "backup_available": locals().get("backup_dir") is not None,
+                }
+            ),
+            500,
+        )
+    try:
+        import shutil
         import tempfile
         import time
 

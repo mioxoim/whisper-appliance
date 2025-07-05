@@ -9,13 +9,10 @@
 - Use for testing and development purposes only
 - No stability guarantees for current release
 
-For production use, please wait for stable v1.0.0 release.
-
 ---
 
 **Modern web interface for OpenAI Whisper speech-to-text with Docker and Proxmox support**
 
-[![GitHub Release](https://img.shields.io/github/v/release/GaboCapo/whisper-appliance)](https://github.com/GaboCapo/whisper-appliance/releases)
 [![Docker Support](https://img.shields.io/badge/docker-supported-blue)](https://docs.docker.com/)
 [![Proxmox Ready](https://img.shields.io/badge/proxmox-ready-green)](https://www.proxmox.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)

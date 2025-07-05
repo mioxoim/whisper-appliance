@@ -44,6 +44,9 @@ from modules import (
     UploadHandler,
 )
 
+# Enterprise Update System
+from modules.enterprise_updater import integrate_with_flask_app
+
 # Enterprise imports (additive)
 if ENTERPRISE_MAINTENANCE_AVAILABLE:
     from modules.enterprise_maintenance import EnterpriseMaintenanceManager
@@ -1011,7 +1014,23 @@ def _update_via_github_releases(release_data):
 
 @app.route("/api/check-git-updates", methods=["GET"])
 def check_git_updates():
-    """Enterprise update check - GitHub Releases first, Git fallback"""
+    """DEPRECATED: Legacy endpoint - redirects to Enterprise Update System"""
+    return (
+        jsonify(
+            {
+                "status": "deprecated",
+                "message": "This endpoint has been replaced by the Enterprise Update System",
+                "new_endpoint": "/api/enterprise/check-updates",
+                "enterprise_features": [
+                    "Deployment-aware update checking",
+                    "Permission-safe operations",
+                    "Blue-Green deployment support",
+                    "Comprehensive error handling",
+                ],
+            }
+        ),
+        200,
+    )
     try:
         import subprocess
 
@@ -1576,10 +1595,16 @@ def enterprise_maintenance_disable():
 
 # ==================== STARTUP ====================
 
+# Initialize Enterprise Update System
+logger.info("🏢 Initializing Enterprise Update System...")
+integrate_with_flask_app(app, logger)
+logger.info("✅ Enterprise Update System integrated")
+
 if __name__ == "__main__":
     logger.info("🎤 Starting Enhanced WhisperS2T Appliance v0.9.0...")
     logger.info("🏗️ Architecture: Modular (live_speech, upload_handler, admin_panel, api_docs)")
     logger.info("🌐 SSL: Intelligent network certificate with SAN support")
+    logger.info("🏢 Enterprise Update System: Zero-downtime deployment ready")
 
     # Check for SSL certificates (support both local dev and container paths)
     ssl_cert_path = None

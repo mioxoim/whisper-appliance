@@ -33,6 +33,7 @@ from werkzeug.utils import secure_filename
 
 # Import our modular components
 from modules import (
+    ENTERPRISE_MAINTENANCE_AVAILABLE,
     UPDATE_MANAGER_AVAILABLE,
     AdminPanel,
     APIDocs,
@@ -42,6 +43,10 @@ from modules import (
     UpdateManager,
     UploadHandler,
 )
+
+# Enterprise imports (additive)
+if ENTERPRISE_MAINTENANCE_AVAILABLE:
+    from modules.enterprise_maintenance import EnterpriseMaintenanceManager
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -60,6 +65,18 @@ logger = logging.getLogger(__name__)
 system_stats = {"uptime_start": datetime.now(), "total_transcriptions": 0, "active_connections": 0}
 connected_clients = []
 system_ready = True
+
+# Initialize Enterprise Maintenance System (additive)
+enterprise_maintenance = None
+if ENTERPRISE_MAINTENANCE_AVAILABLE:
+    try:
+        enterprise_maintenance = EnterpriseMaintenanceManager()
+        logger.info("✅ Enterprise Maintenance System initialized (additive)")
+    except Exception as e:
+        logger.warning(f"⚠️ Enterprise Maintenance System initialization failed: {e}")
+        enterprise_maintenance = None
+else:
+    logger.info("ℹ️ Enterprise Maintenance System not available")
 
 # Initialize Model Manager and Chat History
 try:
@@ -1477,6 +1494,84 @@ def handle_transcription_result(data):
 def handle_transcription_error(data):
     """Transcription error - Original functionality preserved"""
     return live_speech_handler.handle_transcription_error(data)
+
+
+# ==================== ENTERPRISE MAINTENANCE ENDPOINTS (ADDITIVE) ====================
+
+
+@app.route("/api/enterprise-maintenance/status", methods=["GET"])
+def enterprise_maintenance_status():
+    """
+    Enterprise maintenance status - additive endpoint
+    🎯 ADDITIVE: Coexists with existing update system
+    """
+    try:
+        if not ENTERPRISE_MAINTENANCE_AVAILABLE or not enterprise_maintenance:
+            return (
+                jsonify({"status": "error", "error": "Enterprise maintenance system not available", "available": False}),
+                503,
+            )
+
+        info = enterprise_maintenance.get_maintenance_info()
+        return jsonify({"status": "success", "enterprise_maintenance": True, "maintenance_info": info, "version": "1.0.0"})
+
+    except Exception as e:
+        logger.error(f"Enterprise maintenance status failed: {e}")
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@app.route("/api/enterprise-maintenance/enable", methods=["POST"])
+def enterprise_maintenance_enable():
+    """
+    Enable enterprise maintenance mode - additive endpoint
+    🎯 ADDITIVE: Works alongside existing systems
+    """
+    try:
+        if not ENTERPRISE_MAINTENANCE_AVAILABLE or not enterprise_maintenance:
+            return jsonify({"status": "error", "error": "Enterprise maintenance system not available"}), 503
+
+        data = request.get_json() or {}
+        message = data.get("message", "🚀 Enterprise maintenance in progress")
+        duration_minutes = data.get("duration_minutes", 10)
+
+        success = enterprise_maintenance.enable_maintenance_mode(message=message, estimated_duration_minutes=duration_minutes)
+
+        if success:
+            return jsonify(
+                {
+                    "status": "success",
+                    "message": "Enterprise maintenance mode enabled",
+                    "enterprise": True,
+                    "duration_minutes": duration_minutes,
+                }
+            )
+        else:
+            return jsonify({"status": "error", "error": "Failed to enable maintenance mode"}), 500
+
+    except Exception as e:
+        logger.error(f"Enterprise maintenance enable failed: {e}")
+        return jsonify({"status": "error", "error": str(e)}), 500
+
+
+@app.route("/api/enterprise-maintenance/disable", methods=["POST"])
+def enterprise_maintenance_disable():
+    """
+    Disable enterprise maintenance mode - additive endpoint
+    """
+    try:
+        if not ENTERPRISE_MAINTENANCE_AVAILABLE or not enterprise_maintenance:
+            return jsonify({"status": "error", "error": "Enterprise maintenance system not available"}), 503
+
+        success = enterprise_maintenance.disable_maintenance_mode()
+
+        if success:
+            return jsonify({"status": "success", "message": "Enterprise maintenance mode disabled", "enterprise": True})
+        else:
+            return jsonify({"status": "error", "error": "Failed to disable maintenance mode"}), 500
+
+    except Exception as e:
+        logger.error(f"Enterprise maintenance disable failed: {e}")
+        return jsonify({"status": "error", "error": str(e)}), 500
 
 
 # ==================== STARTUP ====================

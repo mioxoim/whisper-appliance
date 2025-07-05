@@ -26,6 +26,15 @@ except ImportError:
     UpdateManager = None
     UPDATE_MANAGER_AVAILABLE = False
 
+# Enterprise Update System (Additive)
+try:
+    from .enterprise_maintenance import EnterpriseMaintenanceManager
+
+    ENTERPRISE_MAINTENANCE_AVAILABLE = True
+except ImportError:
+    EnterpriseMaintenanceManager = None
+    ENTERPRISE_MAINTENANCE_AVAILABLE = False
+
 __all__ = [
     "LiveSpeechHandler",
     "UploadHandler",
@@ -36,4 +45,7 @@ __all__ = [
     "UpdateConfig",
     "UpdateManager",
     "UPDATE_MANAGER_AVAILABLE",
+    # Enterprise additions
+    "EnterpriseMaintenanceManager",
+    "ENTERPRISE_MAINTENANCE_AVAILABLE",
 ]

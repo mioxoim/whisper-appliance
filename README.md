@@ -1,5 +1,18 @@
 # 🎤 OpenAI Whisper Web Interface v0.10.0
 
+## ⚠️ DEVELOPMENT STATUS
+
+**🚧 This project is currently under active development and NOT production-ready.**
+
+- Features may change without notice
+- Breaking changes possible between versions  
+- Use for testing and development purposes only
+- No stability guarantees for current release
+
+For production use, please wait for stable v1.0.0 release.
+
+---
+
 **Modern web interface for OpenAI Whisper speech-to-text with Docker and Proxmox support**
 
 [![GitHub Release](https://img.shields.io/github/v/release/GaboCapo/whisper-appliance)](https://github.com/GaboCapo/whisper-appliance/releases)

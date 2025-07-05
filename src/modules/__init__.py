@@ -15,16 +15,19 @@ from .live_speech import LiveSpeechHandler
 from .model_manager import ModelManager
 from .upload_handler import UploadHandler
 
-# Optional UpdateManager for backward compatibility
+# Enterprise Update System
 try:
-    from .update_config import UpdateConfig
-    from .update_manager import UpdateManager
+    from .maintenance_mode import MaintenanceModeManager, MaintenanceModeMiddleware
+    from .shopware_update_manager import ShopwareStyleUpdateManager, UpdateBackupManager, UpdateCompatibilityChecker
 
-    UPDATE_MANAGER_AVAILABLE = True
+    ENTERPRISE_UPDATE_AVAILABLE = True
 except ImportError:
-    UpdateConfig = None
-    UpdateManager = None
-    UPDATE_MANAGER_AVAILABLE = False
+    MaintenanceModeManager = None
+    MaintenanceModeMiddleware = None
+    ShopwareStyleUpdateManager = None
+    UpdateCompatibilityChecker = None
+    UpdateBackupManager = None
+    ENTERPRISE_UPDATE_AVAILABLE = False
 
 __all__ = [
     "LiveSpeechHandler",
@@ -33,7 +36,11 @@ __all__ = [
     "APIDocs",
     "ModelManager",
     "ChatHistoryManager",
-    "UpdateConfig",
-    "UpdateManager",
-    "UPDATE_MANAGER_AVAILABLE",
+    # Enterprise Update System
+    "MaintenanceModeManager",
+    "MaintenanceModeMiddleware",
+    "ShopwareStyleUpdateManager",
+    "UpdateCompatibilityChecker",
+    "UpdateBackupManager",
+    "ENTERPRISE_UPDATE_AVAILABLE",
 ]

@@ -1,0 +1,14 @@
+{
+  "enabled": false,
+  "ip_whitelist": [
+    "127.0.0.1",
+    "::1",
+    "localhost"
+  ],
+  "message": "PHASE 2 TEST: Testing maintenance mode functionality",
+  "title": "Maintenance Mode",
+  "auto_mode": false,
+  "started_at": null,
+  "estimated_end": null,
+  "admin_email": null
+}

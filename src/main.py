@@ -21,8 +21,11 @@ Main entry point with preserved functionality and enhanced architecture
 
 import logging
 import os
+import sys
 import tempfile
+import time
 from datetime import datetime
+from typing import Dict
 
 # Flask and extensions
 from flask import Flask, jsonify, render_template, request, send_from_directory
@@ -33,15 +36,19 @@ from werkzeug.utils import secure_filename
 
 # Import our modular components
 from modules import (
-    UPDATE_MANAGER_AVAILABLE,
+    ENTERPRISE_UPDATE_AVAILABLE,
     AdminPanel,
     APIDocs,
     ChatHistoryManager,
     LiveSpeechHandler,
     ModelManager,
-    UpdateManager,
     UploadHandler,
 )
+
+# Enterprise Update System imports
+if ENTERPRISE_UPDATE_AVAILABLE:
+    from modules.maintenance_mode import MaintenanceModeManager, MaintenanceModeMiddleware
+    from modules.shopware_update_manager import ShopwareStyleUpdateManager
 
 # Initialize Flask app
 app = Flask(__name__)
@@ -56,6 +63,23 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
+# Initialize Enterprise Update System
+if ENTERPRISE_UPDATE_AVAILABLE:
+    try:
+        maintenance_manager = MaintenanceModeManager()
+        enterprise_update_manager = ShopwareStyleUpdateManager(maintenance_manager=maintenance_manager)
+        # Apply maintenance mode middleware to Flask app
+        app.wsgi_app = MaintenanceModeMiddleware(app.wsgi_app, maintenance_manager)
+        logger.info("✅ Enterprise Update System initialized (Shopware-style)")
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize Enterprise Update System: {e}")
+        maintenance_manager = None
+        enterprise_update_manager = None
+else:
+    maintenance_manager = None
+    enterprise_update_manager = None
+    logger.warning("⚠️ Enterprise Update System not available - using legacy system")
+
 # System statistics and state
 system_stats = {"uptime_start": datetime.now(), "total_transcriptions": 0, "active_connections": 0}
 connected_clients = []
@@ -65,19 +89,12 @@ system_ready = True
 try:
     model_manager = ModelManager()
     chat_history = ChatHistoryManager()
-    if UPDATE_MANAGER_AVAILABLE:
-        update_manager = UpdateManager()
-        logger.info("✅ Model Manager, Chat History, and Update Manager initialized")
-    else:
-        update_manager = None
-        logger.warning("⚠️ Update Manager not available (backward compatibility mode)")
-        logger.info("✅ Model Manager and Chat History initialized")
+    logger.info("✅ Model Manager and Chat History initialized")
 except Exception as e:
     logger.error(f"❌ Failed to initialize core components: {e}")
     # Use minimal fallback components
     model_manager = None
     chat_history = None
-    update_manager = None
 
 # Try to load default Whisper model
 WHISPER_AVAILABLE = False
@@ -536,950 +553,123 @@ def get_update_status():
         return jsonify({"error": str(e), "status": "error"}), 500
 
 
-# ==================== SIMPLE UPDATE ENDPOINTS (Legacy Compatible) ====================
+# ==================== ENTERPRISE UPDATE ENDPOINTS (Shopware-inspired) ====================
 
 
-@app.route("/api/simple-update", methods=["POST"])
-def simple_update():
-    """Enterprise-grade update system - GitHub Releases first, Git fallback"""
+@app.route("/api/enterprise-update/status", methods=["GET"])
+def enterprise_update_status():
+    """
+    Get comprehensive update status
+    Shopware-inspired status endpoint with detailed information
+    """
     try:
-        import shutil
-        import subprocess
-        import tempfile
-        import time
-
-        import requests
-
-        logger.info("Starting enterprise update process...")
-
-        # 1. Try GitHub Releases first (tteck's preferred method)
-        try:
-            response = requests.get("https://api.github.com/repos/GaboCapo/whisper-appliance/releases/latest", timeout=10)
-            if response.status_code == 200:
-                # GitHub Releases update method
-                return _update_via_github_releases(response.json())
-        except Exception as e:
-            logger.info(f"GitHub Releases not available ({e}), falling back to Git method")
-
-        # 2. Fallback to Git-based update (for development)
-        logger.info("Using Git-based update...")
-        return _update_via_git()
-
-    except Exception as e:
-        logger.error(f"Enterprise update failed: {e}")
-        return jsonify({"error": f"Update failed: {str(e)}", "status": "error"}), 500
-
-
-def _update_via_git():
-    """Git-based update for development environments"""
-    try:
-        import subprocess
-        import sys
-
-        # Find git repository
-        app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        if not os.path.exists(os.path.join(app_dir, ".git")):
-            return jsonify({"error": "Git repository not found", "status": "error"}), 400
-
-        # Change to app directory
-        original_cwd = os.getcwd()
-        os.chdir(app_dir)
-
-        try:
-            # Configure SSH if deploy key exists
-            env = os.environ.copy()
-            if os.path.exists("./deploy_key_whisper_appliance"):
-                env["GIT_SSH_COMMAND"] = (
-                    "ssh -i ./deploy_key_whisper_appliance -o IdentitiesOnly=yes -o StrictHostKeyChecking=no"
-                )
-
-            # Get current commit before update
-            current_commit = subprocess.run(
-                ["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True
-            ).stdout.strip()
-
-            # Fetch and pull latest changes
-            logger.info("Fetching latest changes...")
-            subprocess.run(["git", "fetch", "origin", "main"], env=env, check=True, capture_output=True, timeout=30)
-
-            logger.info("Pulling updates...")
-            result = subprocess.run(
-                ["git", "pull", "origin", "main"], env=env, check=True, capture_output=True, text=True, timeout=60
-            )
-
-            # Check if anything was updated
-            new_commit = subprocess.run(
-                ["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True
-            ).stdout.strip()
-
-            if current_commit == new_commit:
-                return jsonify(
-                    {
-                        "status": "success",
-                        "message": "Already up to date",
-                        "update_method": "git",
-                        "changes": False,
-                        "current_commit": current_commit[:8],
-                    }
-                )
-
-            # Update dependencies if requirements.txt exists
-            requirements_file = os.path.join(app_dir, "src", "requirements.txt")
-            if os.path.exists(requirements_file):
-                try:
-                    logger.info("Updating dependencies...")
-                    subprocess.run(
-                        [sys.executable, "-m", "pip", "install", "-r", requirements_file],
-                        check=True,
-                        capture_output=True,
-                        text=True,
-                        timeout=120,
-                    )
-                    logger.info("Dependencies updated successfully")
-                except subprocess.CalledProcessError as e:
-                    logger.warning(f"Failed to update dependencies: {e}")
-
-            # Update script permissions
-            for script in ["auto-update.sh", "create-ssl-cert.sh", "install-container.sh"]:
-                script_path = os.path.join(app_dir, script)
-                if os.path.exists(script_path):
-                    os.chmod(script_path, 0o755)
-
-            logger.info("Git-based update completed successfully!")
-
-            return jsonify(
-                {
-                    "status": "success",
-                    "message": "Update completed successfully",
-                    "update_method": "git",
-                    "changes": True,
-                    "previous_commit": current_commit[:8],
-                    "new_commit": new_commit[:8],
-                    "restart_recommended": True,
-                }
-            )
-
-        finally:
-            os.chdir(original_cwd)
-
-    except subprocess.CalledProcessError as e:
-        logger.error(f"Git command failed: {e}")
-        return jsonify({"error": f"Git update failed: {e.stderr if e.stderr else str(e)}", "status": "error"}), 500
-    except Exception as e:
-        logger.error(f"Git update failed: {e}")
-        return jsonify({"error": f"Update failed: {str(e)}", "status": "error"}), 500
-
-
-def _update_via_github_releases(release_data):
-    """GitHub Releases update method (tteck's approach)"""
-    try:
-        import shutil
-        import tarfile
-        import tempfile
-        import time
-
-        import requests
-
-        latest_version = release_data["tag_name"].lstrip("v")
-        download_url = f"https://github.com/GaboCapo/whisper-appliance/archive/refs/tags/{release_data['tag_name']}.tar.gz"
-
-        logger.info(f"Latest version available: {latest_version}")
-
-        # Get current app directory (where we're actually running from)
-        app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        version_file = os.path.join(app_dir, "whisper-appliance_version.txt")
-
-        # Check current version
-        current_version = None
-        if os.path.exists(version_file):
-            try:
-                with open(version_file, "r") as f:
-                    current_version = f.read().strip()
-            except:
-                pass
-
-        if current_version == latest_version:
-            return jsonify(
-                {
-                    "status": "success",
-                    "message": f"Already up to date (v{current_version})",
-                    "current_version": current_version,
-                    "latest_version": latest_version,
-                    "update_method": "github_releases",
-                }
-            )
-
-        logger.info(f"Updating from {current_version or 'unknown'} to {latest_version}")
-
-        # Create backup in same directory (not /opt) - PERMISSION FIX
-        backup_dir = f"{app_dir}_backup_{int(time.time())}"
-        logger.info(f"Creating backup at {backup_dir}")
-
-        # Check if we have write permissions for backup
-        parent_dir = os.path.dirname(app_dir)
-        if not os.access(parent_dir, os.W_OK):
-            # Fallback: create backup in temp directory
-            backup_dir = os.path.join(tempfile.gettempdir(), f"whisper-appliance_backup_{int(time.time())}")
-            logger.warning(f"No write permission in {parent_dir}, using temp backup: {backup_dir}")
-
-        if os.path.exists(app_dir):
-            shutil.copytree(app_dir, backup_dir, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".git"))
-
-        # Download and extract new version
-        with tempfile.TemporaryDirectory() as temp_dir:
-            logger.info(f"Downloading {download_url}")
-
-            download_response = requests.get(download_url, stream=True, timeout=30)
-            download_response.raise_for_status()
-
-            tar_path = os.path.join(temp_dir, "update.tar.gz")
-            with open(tar_path, "wb") as f:
-                for chunk in download_response.iter_content(chunk_size=8192):
-                    f.write(chunk)
-
-            # Extract tarball
-            with tarfile.open(tar_path, "r:gz") as tar:
-                tar.extractall(temp_dir)
-
-            # Find extracted directory
-            extracted_dirs = [
-                d
-                for d in os.listdir(temp_dir)
-                if d.startswith("whisper-appliance-") and os.path.isdir(os.path.join(temp_dir, d))
-            ]
-            if not extracted_dirs:
-                raise Exception("Could not find extracted directory")
-
-            extracted_dir = os.path.join(temp_dir, extracted_dirs[0])
-
-            # Preserve important directories
-            preserve_dirs = ["ssl", "data", "logs"]
-            preserved_data = {}
-
-            for preserve_dir in preserve_dirs:
-                old_path = os.path.join(app_dir, preserve_dir)
-                if os.path.exists(old_path):
-                    preserved_data[preserve_dir] = os.path.join(temp_dir, f"preserved_{preserve_dir}")
-                    shutil.copytree(old_path, preserved_data[preserve_dir])
-
-            # Replace installation
-            if os.path.exists(app_dir):
-                shutil.rmtree(app_dir)
-
-            shutil.move(extracted_dir, app_dir)
-
-            # Restore preserved directories
-            for preserve_dir, preserved_path in preserved_data.items():
-                target_path = os.path.join(app_dir, preserve_dir)
-                if os.path.exists(target_path):
-                    shutil.rmtree(target_path)
-                shutil.move(preserved_path, target_path)
-
-        # Write version file
-        with open(version_file, "w") as f:
-            f.write(latest_version)
-
-        # Update dependencies
-        requirements_file = os.path.join(app_dir, "src", "requirements.txt")
-        if os.path.exists(requirements_file):
-            try:
-                logger.info("Updating dependencies...")
-                subprocess.run(
-                    [sys.executable, "-m", "pip", "install", "-r", requirements_file],
-                    check=True,
-                    capture_output=True,
-                    text=True,
-                )
-            except subprocess.CalledProcessError as e:
-                logger.warning(f"Failed to update dependencies: {e}")
-
-        logger.info(f"GitHub Releases update completed successfully to v{latest_version}")
-
-        return jsonify(
-            {
-                "status": "success",
-                "message": f"Successfully updated to v{latest_version}",
-                "previous_version": current_version,
-                "new_version": latest_version,
-                "backup_location": backup_dir,
-                "update_method": "github_releases",
-                "restart_required": True,
-            }
-        )
-
-    except Exception as e:
-        logger.error(f"GitHub Releases update failed: {e}")
-        return (
-            jsonify(
-                {
-                    "error": f"GitHub Releases update failed: {str(e)}",
-                    "status": "error",
-                    "backup_available": locals().get("backup_dir") is not None,
-                }
-            ),
-            500,
-        )
-    try:
-        import shutil
-        import tempfile
-        import time
-
-        import requests
-
-        logger.info("Starting enterprise update process...")
-
-        # 1. Get latest release info from GitHub API
-        try:
-            response = requests.get("https://api.github.com/repos/GaboCapo/whisper-appliance/releases/latest", timeout=10)
-            if response.status_code != 200:
-                raise Exception(f"GitHub API error: {response.status_code}")
-
-            release_data = response.json()
-            latest_version = release_data["tag_name"].lstrip("v")
-            download_url = f"https://github.com/GaboCapo/whisper-appliance/archive/refs/tags/{release_data['tag_name']}.tar.gz"
-
-            logger.info(f"Latest version available: {latest_version}")
-
-        except Exception as e:
-            logger.error(f"Failed to get release info: {e}")
-            return jsonify({"error": f"Failed to get release info: {str(e)}", "status": "error"}), 500
-
-        # 2. Check current version
-        app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        version_file = os.path.join(app_dir, "whisper-appliance_version.txt")
-
-        current_version = None
-        if os.path.exists(version_file):
-            try:
-                with open(version_file, "r") as f:
-                    current_version = f.read().strip()
-            except:
-                pass
-
-        if current_version == latest_version:
-            return jsonify(
-                {
-                    "status": "success",
-                    "message": f"Already up to date (v{current_version})",
-                    "current_version": current_version,
-                    "latest_version": latest_version,
-                }
-            )
-
-        logger.info(f"Updating from {current_version or 'unknown'} to {latest_version}")
-
-        # 3. Create backup of current installation
-        backup_dir = f"{app_dir}_backup_{int(time.time())}"
-        logger.info(f"Creating backup at {backup_dir}")
-
-        if os.path.exists(app_dir):
-            shutil.copytree(app_dir, backup_dir, ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".git"))
-
-        # 4. Download and extract new version
-        with tempfile.TemporaryDirectory() as temp_dir:
-            logger.info(f"Downloading {download_url}")
-
-            # Download with requests for better error handling
-            download_response = requests.get(download_url, stream=True, timeout=30)
-            download_response.raise_for_status()
-
-            tar_path = os.path.join(temp_dir, "update.tar.gz")
-            with open(tar_path, "wb") as f:
-                for chunk in download_response.iter_content(chunk_size=8192):
-                    f.write(chunk)
-
-            # Extract tarball
-            import tarfile
-
-            with tarfile.open(tar_path, "r:gz") as tar:
-                tar.extractall(temp_dir)
-
-            # Find extracted directory (should be whisper-appliance-{version})
-            extracted_dirs = [
-                d
-                for d in os.listdir(temp_dir)
-                if d.startswith("whisper-appliance-") and os.path.isdir(os.path.join(temp_dir, d))
-            ]
-            if not extracted_dirs:
-                raise Exception("Could not find extracted directory")
-
-            extracted_dir = os.path.join(temp_dir, extracted_dirs[0])
-
-            # 5. Replace current installation (preserve data directories)
-            logger.info("Installing new version...")
-
-            # Preserve important data directories if they exist
-            preserve_dirs = ["ssl", "data", "logs"]
-            preserved_data = {}
-
-            for preserve_dir in preserve_dirs:
-                old_path = os.path.join(app_dir, preserve_dir)
-                if os.path.exists(old_path):
-                    preserved_data[preserve_dir] = os.path.join(temp_dir, f"preserved_{preserve_dir}")
-                    shutil.copytree(old_path, preserved_data[preserve_dir])
-
-            # Remove old installation (except preserved dirs)
-            if os.path.exists(app_dir):
-                shutil.rmtree(app_dir)
-
-            # Move new installation
-            shutil.move(extracted_dir, app_dir)
-
-            # Restore preserved directories
-            for preserve_dir, preserved_path in preserved_data.items():
-                target_path = os.path.join(app_dir, preserve_dir)
-                if os.path.exists(target_path):
-                    shutil.rmtree(target_path)
-                shutil.move(preserved_path, target_path)
-
-        # 6. Write version file
-        with open(version_file, "w") as f:
-            f.write(latest_version)
-
-        # 7. Update dependencies if requirements.txt changed
-        requirements_file = os.path.join(app_dir, "src", "requirements.txt")
-        if os.path.exists(requirements_file):
-            try:
-                logger.info("Updating dependencies...")
-                subprocess.run(
-                    [sys.executable, "-m", "pip", "install", "-r", requirements_file],
-                    check=True,
-                    capture_output=True,
-                    text=True,
-                )
-                logger.info("Dependencies updated successfully")
-            except subprocess.CalledProcessError as e:
-                logger.warning(f"Failed to update dependencies: {e}")
-
-        # 8. Cleanup old backup (keep only latest 3)
-        try:
-            parent_dir = os.path.dirname(app_dir)
-            backup_dirs = [d for d in os.listdir(parent_dir) if d.startswith(os.path.basename(app_dir) + "_backup_")]
-            backup_dirs.sort(reverse=True)  # Newest first
-
-            for old_backup in backup_dirs[3:]:  # Keep only 3 newest
-                backup_path = os.path.join(parent_dir, old_backup)
-                if os.path.exists(backup_path):
-                    shutil.rmtree(backup_path)
-                    logger.info(f"Cleaned up old backup: {old_backup}")
-        except Exception as e:
-            logger.warning(f"Failed to cleanup old backups: {e}")
-
-        logger.info(f"Enterprise update completed successfully to v{latest_version}")
-
-        return jsonify(
-            {
-                "status": "success",
-                "message": f"Successfully updated to v{latest_version}",
-                "previous_version": current_version,
-                "new_version": latest_version,
-                "backup_location": backup_dir,
-                "restart_required": True,
-            }
-        )
-
-    except Exception as e:
-        logger.error(f"Enterprise update failed: {e}")
-        return (
-            jsonify(
-                {
-                    "error": f"Update failed: {str(e)}",
-                    "status": "error",
-                    "backup_available": locals().get("backup_dir") is not None,
-                }
-            ),
-            500,
-        )
-
-
-@app.route("/api/check-git-updates", methods=["GET"])
-def check_git_updates():
-    """Enterprise update check - GitHub Releases first, Git fallback"""
-    try:
-        import subprocess
-
-        import requests
-
-        logger.info("Checking for available updates...")
-
-        # 1. Try GitHub Releases first (tteck's preferred method)
-        try:
-            response = requests.get("https://api.github.com/repos/GaboCapo/whisper-appliance/releases/latest", timeout=10)
-            if response.status_code == 200:
-                release_data = response.json()
-                latest_version = release_data["tag_name"].lstrip("v")
-                release_date = release_data.get("published_at", "Unknown")
-                release_notes = release_data.get("body", "No release notes available")
-
-                # Check current version
-                app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                version_file = os.path.join(app_dir, "whisper-appliance_version.txt")
-
-                current_version = None
-                if os.path.exists(version_file):
-                    try:
-                        with open(version_file, "r") as f:
-                            current_version = f.read().strip()
-                    except:
-                        pass
-
-                updates_available = current_version != latest_version
-
-                return jsonify(
-                    {
-                        "status": "success",
-                        "update_method": "github_releases",
-                        "updates_available": updates_available,
-                        "current_version": current_version or "Unknown",
-                        "latest_version": latest_version,
-                        "release_date": release_date,
-                        "release_notes": release_notes[:500] + "..." if len(release_notes) > 500 else release_notes,
-                        "message": f"Updates available: {latest_version}" if updates_available else "System is up to date",
-                    }
-                )
-
-        except Exception as e:
-            logger.info(f"GitHub Releases not available ({e}), falling back to Git method")
-
-        # 2. Fallback to Git-based update check
-        logger.info("Using Git-based update check...")
-
-        # Find git repository
-        app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-        if not os.path.exists(os.path.join(app_dir, ".git")):
-            # Try alternative locations
-            for alt_path in ["/opt/whisper-appliance", "/app", "/workspace"]:
-                if os.path.exists(os.path.join(alt_path, ".git")):
-                    app_dir = alt_path
-                    break
-            else:
-                return jsonify({"error": "No git repository found and no GitHub releases available", "status": "error"}), 400
-
-        # Change to app directory for git operations
-        original_cwd = os.getcwd()
-        os.chdir(app_dir)
-
-        try:
-            # Configure SSH if deploy key exists
-            env = os.environ.copy()
-            if os.path.exists("./deploy_key_whisper_appliance"):
-                env["GIT_SSH_COMMAND"] = (
-                    "ssh -i ./deploy_key_whisper_appliance -o IdentitiesOnly=yes -o StrictHostKeyChecking=no"
-                )
-
-            # Fetch latest changes
-            subprocess.run(["git", "fetch", "origin", "main"], env=env, check=True, capture_output=True, timeout=30)
-
-            # Get current and remote commits
-            local_commit = subprocess.run(
-                ["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True
-            ).stdout.strip()
-            remote_commit = subprocess.run(
-                ["git", "rev-parse", "origin/main"], capture_output=True, text=True, check=True
-            ).stdout.strip()
-
-            # Get commit info
-            local_info = (
-                subprocess.run(
-                    ["git", "log", "-1", "--format=%h|%s|%an|%ad", "--date=short", local_commit],
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                )
-                .stdout.strip()
-                .split("|")
-            )
-
-            commits_behind = 0
-            if local_commit != remote_commit:
-                commits_result = subprocess.run(
-                    ["git", "rev-list", "--count", f"{local_commit}..origin/main"], capture_output=True, text=True, check=True
-                )
-                commits_behind = int(commits_result.stdout.strip())
-
-            return jsonify(
-                {
-                    "status": "success",
-                    "update_method": "git_commits",
-                    "updates_available": commits_behind > 0,
-                    "commits_behind": commits_behind,
-                    "current_commit": local_info[0] if local_info else local_commit[:8],
-                    "current_commit_message": local_info[1] if len(local_info) > 1 else "Unknown",
-                    "current_commit_author": local_info[2] if len(local_info) > 2 else "Unknown",
-                    "current_commit_date": local_info[3] if len(local_info) > 3 else "Unknown",
-                    "message": f"{commits_behind} commits behind" if commits_behind > 0 else "Up to date",
-                }
-            )
-
-        finally:
-            os.chdir(original_cwd)
-
-    except Exception as e:
-        logger.error(f"Update check failed: {e}")
-        return jsonify({"error": f"Update check failed: {str(e)}", "status": "error"}), 500
-
-        def find_git_repository():
-            """Find the git repository root by checking multiple locations"""
-            # Priority 1: Check where main.py is located (current app location)
-            current_app_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-            if os.path.exists(os.path.join(current_app_dir, ".git")):
-                return current_app_dir
-
-            # Priority 2: Use git command from current app directory
-            try:
-                result = subprocess.run(
-                    ["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, timeout=10, cwd=current_app_dir
-                )
-                if result.returncode == 0:
-                    git_root = result.stdout.strip()
-                    if os.path.exists(git_root):
-                        return git_root
-            except Exception:
-                pass
-
-            # Priority 3: Use git command from current working directory
-            try:
-                result = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, timeout=10)
-                if result.returncode == 0:
-                    git_root = result.stdout.strip()
-                    if os.path.exists(git_root):
-                        return git_root
-            except Exception:
-                pass
-
-            # Fallback to checking standard deployment paths
-            possible_paths = [
-                current_app_dir,  # Where the app is actually running
-                "/home/commander/Code/whisper-appliance",  # Known actual location
-                "/opt/whisper-appliance",  # Standard production path
-                "/app",  # Docker standard
-                "/opt/app",  # Alternative production
-                "/workspace",  # Development
-                "/code",  # Alternative development
-                os.getcwd(),  # Current working directory
-            ]
-
-            for path in possible_paths:
-                if os.path.exists(os.path.join(path, ".git")):
-                    return path
-
-            return None
-
-        app_dir = find_git_repository()
-        if not app_dir:
-            # Try more aggressive git detection like in simple-update
-            try:
-                # Try git command from current working directory
-                cwd_result = subprocess.run(
-                    ["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, timeout=10, cwd=os.getcwd()
-                )
-                if cwd_result.returncode == 0:
-                    app_dir = cwd_result.stdout.strip()
-                    logger.info(f"Found git repository using CWD git command: {app_dir}")
-                else:
-                    # Try from main.py directory
-                    main_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-                    main_result = subprocess.run(
-                        ["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, timeout=10, cwd=main_dir
-                    )
-                    if main_result.returncode == 0:
-                        app_dir = main_result.stdout.strip()
-                        logger.info(f"Found git repository using main.py dir: {app_dir}")
-            except Exception as e:
-                logger.error(f"Extended git detection failed: {e}")
-
-        if not app_dir:
+        if not ENTERPRISE_UPDATE_AVAILABLE or not enterprise_update_manager:
             return (
                 jsonify(
-                    {
-                        "error": "Git repository not found",
-                        "status": "error",
-                        "debug_info": {
-                            "cwd": os.getcwd(),
-                            "main_file_dir": os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                            "checked_paths": [
-                                os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-                                "/opt/whisper-appliance",
-                                "/app",
-                                "/opt/app",
-                                "/workspace",
-                                "/code",
-                                os.getcwd(),
-                            ],
-                        },
-                    }
+                    {"status": "error", "error": "Enterprise update system not available", "fallback": "legacy_update_system"}
                 ),
-                400,
+                503,
             )
 
-        os.chdir(app_dir)
+        # Get update status
+        update_status = enterprise_update_manager.get_update_status()
 
-        # Configure SSH for deploy key if available
-        env = os.environ.copy()
-        if os.path.exists("./deploy_key_whisper_appliance"):
-            env["GIT_SSH_COMMAND"] = "ssh -i ./deploy_key_whisper_appliance -o IdentitiesOnly=yes -o StrictHostKeyChecking=no"
+        # Get maintenance mode info
+        maintenance_info = maintenance_manager.get_maintenance_info()
 
-        # Fetch latest changes
-        subprocess.run(["git", "fetch", "origin", "main"], env=env, check=True, capture_output=True)
+        # Get backup information
+        backups = enterprise_update_manager.list_backups()
 
-        # Get current and remote commits with detailed information
-        local_commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True).stdout.strip()
-        remote_commit = subprocess.run(
-            ["git", "rev-parse", "origin/main"], capture_output=True, text=True, check=True
-        ).stdout.strip()
-
-        # Get current commit details
-        local_commit_info = (
-            subprocess.run(
-                ["git", "log", "-1", "--format=%H|%s|%an|%ad", "--date=iso", local_commit],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
-            .stdout.strip()
-            .split("|")
+        return jsonify(
+            {
+                "status": "success",
+                "update_system": "enterprise",
+                "version": "1.0.0",
+                "update_status": update_status,
+                "maintenance_mode": maintenance_info,
+                "backups": {
+                    "available": len(backups),
+                    "latest": backups[0] if backups else None,
+                    "list": backups[:5],  # Show only last 5 backups
+                },
+                "system_info": {
+                    "app_root": enterprise_update_manager.app_root,
+                    "git_available": _check_git_available(),
+                    "permissions": _check_update_permissions(),
+                },
+            }
         )
 
-        if local_commit == remote_commit:
-            return jsonify(
-                {
-                    "updates_available": False,
-                    "commits_behind": 0,
-                    "current_commit": local_commit[:8],
-                    "current_commit_full": local_commit,
-                    "current_commit_info": {
-                        "hash": local_commit,
-                        "short_hash": local_commit[:8],
-                        "message": local_commit_info[1] if len(local_commit_info) > 1 else "Unknown",
-                        "author": local_commit_info[2] if len(local_commit_info) > 2 else "Unknown",
-                        "date": local_commit_info[3] if len(local_commit_info) > 3 else "Unknown",
-                    },
-                    "status": "success",
-                }
-            )
-        else:
-            # Count commits behind
-            commits_behind_result = subprocess.run(
-                ["git", "rev-list", "--count", f"{local_commit}..origin/main"], capture_output=True, text=True, check=True
-            )
-            commits_behind = int(commits_behind_result.stdout.strip())
+    except Exception as e:
+        logger.error(f"Enterprise update status failed: {e}")
+        return jsonify({"status": "error", "error": str(e)}), 500
 
-            # Get remote commit details
-            remote_commit_info = (
-                subprocess.run(
-                    ["git", "log", "-1", "--format=%H|%s|%an|%ad", "--date=iso", remote_commit],
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                )
-                .stdout.strip()
-                .split("|")
-            )
 
-            # Get list of new commits
-            new_commits_result = subprocess.run(
-                ["git", "log", "--format=%h|%s|%an|%ad", "--date=short", f"{local_commit}..origin/main"],
-                capture_output=True,
-                text=True,
-                check=True,
-            )
+@app.route("/api/enterprise-update/backups", methods=["GET"])
+def enterprise_update_backups():
+    """
+    List available backups
+    """
+    try:
+        if not ENTERPRISE_UPDATE_AVAILABLE or not enterprise_update_manager:
+            return jsonify({"status": "error", "error": "Enterprise update system not available"}), 503
 
-            new_commits = []
-            if new_commits_result.stdout.strip():
-                for line in new_commits_result.stdout.strip().split("\n"):
-                    if line.strip():
-                        parts = line.split("|")
-                        if len(parts) >= 4:
-                            new_commits.append({"hash": parts[0], "message": parts[1], "author": parts[2], "date": parts[3]})
+        backups = enterprise_update_manager.list_backups()
 
-            return jsonify(
-                {
-                    "updates_available": True,
-                    "commits_behind": commits_behind,
-                    "current_commit": local_commit[:8],
-                    "current_commit_full": local_commit,
-                    "remote_commit": remote_commit[:8],
-                    "remote_commit_full": remote_commit,
-                    "current_commit_info": {
-                        "hash": local_commit,
-                        "short_hash": local_commit[:8],
-                        "message": local_commit_info[1] if len(local_commit_info) > 1 else "Unknown",
-                        "author": local_commit_info[2] if len(local_commit_info) > 2 else "Unknown",
-                        "date": local_commit_info[3] if len(local_commit_info) > 3 else "Unknown",
-                    },
-                    "remote_commit_info": {
-                        "hash": remote_commit,
-                        "short_hash": remote_commit[:8],
-                        "message": remote_commit_info[1] if len(remote_commit_info) > 1 else "Unknown",
-                        "author": remote_commit_info[2] if len(remote_commit_info) > 2 else "Unknown",
-                        "date": remote_commit_info[3] if len(remote_commit_info) > 3 else "Unknown",
-                    },
-                    "new_commits": new_commits[:10],  # Limit to 10 most recent commits
-                    "status": "success",
-                }
-            )
+        return jsonify({"status": "success", "backups": backups, "total": len(backups)})
 
     except Exception as e:
-        logger.error(f"Git update check failed: {e}")
-        return jsonify({"error": str(e), "status": "error"}), 500
+        logger.error(f"Enterprise backup listing failed: {e}")
+        return jsonify({"status": "error", "error": str(e)}), 500
 
 
-@app.route("/api/restart-service", methods=["POST"])
-def restart_service():
-    """Restart the WhisperS2T service"""
+def _check_git_available() -> bool:
+    """Check if git is available"""
     try:
         import subprocess
 
-        logger.info("Restarting WhisperS2T service...")
+        result = subprocess.run(["git", "--version"], capture_output=True, timeout=5)
+        return result.returncode == 0
+    except:
+        return False
 
-        # Try different service restart methods
-        service_names = ["whisper-appliance", "whisper-s2t", "whisper"]
 
-        for service_name in service_names:
-            try:
-                # Check if service exists
-                result = subprocess.run(["systemctl", "is-active", service_name], capture_output=True, text=True, timeout=5)
-                if result.returncode in [0, 3]:  # active or inactive
-                    # Restart the service
-                    subprocess.run(["systemctl", "restart", service_name], check=True, timeout=10)
-                    logger.info(f"Service {service_name} restarted successfully")
-                    return jsonify({"status": "success", "message": f"Service {service_name} restarted successfully"})
-            except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
-                continue
+def _check_update_permissions() -> Dict[str, bool]:
+    """Check update-related permissions"""
+    try:
+        app_root = enterprise_update_manager.app_root if enterprise_update_manager else os.getcwd()
 
-        # If no systemd service found, suggest manual restart
-        return jsonify(
-            {"status": "success", "message": "Service restart initiated. Please refresh the page in a few seconds."}
-        )
+        permissions = {
+            "app_root_writable": os.access(app_root, os.W_OK),
+            "can_create_files": False,
+            "can_execute_python": False,
+        }
+
+        # Test file creation
+        try:
+            test_file = os.path.join(app_root, f".permission_test_{int(time.time())}")
+            with open(test_file, "w") as f:
+                f.write("test")
+            os.remove(test_file)
+            permissions["can_create_files"] = True
+        except:
+            pass
+
+        # Test Python execution
+        try:
+            import subprocess
+
+            result = subprocess.run([sys.executable, "--version"], capture_output=True, timeout=5)
+            permissions["can_execute_python"] = result.returncode == 0
+        except:
+            pass
+
+        return permissions
 
     except Exception as e:
-        logger.error(f"Service restart failed: {e}")
-        return jsonify({"error": str(e), "status": "error"}), 500
+        logger.error(f"Permission check failed: {e}")
+        return {"error": str(e)}
 
-
-@app.route("/transcribe", methods=["POST"])
-def transcribe():
-    """Upload transcription - Delegated to UploadHandler"""
-    if not upload_handler:
-        return jsonify({"error": "Upload handler not available"}), 503
-    return upload_handler.transcribe_upload()
-
-
-@app.route("/api/transcribe-live", methods=["POST"])
-def transcribe_live():
-    """Live transcription API - Delegated to UploadHandler"""
-    if not upload_handler:
-        return jsonify({"error": "Upload handler not available"}), 503
-    return upload_handler.transcribe_live_api()
-
-
-@app.route("/api/status")
-def api_status():
-    """Detailed API status - Enhanced version"""
-    uptime = (datetime.now() - system_stats["uptime_start"]).total_seconds()
-    return jsonify(
-        {
-            "service": "WhisperS2T Enhanced Appliance",
-            "version": "0.9.0",
-            "status": "running",
-            "whisper": {
-                "available": WHISPER_AVAILABLE,
-                "model_loaded": model_manager.get_current_model() is not None,
-                "model_type": model_manager.get_current_model_name() if model_manager.get_current_model() else None,
-                "model_loading": model_manager.is_model_loading(),
-            },
-            "statistics": {
-                "uptime_seconds": uptime,
-                "total_transcriptions": system_stats["total_transcriptions"],
-                "active_websocket_connections": len(connected_clients),
-                "system_ready": system_ready,
-            },
-            "endpoints": {
-                "main_interface": "/",
-                "health_check": "/health",
-                "upload_transcription": "/transcribe",
-                "live_transcription": "/api/transcribe-live",
-                "api_documentation": "/docs",
-                "admin_panel": "/admin",
-                "demo_interface": "/demo",
-            },
-            "architecture": {
-                "framework": "Flask + SocketIO",
-                "modules": ["live_speech", "upload_handler", "admin_panel", "api_docs"],
-                "features": ["Purple Gradient UI", "Real WebSocket", "Navigation", "Modular"],
-            },
-            "timestamp": datetime.now().isoformat(),
-        }
-    )
-
-
-@app.route("/api/openapi.json")
-def openapi_spec():
-    """OpenAPI 3.0 specification for SwaggerUI"""
-    return jsonify(api_docs.get_openapi_spec(request))
-
-
-# ==================== INTERFACE ROUTES ====================
-
-
-@app.route("/admin")
-def admin():
-    """Admin Panel - Delegated to AdminPanel"""
-    return admin_panel.get_admin_interface()
-
-
-@app.route("/demo")
-def demo():
-    """Demo Interface - Delegated to AdminPanel"""
-    return admin_panel.get_demo_interface()
-
-
-# ==================== WEBSOCKET HANDLERS ====================
-
-
-@socketio.on("connect")
-def handle_connect():
-    """WebSocket connect - Delegated to LiveSpeechHandler"""
-    return live_speech_handler.handle_connect()
-
-
-@socketio.on("disconnect")
-def handle_disconnect():
-    """WebSocket disconnect - Delegated to LiveSpeechHandler"""
-    return live_speech_handler.handle_disconnect()
-
-
-@socketio.on("audio_chunk")
-def handle_audio_chunk(data):
-    """Audio chunk processing - NEW REAL IMPLEMENTATION"""
-    return live_speech_handler.handle_audio_chunk(data)
-
-
-@socketio.on("start_recording")
-def handle_start_recording(data):
-    """Start recording - NEW FEATURE"""
-    return live_speech_handler.handle_start_recording(data)
-
-
-@socketio.on("stop_recording")
-def handle_stop_recording(data):
-    """Stop recording - NEW FEATURE"""
-    return live_speech_handler.handle_stop_recording(data)
-
-
-@socketio.on("transcription_result")
-def handle_transcription_result(data):
-    """Transcription result - Original functionality preserved"""
-    return live_speech_handler.handle_transcription_result(data)
-
-
-@socketio.on("transcription_error")
-def handle_transcription_error(data):
-    """Transcription error - Original functionality preserved"""
-    return live_speech_handler.handle_transcription_error(data)
-
-
-# ==================== STARTUP ====================
 
 if __name__ == "__main__":
     logger.info("🎤 Starting Enhanced WhisperS2T Appliance v0.9.0...")

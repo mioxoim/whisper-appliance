@@ -44,8 +44,60 @@ from modules import (
     UploadHandler,
 )
 
-# Enterprise Update System
-from modules.enterprise_updater import integrate_with_flask_app
+# Enterprise Update System - Graceful fallback for missing module
+try:
+    from modules.enterprise_updater import integrate_with_flask_app
+
+    ENTERPRISE_UPDATE_AVAILABLE = True
+    print("✅ Enterprise Update System module loaded")
+except ImportError as e:
+    ENTERPRISE_UPDATE_AVAILABLE = False
+    print(f"⚠️ Enterprise Update System not available: {e}")
+    print("💡 Running with legacy update system")
+
+    def integrate_with_flask_app(app, logger=None):
+        """Fallback function when Enterprise Update System is not available"""
+        if logger:
+            logger.info("🔄 Enterprise Update System fallback - using legacy endpoints")
+
+        @app.route("/api/enterprise/deployment-info", methods=["GET"])
+        def api_deployment_info_fallback():
+            """Fallback deployment info endpoint"""
+            return {
+                "status": "fallback",
+                "message": "Enterprise Update System not available - using legacy mode",
+                "deployment_type": "unknown",
+                "legacy_endpoints": {"update": "/api/simple-update", "check": "/api/check-git-updates"},
+            }
+
+        @app.route("/api/enterprise/check-updates", methods=["GET"])
+        def api_check_updates_fallback():
+            """Fallback update check endpoint"""
+            return {
+                "status": "fallback",
+                "message": "Enterprise Update System not available - use legacy endpoints",
+                "legacy_endpoint": "/api/check-git-updates",
+            }
+
+        @app.route("/api/enterprise/start-update", methods=["POST"])
+        def api_start_update_fallback():
+            """Fallback update start endpoint"""
+            return {
+                "status": "fallback",
+                "message": "Enterprise Update System not available - use legacy endpoint",
+                "legacy_endpoint": "/api/simple-update",
+            }
+
+        @app.route("/api/enterprise/update-status", methods=["GET"])
+        def api_update_status_fallback():
+            """Fallback update status endpoint"""
+            return {
+                "status": "fallback",
+                "message": "Enterprise Update System not available",
+                "update_state": "legacy_mode",
+                "legacy_endpoints_available": True,
+            }
+
 
 # Enterprise imports (additive)
 if ENTERPRISE_MAINTENANCE_AVAILABLE:
@@ -1596,15 +1648,24 @@ def enterprise_maintenance_disable():
 # ==================== STARTUP ====================
 
 # Initialize Enterprise Update System
-logger.info("🏢 Initializing Enterprise Update System...")
-integrate_with_flask_app(app, logger)
-logger.info("✅ Enterprise Update System integrated")
+if ENTERPRISE_UPDATE_AVAILABLE:
+    logger.info("🏢 Initializing Enterprise Update System...")
+    integrate_with_flask_app(app, logger)
+    logger.info("✅ Enterprise Update System integrated")
+else:
+    logger.warning("⚠️ Enterprise Update System not available - using fallback")
+    integrate_with_flask_app(app, logger)
+    logger.info("🔄 Fallback enterprise endpoints registered")
 
 if __name__ == "__main__":
     logger.info("🎤 Starting Enhanced WhisperS2T Appliance v0.9.0...")
     logger.info("🏗️ Architecture: Modular (live_speech, upload_handler, admin_panel, api_docs)")
     logger.info("🌐 SSL: Intelligent network certificate with SAN support")
-    logger.info("🏢 Enterprise Update System: Zero-downtime deployment ready")
+
+    if ENTERPRISE_UPDATE_AVAILABLE:
+        logger.info("🏢 Enterprise Update System: Zero-downtime deployment ready")
+    else:
+        logger.info("🔄 Update System: Legacy mode with graceful fallback")
 
     # Check for SSL certificates (support both local dev and container paths)
     ssl_cert_path = None

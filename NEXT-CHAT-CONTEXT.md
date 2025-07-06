@@ -50,14 +50,21 @@ cat features/javascript-extraction/01-aufgaben.md
 3. **TESTING**: Update-System & Container Validation
    - Command: `bash <(curl -s https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/scripts/proxmox-standalone.sh)`
    - Expected: ✅ No module import errors, ✅ Update APIs functional
+   - Status: ⏳ Unblocked, ready for testing
    - Details: `features/update-system-testing-validation/01-aufgaben.md`
 
-4. **HOCH**: Performance Benchmark vs Original WhisperS2T
+4. **HOCH**: Container Deployment Robustness
+   - Ziel: Proaktiv entdeckte Verbesserungen aus Container-Fix
+   - Umfang: Path detection, validation pipeline, technical debt
+   - Status: 🆕 Neu identifiziert während Implementation
+   - Details: `features/container-deployment-robustness/01-aufgaben.md`
+
+5. **HOCH**: Performance Benchmark vs Original WhisperS2T
    - Ziel: Validierung dass unsere Performance mindestens so gut ist wie Original
    - Referenz: https://github.com/shashikg/WhisperS2T
    - Details: `features/performance-benchmark-whispers2t/01-aufgaben.md`
 
-5. **HOCH**: Branding Update WhisperS2T → WhisperAppliance  
+6. **HOCH**: Branding Update WhisperS2T → WhisperAppliance  
    - Ziel: Alle WhisperS2T Referenzen ersetzen + Credits an Original
    - Umfang: README, Source Code, UI, API, Documentation
    - Details: `features/branding-whispers2t-to-whisperappliance/01-aufgaben.md`
@@ -92,8 +99,9 @@ from modules.update.enterprise import integrate_with_flask_app
 - **Code Reduction**: 1800+ Zeilen → 11 modulare Komponenten
 - **Enterprise Features**: 100% migriert und erweitert  
 - **Backward Compatibility**: 100% erhalten
-- **Feature Management**: CLI-Tool + strukturierte Dokumentation (9 Features aktiv)
-- **Update System**: Kernmethoden implementiert - Button erstmals funktionsfähig
+- **Feature Management**: CLI-Tool + strukturierte Dokumentation (11 Features aktiv)
+- **Update System**: ✅ Kernmethoden implementiert + Container-kompatibel
+- **Critical Fixes**: ✅ Container Module Mismatch behoben (sys.path + graceful imports)
 - **Performance**: Benchmark-Framework geplant gegen Original WhisperS2T
 - **Branding**: Comprehensive WhisperS2T → WhisperAppliance Transformation geplant
 

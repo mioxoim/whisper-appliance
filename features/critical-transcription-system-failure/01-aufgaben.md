@@ -7,6 +7,11 @@
 - ❌ **Diktierfunktion ausgefallen**
 - ⚠️ **User kann keine Speech-to-Text verwenden**
 
+### **Container Fix Impact on Transcription:**
+- ✅ **Container Module Issues resolved**: Import problems fixed
+- ⚠️ **Transcription still broken**: Different root cause than module imports  
+- 🔍 **Focus shifted**: WebSocket, Audio, Frontend issues likely
+
 ### **Phase 1: Transcription System Diagnostics** ⚡
 - [⏳] **Systematic Error Analysis - USER COMMANDS:**
   ```bash

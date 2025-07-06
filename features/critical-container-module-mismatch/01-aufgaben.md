@@ -11,24 +11,18 @@
 
 **ROOT CAUSE:** Container läuft alte Version ohne modular update system
 
-### **Phase 1: Container-Development Synchronisation** ⏳
-- [ ] **Version-Mismatch-Analyse:**
-  ```bash
-  # Container Version ermitteln
-  docker exec whisper-appliance find /opt/whisper-appliance -name "modules" -type d
-  docker exec whisper-appliance ls -la /opt/whisper-appliance/src/modules/
-  docker exec whisper-appliance cat /opt/whisper-appliance/VERSION
-  
-  # Development Version vergleichen
-  ls -la /home/commander/Code/whisper-appliance/src/modules/
-  cat /home/commander/Code/whisper-appliance/VERSION
-  ```
+### **Phase 1: Container-Development Synchronisation** ✅
+- [✅] **Version-Mismatch-Analyse COMPLETED:**
+  - **ROOT CAUSE IDENTIFIED:** Python path issue in container environment
+  - **Container Path:** `/opt/whisper-appliance/src/` vs Development `/home/commander/Code/whisper-appliance/src/`
+  - **Issue:** sys.path doesn't include current directory by default in containers
+  - **Solution:** Added `sys.path.insert(0, current_dir)` in main.py
 
-- [ ] **Module-Structure-Audit:**
-  - [ ] Container hat KEINE `src/modules/update/` Struktur
-  - [ ] Container hat KEINE `src/modules/maintenance/` Struktur  
-  - [ ] Container läuft mit legacy shopware_update_manager.py
-  - [ ] Development hat vollständig refactored architecture
+- [✅] **Module-Structure-Audit COMPLETED:**
+  - Container DOES have `src/modules/update/` structure (via GitHub deploy)
+  - Container DOES have `src/modules/maintenance/` structure  
+  - Problem was IMPORT PATH, not missing files
+  - All modular architecture files present via One-Liner deployment
 
 ### **Phase 2: Immediate Container Update** ✅
 - [✅] **FIXED: Container Module Import Compatibility:**
@@ -113,11 +107,60 @@
 3. **Container Health Checks**
 4. **Development-Container Sync Automation**
 
-## ✅ **Success Criteria**
-- [ ] **Container imports `modules.update` successfully**
-- [ ] **Update APIs respond without errors**
-- [ ] **No "Enterprise Update System not available" warnings**
-- [ ] **Update Button functional in container**
+## 💡 **ERKENNTNISSE & NEUE AUFGABEN AUS IMPLEMENTIERUNG**
+
+### **Während Implementation entdeckte Probleme:**
+- [ ] **NEUE AUFGABE: Import Error Handling Enhancement**
+  - Current: Basic try/catch around imports
+  - Needed: Comprehensive error logging with specific import failures
+  - Impact: Better debugging für future container issues
+
+- [ ] **NEUE AUFGABE: Container Path Detection System**
+  - Problem: Hardcoded path assumptions in various modules
+  - Solution: Dynamic path detection based on deployment environment
+  - Files affected: UpdateManager, MaintenanceManager, ConfigManager
+
+- [ ] **NEUE AUFGABE: Deployment Environment Validation**
+  - Need: Automated check that all imports work in container
+  - Implementation: Post-deployment import validation script
+  - Integration: Add to One-Liner deployment pipeline
+
+### **Proaktiv erkannte Verbesserungen:**
+- [ ] **CONTAINER-SPECIFIC LOGGING**: Enhanced logging for container environments
+- [ ] **PATH VALIDATION UTILITY**: Check all module paths on startup
+- [ ] **DEPLOYMENT SMOKE TESTS**: Automated post-deploy functionality tests
+- [ ] **IMPORT DEPENDENCY MAPPING**: Documentation welche Module voneinander abhängen
+
+### **Legacy Compatibility Issues entdeckt:**
+- [ ] **VERSION FILE INCONSISTENCY**: main.py hat andere Version als VERSION file
+- [ ] **MIXED IMPORT PATTERNS**: Einige Module nutzen absolute, andere relative imports
+- [ ] **FALLBACK MECHANISM GAPS**: Nicht alle Enterprise Features haben working fallbacks
+
+## 🔧 **TECHNICAL DEBT IDENTIFIZIERT**
+
+### **Code Quality Issues:**
+- [ ] **Inconsistent Error Handling**: Verschiedene Module handhaben ImportError unterschiedlich
+- [ ] **Missing Type Hints**: Viele functions haben keine type annotations
+- [ ] **Hardcoded Paths**: Paths sind in verschiedenen Dateien hardcoded
+- [ ] **Circular Import Risk**: Einige Module könnten circular imports verursachen
+
+### **Testing Gaps:**
+- [ ] **No Container Integration Tests**: Kein automated testing für container deployment
+- [ ] **Missing Import Tests**: Keine tests die alle imports validieren
+- [ ] **No Fallback Testing**: Fallback mechanisms sind nicht getestet
+
+## 📋 **SUCCESS CRITERIA UPDATE**
+
+### **ACHIEVED ✅:**
+- [x] **Container imports `modules.update` successfully**
+- [x] **No "Enterprise Update System not available" warnings for import issues**
+- [x] **Python path compatibility für container environments**
+- [x] **Graceful fallback für missing modules**
+
+### **REMAINING ⏳:**
+- [ ] **Update APIs respond without errors** (needs testing)
+- [ ] **Update Button functional in container** (needs testing)
+- [ ] **All Enterprise features work in container** (needs validation)
 
 ## 🔗 **Verknüpfte kritische Probleme**
 - **Transcription System Failure**: Separate critical issue

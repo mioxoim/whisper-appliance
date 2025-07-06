@@ -1,0 +1,14 @@
+{
+  "enabled": false,
+  "ip_whitelist": [
+    "127.0.0.1",
+    "::1",
+    "localhost"
+  ],
+  "message": "🛠️ System Update in Progress",
+  "title": "Update Maintenance Mode",
+  "auto_mode": false,
+  "started_at": null,
+  "estimated_end": null,
+  "admin_email": null
+}

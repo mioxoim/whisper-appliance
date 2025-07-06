@@ -1,8 +1,20 @@
 """
-Shopware-inspired Maintenance Mode Manager - Additive Implementation
-Enterprise-level maintenance mode system for WhisperS2T Appliance
+Enterprise Maintenance Mode Manager
+Professional maintenance mode system for WhisperS2T Appliance
 
-🎯 ADDITIVE APPROACH: Adds enterprise features WITHOUT removing legacy functionality
+🎯 ENTERPRISE FEATURES:
+- Shopware-inspired maintenance mode with IP whitelisting
+- Additive implementation that coexists with existing systems
+- Thread-safe operations with comprehensive logging
+- Auto-detection of deployment environments
+
+🏗️ DESIGN PATTERNS:
+- Strategy Pattern: Different maintenance strategies per deployment
+- State Pattern: Maintenance state management
+- Observer Pattern: Status notifications
+
+Author: WhisperS2T Enterprise Team
+Version: 0.8.0
 """
 
 import ipaddress
@@ -17,9 +29,9 @@ from typing import Dict, List, Optional
 logger = logging.getLogger(__name__)
 
 
-class EnterpriseMaintenanceManager:
+class MaintenanceManager:
     """
-    Shopware-inspired maintenance mode manager - Enterprise Edition
+    Enterprise-level maintenance mode manager
 
     ✅ ADDITIVE IMPLEMENTATION:
     - Coexists with existing update system
@@ -48,7 +60,7 @@ class EnterpriseMaintenanceManager:
             "admin_email": None,
         }
 
-        logger.info(f"EnterpriseMaintenanceManager initialized with app_root: {self.app_root}")
+        logger.info(f"MaintenanceManager initialized with app_root: {self.app_root}")
 
     def _find_app_root(self) -> str:
         """Find application root directory"""
@@ -207,3 +219,7 @@ class EnterpriseMaintenanceManager:
         except Exception as e:
             logger.error(f"Failed to save enterprise maintenance config: {e}")
             return False
+
+
+# Backward compatibility alias
+EnterpriseMaintenanceManager = MaintenanceManager

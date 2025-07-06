@@ -44,16 +44,23 @@ from modules import (
     UploadHandler,
 )
 
-# Enterprise Update System - Graceful fallback for missing module
+# Enterprise Update System - Modular architecture with graceful fallback
 try:
-    from modules.enterprise_updater import integrate_with_flask_app
+    from modules.update.enterprise import integrate_with_flask_app
 
     ENTERPRISE_UPDATE_AVAILABLE = True
-    print("✅ Enterprise Update System module loaded")
+    print("✅ Modular Enterprise Update System loaded")
 except ImportError as e:
-    ENTERPRISE_UPDATE_AVAILABLE = False
-    print(f"⚠️ Enterprise Update System not available: {e}")
-    print("💡 Running with legacy update system")
+    # Fallback to legacy enterprise_updater if exists
+    try:
+        from modules.enterprise_updater import integrate_with_flask_app
+
+        ENTERPRISE_UPDATE_AVAILABLE = True
+        print("⚠️ Using legacy Enterprise Update System")
+    except ImportError as e2:
+        ENTERPRISE_UPDATE_AVAILABLE = False
+        print(f"⚠️ Enterprise Update System not available: {e}")
+        print("💡 Running with legacy update system")
 
     def integrate_with_flask_app(app, logger=None):
         """Fallback function when Enterprise Update System is not available"""
@@ -99,9 +106,9 @@ except ImportError as e:
             }
 
 
-# Enterprise imports (additive)
+# Enterprise Maintenance System (additive)
 if ENTERPRISE_MAINTENANCE_AVAILABLE:
-    from modules.enterprise_maintenance import EnterpriseMaintenanceManager
+    from modules.maintenance import EnterpriseMaintenanceManager
 
 # Initialize Flask app
 app = Flask(__name__)

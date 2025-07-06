@@ -30,23 +30,33 @@
   - [ ] Container läuft mit legacy shopware_update_manager.py
   - [ ] Development hat vollständig refactored architecture
 
-### **Phase 2: Immediate Container Update** ⏳
-- [ ] **Critical Path: Manual Container Update:**
+### **Phase 2: Immediate Container Update** ⚡
+- [⏳] **Critical Path: Manual Container Update:**
   ```bash
-  # 1. Copy current development version to container
+  # USER COMMANDS TO EXECUTE:
+  
+  # 1. Backup current container state (Safety first)
+  docker exec whisper-appliance cp -r /opt/whisper-appliance/src /opt/whisper-appliance/src_backup_$(date +%Y%m%d_%H%M%S)
+  
+  # 2. Copy current development version to container
   docker cp /home/commander/Code/whisper-appliance/src/modules/ whisper-appliance:/opt/whisper-appliance/src/
   docker cp /home/commander/Code/whisper-appliance/VERSION whisper-appliance:/opt/whisper-appliance/
   
-  # 2. Restart container service
+  # 3. Restart container service
   docker exec whisper-appliance systemctl restart whisper-appliance
   
-  # 3. Validate module imports
+  # 4. Validate module imports
   docker exec whisper-appliance python3 -c "from modules.update import UpdateManager; print('✅ UPDATE MODULE OK')"
+  docker exec whisper-appliance python3 -c "from modules.maintenance import MaintenanceManager; print('✅ MAINTENANCE MODULE OK')"
+  
+  # 5. Test Update APIs
+  curl https://192.168.178.67:5001/api/enterprise/check-updates
+  curl https://192.168.178.67:5001/api/enterprise/update-status
   ```
 
-- [ ] **Alternative: Redeploy Container:**
+- [⏳] **Alternative: Redeploy Container (if manual sync fails):**
   ```bash
-  # Wenn manual update fehlschlägt - kompletter Redeploy
+  # Fallback strategy
   docker stop whisper-appliance
   docker rm whisper-appliance
   

@@ -7,35 +7,42 @@
 - ❌ **Diktierfunktion ausgefallen**
 - ⚠️ **User kann keine Speech-to-Text verwenden**
 
-### **Phase 1: Transcription System Diagnostics** ⏳
-- [ ] **Systematic Error Analysis:**
+### **Phase 1: Transcription System Diagnostics** ⚡
+- [⏳] **Systematic Error Analysis - USER COMMANDS:**
   ```bash
-  # Check Whisper model loading
-  docker logs whisper-appliance | grep -i "whisper\|model"
+  # DIAGNOSTIC SEQUENCE FOR USER TO EXECUTE:
   
-  # Check microphone access errors
-  docker logs whisper-appliance | grep -i "audio\|microphone\|device"
+  # 1. Check Whisper model loading status
+  docker logs whisper-appliance | grep -A5 -B5 "whisper\|model\|Successfully loaded"
   
-  # Check WebSocket connection errors
-  docker logs whisper-appliance | grep -i "websocket\|connection"
+  # 2. Check for audio/microphone errors
+  docker logs whisper-appliance | grep -i "audio\|microphone\|device\|getUserMedia"
   
-  # Check browser console errors
-  # Browser Developer Tools → Console Tab
+  # 3. Check WebSocket connection errors
+  docker logs whisper-appliance | grep -i "websocket\|connection\|socket.io"
+  
+  # 4. Check for any Python import errors
+  docker logs whisper-appliance | grep -i "import\|modulenotfound\|error"
   ```
 
-- [ ] **Frontend-Backend Connection Testing:**
+- [⏳] **Frontend-Backend Connection Testing:**
   ```bash
-  # Test WebSocket endpoint
-  curl -i -N -H "Connection: Upgrade" -H "Upgrade: websocket" \
-       -H "Sec-WebSocket-Key: test" -H "Sec-WebSocket-Version: 13" \
-       https://CONTAINER-IP:5001/api/live-speech
+  # USER COMMANDS TO TEST CONNECTIVITY:
   
-  # Test microphone device detection
-  curl https://CONTAINER-IP:5001/api/audio-devices
+  # 1. Test WebSocket endpoint availability
+  curl -i https://192.168.178.67:5001/api/live-speech
   
-  # Test basic transcription endpoint
-  curl -X POST https://CONTAINER-IP:5001/api/transcribe \
-       -F "audio=@test-audio.wav"
+  # 2. Test basic health endpoint
+  curl https://192.168.178.67:5001/health
+  
+  # 3. Test if audio devices endpoint exists
+  curl https://192.168.178.67:5001/api/audio-devices
+  
+  # 4. Browser Test (CRITICAL):
+  # → Open https://192.168.178.67:5001 in browser
+  # → Open Developer Tools (F12) → Console Tab
+  # → Click microphone/recording button
+  # → Report any console errors
   ```
 
 ### **Phase 2: Core Component Validation** ⏳

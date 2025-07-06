@@ -338,9 +338,9 @@ class AdminPanel:
                         loadingIndicator.textContent = '(Loading...)';
                         loadingIndicator.style.display = 'inline';
                         
-                        const response = await fetch('/api/models/' + selectedModel, {
+                        const response = await fetch('/api/models/' + selectedModel, {{
                             method: 'POST'
-                        });
+                        }});
                         const data = await response.json();
                         
                         if (data.status === 'loading') {
@@ -555,10 +555,10 @@ class AdminPanel:
                 statusText.innerHTML = '🔄 Starting update process...';
                 
                 // Call Enterprise update endpoint
-                const response = await fetch('/api/enterprise/start-update', {
+                const response = await fetch('/api/enterprise/start-update', {{
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
+                    headers: {{ 'Content-Type': 'application/json' }}
+                }});
                 
                 progressBar.style.width = '50%';
                 statusText.innerHTML = '⬇️ Downloading updates...';
@@ -1024,10 +1024,10 @@ class AdminPanel:
                     try {
                         document.getElementById('uploadResult').innerHTML = '<div class="result">🔄 Processing...</div>';
                         
-                        const response = await fetch('/transcribe', {
+                        const response = await fetch('/transcribe', {{
                             method: 'POST',
                             body: formData
-                        });
+                        }});
                         const data = await response.json();
                         
                         if (data.error) {

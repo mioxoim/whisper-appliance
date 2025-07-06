@@ -40,12 +40,22 @@ cat features/javascript-extraction/01-aufgaben.md
    - Ziel: Update-Button funktioniert erstmals vollständig
    - Details: `features/update-system-testing-validation/01-aufgaben.md`
 
-2. **DANN**: Proxmox One-Liner Test
+2. **HOCH**: Performance Benchmark vs Original WhisperS2T
+   - Ziel: Validierung dass unsere Performance mindestens so gut ist wie Original
+   - Referenz: https://github.com/shashikg/WhisperS2T
+   - Details: `features/performance-benchmark-whispers2t/01-aufgaben.md`
+
+3. **HOCH**: Branding Update WhisperS2T → WhisperAppliance  
+   - Ziel: Alle WhisperS2T Referenzen ersetzen + Credits an Original
+   - Umfang: README, Source Code, UI, API, Documentation
+   - Details: `features/branding-whispers2t-to-whisperappliance/01-aufgaben.md`
+
+4. **DANN**: Proxmox One-Liner Test
    - Command: `bash <(curl -s https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/scripts/proxmox-standalone.sh)`
    - Ziel: Validierung dass Update-System Container-kompatibel ist
    - Details: `features/proxmox-deployment-test/01-aufgaben.md`
 
-3. **ANSCHLIESSEND**: JavaScript Extraction (Phase 2)
+5. **ANSCHLIESSEND**: JavaScript Extraction (Phase 2)
    - Ziel: admin_panel.py Zeilen 325-1200+ → separate /static/js/ Dateien
    - Details: `features/javascript-extraction/01-aufgaben.md`
 
@@ -79,7 +89,10 @@ from modules.update.enterprise import integrate_with_flask_app
 - **Code Reduction**: 1800+ Zeilen → 11 modulare Komponenten
 - **Enterprise Features**: 100% migriert und erweitert  
 - **Backward Compatibility**: 100% erhalten
-- **Feature Management**: CLI-Tool + strukturierte Dokumentation
+- **Feature Management**: CLI-Tool + strukturierte Dokumentation (9 Features aktiv)
+- **Update System**: Kernmethoden implementiert - Button erstmals funktionsfähig
+- **Performance**: Benchmark-Framework geplant gegen Original WhisperS2T
+- **Branding**: Comprehensive WhisperS2T → WhisperAppliance Transformation geplant
 
 ### **🚨 WICHTIGE ERINNERUNGEN:**
 

@@ -35,29 +35,29 @@ cat features/javascript-extraction/01-aufgaben.md
 - ✅ **Git Push**: Erfolgreich mit SSH-Key gepusht (Commit: a496138)
 
 **🎯 NÄCHSTE PRIORITÄT:**
-1. **KRITISCH**: Update-System Testing & Validation
-   - Command: Test API endpoints auf Development System
-   - Ziel: Update-Button funktioniert erstmals vollständig
+1. **🚨 CRITICAL**: Container Module Mismatch
+   - Problem: Container läuft ohne `modules.update` - alte Version
+   - Lösung: Manual container sync oder redeploy
+   - Details: `features/critical-container-module-mismatch/01-aufgaben.md`
+
+2. **🚨 CRITICAL**: Transcription System Failure  
+   - Problem: Diktierfunktion funktioniert nicht
+   - Diagnose: WebSocket, Audio, Model issues
+   - Details: `features/critical-transcription-system-failure/01-aufgaben.md`
+
+3. **HOCH**: Update-System Testing & Validation
+   - Blockiert durch: Container module mismatch
    - Details: `features/update-system-testing-validation/01-aufgaben.md`
 
-2. **HOCH**: Performance Benchmark vs Original WhisperS2T
+4. **HOCH**: Performance Benchmark vs Original WhisperS2T
    - Ziel: Validierung dass unsere Performance mindestens so gut ist wie Original
    - Referenz: https://github.com/shashikg/WhisperS2T
    - Details: `features/performance-benchmark-whispers2t/01-aufgaben.md`
 
-3. **HOCH**: Branding Update WhisperS2T → WhisperAppliance  
+5. **HOCH**: Branding Update WhisperS2T → WhisperAppliance  
    - Ziel: Alle WhisperS2T Referenzen ersetzen + Credits an Original
    - Umfang: README, Source Code, UI, API, Documentation
    - Details: `features/branding-whispers2t-to-whisperappliance/01-aufgaben.md`
-
-4. **DANN**: Proxmox One-Liner Test
-   - Command: `bash <(curl -s https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/scripts/proxmox-standalone.sh)`
-   - Ziel: Validierung dass Update-System Container-kompatibel ist
-   - Details: `features/proxmox-deployment-test/01-aufgaben.md`
-
-5. **ANSCHLIESSEND**: JavaScript Extraction (Phase 2)
-   - Ziel: admin_panel.py Zeilen 325-1200+ → separate /static/js/ Dateien
-   - Details: `features/javascript-extraction/01-aufgaben.md`
 
 ### **🏗️ ARCHITEKTUR-STATUS:**
 

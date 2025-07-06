@@ -21,8 +21,14 @@ Main entry point with preserved functionality and enhanced architecture
 
 import logging
 import os
+import sys
 import tempfile
 from datetime import datetime
+
+# CRITICAL: Add current directory to Python path for container compatibility
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
 
 # Flask and extensions
 from flask import Flask, jsonify, render_template, request, send_from_directory
@@ -31,18 +37,56 @@ from flask_socketio import SocketIO, emit
 from flask_swagger_ui import get_swaggerui_blueprint
 from werkzeug.utils import secure_filename
 
-# Import our modular components
-from modules import (
-    ENTERPRISE_MAINTENANCE_AVAILABLE,
-    UPDATE_MANAGER_AVAILABLE,
-    AdminPanel,
-    APIDocs,
-    ChatHistoryManager,
-    LiveSpeechHandler,
-    ModelManager,
-    UpdateManager,
-    UploadHandler,
-)
+# Import our modular components with error handling
+try:
+    from modules import (
+        ENTERPRISE_MAINTENANCE_AVAILABLE,
+        UPDATE_MANAGER_AVAILABLE,
+        AdminPanel,
+        APIDocs,
+        ChatHistoryManager,
+        LiveSpeechHandler,
+        ModelManager,
+        UploadHandler,
+    )
+
+    print("✅ Core modules imported successfully")
+except ImportError as e:
+    print(f"❌ Core module import failed: {e}")
+    raise
+
+# Import UpdateManager with graceful fallback
+try:
+    from modules import UpdateManager
+
+    UPDATE_MANAGER_IMPORTED = True
+    print("✅ UpdateManager imported successfully")
+except ImportError as e:
+    UpdateManager = None
+    UPDATE_MANAGER_IMPORTED = False
+    print(f"⚠️ UpdateManager not available: {e}")
+
+# Import EnterpriseMaintenanceManager with graceful fallback
+try:
+    from modules import EnterpriseMaintenanceManager
+
+    ENTERPRISE_MAINTENANCE_IMPORTED = True
+    print("✅ EnterpriseMaintenanceManager imported successfully")
+except ImportError as e:
+    EnterpriseMaintenanceManager = None
+    ENTERPRISE_MAINTENANCE_IMPORTED = False
+    print(f"⚠️ EnterpriseMaintenanceManager not available: {e}")
+
+# Import MaintenanceManager with graceful fallback
+try:
+    from modules import MaintenanceManager
+
+    MAINTENANCE_MANAGER_IMPORTED = True
+    print("✅ MaintenanceManager imported successfully")
+except ImportError as e:
+    MaintenanceManager = None
+    MAINTENANCE_MANAGER_IMPORTED = False
+    print(f"⚠️ MaintenanceManager not available: {e}")
 
 # Enterprise Update System - Modular architecture with graceful fallback
 try:
@@ -130,7 +174,7 @@ system_ready = True
 
 # Initialize Enterprise Maintenance System (additive)
 enterprise_maintenance = None
-if ENTERPRISE_MAINTENANCE_AVAILABLE:
+if ENTERPRISE_MAINTENANCE_IMPORTED and EnterpriseMaintenanceManager is not None:
     try:
         enterprise_maintenance = EnterpriseMaintenanceManager()
         logger.info("✅ Enterprise Maintenance System initialized (additive)")
@@ -149,7 +193,7 @@ try:
     if ENTERPRISE_UPDATE_AVAILABLE:
         logger.info("🏢 Using Enterprise Update System (priority over legacy)")
         update_manager = None  # Disable legacy update manager
-    elif UPDATE_MANAGER_AVAILABLE:
+    elif UPDATE_MANAGER_IMPORTED and UpdateManager is not None:
         update_manager = UpdateManager()
         logger.info("🔄 Using Legacy Update Manager (Enterprise system not available)")
     else:

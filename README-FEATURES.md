@@ -4,7 +4,8 @@
 
 | Feature | Status | Priorität | Zuständig |
 |---------|--------|-----------|-----------|
-| [Clean Refactor - 7+1 Architecture](features/clean-refactor-7plus1/00-overview.md) | ✅ **Phase 1 Abgeschlossen** | 🔥 **Hoch** | Claude |
+| [Clean Refactor - 7+1 Architecture](features/clean-refactor-7plus1/00-overview.md) | ✅ **Phase 1 Abgeschlossen** | ✅ **Abgeschlossen** | Claude |
+| [Proxmox Deployment Test](features/proxmox-deployment-test/00-overview.md) | 🚨 **KRITISCH - Sofort testen** | 🚨 **Kritisch** | Claude |
 | [JavaScript Extraction](features/javascript-extraction/00-overview.md) | 🎯 **Bereit für Phase 2** | 🔥 **Hoch** | Claude |
 | [Modular Update System](features/modular-update-system/00-overview.md) | ✅ **Implementiert** | ✅ **Abgeschlossen** | Claude |
 | [Enterprise Maintenance](features/enterprise-maintenance/00-overview.md) | ✅ **Migriert** | ✅ **Abgeschlossen** | Claude |
@@ -19,6 +20,7 @@
 
 ## 🔄 **Globales Backlog**
 
+- [ ] **SOFORTIG**: Proxmox One-Liner Deployment Test nach Phase 1 Änderungen
 - [ ] **Code Quality**: Pre-commit hooks für isort + black + shellcheck einrichten
 - [ ] **Documentation**: API-Dokumentation für alle Module generieren  
 - [ ] **Testing**: Unit tests für modular Update-System
@@ -34,9 +36,10 @@
 
 ## 🎯 **Nächste Prioritäten**
 
-1. **JavaScript Extraction** (Phase 2) - admin_panel.py Zeilen 325-1200+
-2. **Template Method Pattern** - Clean Python/JavaScript separation
-3. **GitHub Actions Validation** - CI/CD Pipeline stabilisieren
+1. **🚨 KRITISCH: Proxmox Deployment Test** - One-Liner Validierung nach Phase 1
+2. **JavaScript Extraction** (Phase 2) - admin_panel.py Zeilen 325-1200+
+3. **Template Method Pattern** - Clean Python/JavaScript separation
+4. **GitHub Actions Validation** - CI/CD Pipeline stabilisieren
 
 ---
 

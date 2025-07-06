@@ -515,13 +515,13 @@ class AdminPanel:
                 </div>
                 
                 <div class="update-info" style="margin-top: 15px; padding: 12px; background: #e8f5e8; border-radius: 4px; font-size: 14px;">
-                    <strong>🏢 Enterprise Update System:</strong><br>
-                    &bull; Zero-downtime Blue-Green deployment<br>
-                    &bull; Permission-safe operations (solves LXC issues)<br>
-                    &bull; Automatic deployment detection (Docker/Proxmox/Development)<br>
-                    &bull; Comprehensive backup and rollback system<br>
-                    &bull; Real-time progress monitoring<br>
-                    &bull; Enterprise-grade logging and audit trail
+                    <strong>🔄 Simple Update System:</strong><br>
+                    &bull; Git-based updates with webhook support<br>
+                    &bull; Automatic service restart<br>
+                    &bull; Version tracking and history<br>
+                    &bull; Production-ready error handling<br>
+                    &bull; Deployment environment detection<br>
+                    &bull; Lightweight and reliable operation
                 </div>
             </div>
         </div>
@@ -535,7 +535,7 @@ class AdminPanel:
                 return;
             }}
             
-            if (!confirm('🚀 Start Smart Update now?\\n\\nThis will:\\n• Detect deployment type automatically\\n• Use Enterprise Update System\\n• Create backup before update\\n• Restart the service\\n• Take 1-3 minutes\\n\\nContinue?')) {{
+            if (!confirm('🚀 Start Git Update now?\\n\\nThis will:\\n• Pull latest changes from git repository\\n• Update version tracking\\n• Restart the service\\n• Take 1-2 minutes\\n\\nContinue?')) {{
                 return;
             }}
             
@@ -554,11 +554,11 @@ class AdminPanel:
                 progressBar.style.width = '10%';
                 statusText.innerHTML = '🔄 Starting update process...';
                 
-                // Call Enterprise update endpoint
-                const response = await fetch('/api/enterprise/start-update', {{
+                // Call Simple update endpoint
+                const response = await fetch('/api/updates/apply', {
                     method: 'POST',
-                    headers: {{ 'Content-Type': 'application/json' }}
-                }});
+                    headers: { 'Content-Type': 'application/json' }
+                });
                 
                 progressBar.style.width = '50%';
                 statusText.innerHTML = '⬇️ Downloading updates...';
@@ -567,19 +567,19 @@ class AdminPanel:
                 
                 if (data.status === 'success') {{
                     progressBar.style.width = '90%';
-                    statusText.innerHTML = `🔄 Enterprise Update: ${{data.deployment_type}} mode`;
+                    statusText.innerHTML = `🔄 Git Update: ${{data.message}}`;
                     
-                    // Show Enterprise features
-                    const features = data.features || [];
+                    // Show update features
+                    const features = ['Git-based updates', 'Version tracking', 'Service restart'];
                     statusText.innerHTML += `<br>📋 Features: ${{features.join(', ')}}`;
                     
                     // Wait a moment for update process
                     setTimeout(() => {{
                         progressBar.style.width = '100%';
-                        statusText.innerHTML = '✅ Enterprise Update completed successfully!';
+                        statusText.innerHTML = '✅ Update completed successfully!';
                         
                         setTimeout(() => {{
-                            alert(`✅ Enterprise Update completed!\\n\\nDeployment: ${{data.deployment_type}}\\n\\nThe page will reload to show the updated version.`);
+                            alert(`✅ Update completed!\\n\\n${{data.message}}\\n\\nThe page will reload to show the updated version.`);
                             location.reload();
                         }}, 2000);
                     }}, 3000);
@@ -604,59 +604,37 @@ class AdminPanel:
             const statusIndicator = document.getElementById('update-status-indicator');
             try {{
                 statusIndicator.innerHTML = '(Checking...)';
-                const response = await fetch('/api/enterprise/check-updates');
+                const response = await fetch('/api/updates/check');
                 const data = await response.json();
                 
                 if (data.status === 'error') {{
-                    statusIndicator.innerHTML = '<span style="color: #dc3545;">(Check failed: ' + data.error + ')</span>';
-                    console.error('Enterprise update check failed:', data);
+                    statusIndicator.innerHTML = '<span style="color: #dc3545;">(Check failed: ' + data.message + ')</span>';
+                    console.error('Update check failed:', data);
                     return;
                 }}
                 
                 // Show deployment info
                 if (data.deployment_type) {{
-                    console.log('🏗️ Deployment: ' + data.deployment_type + ' ' + (data.container_type || ''));
+                    console.log('🔄 Update System: ' + data.deployment_type);
                 }}
                 
-                if (data.has_update) {{
-                    statusIndicator.innerHTML = '\\
-                        <span style="color: #ffc107;">\\
-                            (Enterprise Update available: v' + data.latest_version + ')\\
-                            <br><small style="font-size: 0.8em;">\\
-                                Current: ' + data.current_version + ' → Latest: ' + data.latest_version + '\\
-                                <br>Deployment: ' + data.deployment_type + ' ' + (data.container_type || '') + '\\
-                            </small>\\
-                        </span>\\
-                    ';
-                    
-                    // Show Enterprise features if available
-                    if (data.enterprise_features && data.enterprise_features.length > 0) {{
-                        let enterpriseDetails = '<div style="margin-top: 10px; padding: 10px; background: #d1ecf1; border-radius: 4px; border: 1px solid #bee5eb;">';
-                        enterpriseDetails += '<strong>🏢 Enterprise Features:</strong><br>';
-                        data.enterprise_features.forEach(feature => {{
-                            enterpriseDetails += '<div style="margin: 3px 0; font-size: 0.9em;">';
-                            enterpriseDetails += '✅ ' + feature;
-                            enterpriseDetails += '</div>';
-                        }});
-                        enterpriseDetails += '</div>';
-                        statusIndicator.innerHTML += enterpriseDetails;
-                    }}
-                    
-                    // Show release notes if available
-                    if (data.release_notes && data.release_notes.trim()) {{
-                        let notesDetails = '<div style="margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 4px; border: 1px solid #dee2e6;">';
-                        notesDetails += '<strong>📝 Release Notes:</strong><br>';
-                        notesDetails += '<div style="font-size: 0.9em; max-height: 100px; overflow-y: auto;">' + data.release_notes + '</div>';
-                        notesDetails += '</div>';
-                        statusIndicator.innerHTML += notesDetails;
-                    }}
+                if (data.update_available) {{
+                    statusIndicator.innerHTML = `
+                        <span style="color: #ffc107;">
+                            (Update available: ${{data.commits_behind}} commits behind)
+                            <br><small style="font-size: 0.8em;">
+                                Current: ${{data.current_version}}
+                                <br>System: ${{data.deployment_type}}
+                            </small>
+                        </span>
+                    `;
                 }} else {{
-                    statusIndicator.innerHTML = '\\
-                        <span style="color: #28a745;">(Up to date)</span>\\
-                        <br><small style="font-size: 0.8em;">\\
-                            Version: ' + (data.current_version || 'Unknown') + ' | Deployment: ' + data.deployment_type + ' ' + (data.container_type || '') + '\\
-                        </small>\\
-                    ';
+                    statusIndicator.innerHTML = `
+                        <span style="color: #28a745;">(Up to date)</span>
+                        <br><small style="font-size: 0.8em;">
+                            Version: ${{data.current_version || 'Unknown'}} | System: ${{data.deployment_type}}
+                        </small>
+                    `;
                 }}
             }} catch (error) {{
                 statusIndicator.innerHTML = '<span style="color: #dc3545;">(Network error: ' + error.message + ')</span>';

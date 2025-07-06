@@ -88,175 +88,21 @@ except ImportError as e:
     MAINTENANCE_MANAGER_IMPORTED = False
     print(f"⚠️ MaintenanceManager not available: {e}")
 
-# Enterprise Update System - Modular architecture with graceful fallback
+# ==================== SIMPLE UPDATE SYSTEM ====================
+# Modern, simple git-based update system replacing complex legacy systems
 try:
-    from modules.update.enterprise import integrate_with_flask_app
+    from modules.simple_updater import integrate_simple_updater
 
-    ENTERPRISE_UPDATE_AVAILABLE = True
-    print("✅ Modular Enterprise Update System loaded")
+    SIMPLE_UPDATER_AVAILABLE = True
+    print("✅ SimpleUpdater loaded successfully")
 except ImportError as e:
-    # Fallback to legacy enterprise_updater if exists
-    try:
-        from modules.enterprise_updater import integrate_with_flask_app
+    SIMPLE_UPDATER_AVAILABLE = False
+    print(f"⚠️ SimpleUpdater not available: {e}")
+    print("💡 No update system will be available")
 
-        ENTERPRISE_UPDATE_AVAILABLE = True
-        print("⚠️ Using legacy Enterprise Update System")
-    except ImportError as e2:
-        ENTERPRISE_UPDATE_AVAILABLE = False
-        print(f"⚠️ Enterprise Update System not available: {e}")
-        print("💡 Running with legacy update system")
-
-    def integrate_with_flask_app(app, logger=None):
-        """Fallback function when Enterprise Update System is not available"""
-        if logger:
-            logger.info("🔄 Enterprise Update System fallback - using legacy endpoints")
-
-        @app.route("/api/enterprise/deployment-info", methods=["GET"])
-        def api_deployment_info_fallback():
-            """Fallback deployment info endpoint - FUNCTIONAL IMPLEMENTATION"""
-            try:
-                # Detect deployment environment
-                deployment_type = "unknown"
-                container_type = None
-
-                # Simple deployment detection
-                if os.path.exists("/proc/1/cgroup"):
-                    with open("/proc/1/cgroup", "r") as f:
-                        cgroup_content = f.read()
-                        if "docker" in cgroup_content:
-                            deployment_type = "docker"
-                            container_type = "docker"
-                        elif "lxc" in cgroup_content:
-                            deployment_type = "proxmox_lxc"
-                            container_type = "lxc"
-                elif os.path.exists("/.dockerenv"):
-                    deployment_type = "docker"
-                    container_type = "docker"
-                else:
-                    deployment_type = "bare_metal"
-
-                return {
-                    "status": "success",
-                    "message": "Deployment info detected (Legacy Mode)",
-                    "deployment_type": deployment_type,
-                    "container_type": container_type,
-                    "app_root": os.getcwd(),
-                    "python_path": sys.path[:3],  # First 3 entries
-                    "update_system": "legacy_fallback",
-                    "enterprise_features": "limited",
-                }
-            except Exception as e:
-                return {
-                    "status": "error",
-                    "message": f"Deployment detection failed: {str(e)}",
-                }, 500
-
-        @app.route("/api/enterprise/check-updates", methods=["GET"])
-        def api_check_updates_fallback():
-            """Fallback update check endpoint - FUNCTIONAL IMPLEMENTATION"""
-            try:
-                # Use UpdateChecker if available
-                if UPDATE_MANAGER_IMPORTED and UpdateManager is not None:
-                    try:
-                        update_manager = UpdateManager()
-
-                        # Get current version
-                        current_version = "unknown"
-                        if os.path.exists("/opt/whisper-appliance/VERSION"):
-                            with open("/opt/whisper-appliance/VERSION", "r") as f:
-                                current_version = f.read().strip()
-
-                        # Check for updates (simplified)
-                        return {
-                            "status": "success",
-                            "message": "Update check completed (Legacy Mode)",
-                            "current_version": current_version,
-                            "update_available": True,  # Assume update available for now
-                            "latest_version": "latest",
-                            "deployment_type": "legacy",
-                            "check_method": "legacy_update_manager",
-                        }
-                    except Exception as e:
-                        return {
-                            "status": "error",
-                            "message": f"Update check failed: {str(e)}",
-                            "deployment_type": "legacy",
-                        }, 500
-                else:
-                    # Basic fallback without UpdateManager
-                    return {
-                        "status": "limited",
-                        "message": "Limited update checking - UpdateManager not available",
-                        "current_version": "unknown",
-                        "update_available": False,
-                        "note": "Enterprise Update System not loaded",
-                    }
-            except Exception as e:
-                return {
-                    "status": "error",
-                    "message": f"Update check system error: {str(e)}",
-                }, 500
-
-        @app.route("/api/enterprise/start-update", methods=["POST"])
-        def api_start_update_fallback():
-            """Fallback update start endpoint - FUNCTIONAL IMPLEMENTATION"""
-            try:
-                # Use UpdateManager if available
-                if UPDATE_MANAGER_IMPORTED and UpdateManager is not None:
-                    try:
-                        update_manager = UpdateManager()
-                        success, message = update_manager.start_update()
-
-                        if success:
-                            return {
-                                "status": "success",
-                                "message": "Update completed successfully (Legacy Mode)",
-                                "deployment_type": "legacy",
-                                "update_method": "legacy_update_manager",
-                                "features": [
-                                    "Legacy update system",
-                                    "Backup and rollback",
-                                    "Graceful service restart",
-                                ],
-                            }
-                        else:
-                            return {
-                                "status": "error",
-                                "message": f"Update failed: {message}",
-                                "deployment_type": "legacy",
-                            }, 500
-                    except Exception as e:
-                        return {
-                            "status": "error",
-                            "message": f"Legacy update system error: {str(e)}",
-                            "deployment_type": "legacy",
-                        }, 500
-                else:
-                    # No update manager available - return helpful error
-                    return {
-                        "status": "error",
-                        "message": "No update system available - Enterprise Update System not loaded and no Legacy UpdateManager",
-                        "troubleshooting": [
-                            "Check that modules.update imports correctly",
-                            "Verify container deployment completed successfully",
-                            "Check application logs for import errors",
-                        ],
-                    }, 503
-            except Exception as e:
-                return {
-                    "status": "error",
-                    "message": f"Update system initialization failed: {str(e)}",
-                }, 500
-
-        @app.route("/api/enterprise/update-status", methods=["GET"])
-        def api_update_status_fallback():
-            """Fallback update status endpoint"""
-            return {
-                "status": "fallback",
-                "message": "Enterprise Update System not available",
-                "update_state": "legacy_mode",
-                "legacy_endpoints_available": True,
-            }
+# ==================== NO UPDATE SYSTEM FALLBACK NEEDED ====================
+# SimpleUpdater replaces all complex enterprise/legacy fallback systems
+# All update endpoints are handled by SimpleUpdater when available
 
 
 # Enterprise Maintenance System (additive)
@@ -1813,25 +1659,24 @@ def enterprise_maintenance_disable():
 
 # ==================== STARTUP ====================
 
-# Initialize Enterprise Update System
-if ENTERPRISE_UPDATE_AVAILABLE:
-    logger.info("🏢 Initializing Enterprise Update System...")
-    integrate_with_flask_app(app, logger)
-    logger.info("✅ Enterprise Update System integrated")
+# Initialize Simple Update System
+if SIMPLE_UPDATER_AVAILABLE:
+    logger.info("🔄 Initializing Simple Update System...")
+    integrate_simple_updater(app, logger)
+    logger.info("✅ Simple Update System integrated")
 else:
-    logger.warning("⚠️ Enterprise Update System not available - using fallback")
-    integrate_with_flask_app(app, logger)
-    logger.info("🔄 Fallback enterprise endpoints registered")
+    logger.warning("⚠️ No update system available")
+    logger.info("💡 Update functionality disabled")
 
 if __name__ == "__main__":
-    logger.info("🎤 Starting Enhanced WhisperS2T Appliance v0.9.0...")
-    logger.info("🏗️ Architecture: Modular (live_speech, upload_handler, admin_panel, api_docs)")
+    logger.info("🎤 Starting Enhanced WhisperS2T Appliance v1.0.0...")
+    logger.info("🔄 SIMPLIFIED: Single, robust update system replacing complex legacy systems")
     logger.info("🌐 SSL: Intelligent network certificate with SAN support")
 
-    if ENTERPRISE_UPDATE_AVAILABLE:
-        logger.info("🏢 Enterprise Update System: Zero-downtime deployment ready")
+    if SIMPLE_UPDATER_AVAILABLE:
+        logger.info("🔄 Simple Update System: Git-based updates with webhook support")
     else:
-        logger.info("🔄 Update System: Legacy mode with graceful fallback")
+        logger.info("⚠️ Update System: Disabled (no update functionality available)")
 
     # Check for SSL certificates (support both local dev and container paths)
     ssl_cert_path = None

@@ -35,18 +35,21 @@ cat features/javascript-extraction/01-aufgaben.md
 - ✅ **Git Push**: Erfolgreich mit SSH-Key gepusht (Commit: a496138)
 
 **🎯 NÄCHSTE PRIORITÄT:**
-1. **🚨 CRITICAL**: Container Module Mismatch
+1. **🚨 CRITICAL**: Container Module Mismatch ✅ FIXED
    - Problem: Container läuft ohne `modules.update` - alte Version
-   - Lösung: Manual container sync oder redeploy
-   - Details: `features/critical-container-module-mismatch/01-aufgaben.md`
+   - Lösung: ✅ sys.path fix + graceful imports implemented
+   - Status: ✅ Code fixed, committed (72e82cf), pushed to GitHub
+   - BEREIT FÜR: One-Liner deployment test
 
 2. **🚨 CRITICAL**: Transcription System Failure  
    - Problem: Diktierfunktion funktioniert nicht
    - Diagnose: WebSocket, Audio, Model issues
+   - Status: ⏳ Diagnostic strategies prepared
    - Details: `features/critical-transcription-system-failure/01-aufgaben.md`
 
-3. **HOCH**: Update-System Testing & Validation
-   - Blockiert durch: Container module mismatch
+3. **TESTING**: Update-System & Container Validation
+   - Command: `bash <(curl -s https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/scripts/proxmox-standalone.sh)`
+   - Expected: ✅ No module import errors, ✅ Update APIs functional
    - Details: `features/update-system-testing-validation/01-aufgaben.md`
 
 4. **HOCH**: Performance Benchmark vs Original WhisperS2T

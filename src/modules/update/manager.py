@@ -139,6 +139,92 @@ class UpdateManager:
         """Get deployment environment information"""
         return self.deployment_info
 
+    def get_update_status(self) -> Dict:
+        """
+        Get comprehensive update status information
+
+        Returns:
+            Dict: Current update status including versions, backup info, and state
+        """
+        try:
+            # Get current version info
+            current_version = "unknown"
+            try:
+                # Try to read version from various sources
+                version_sources = [
+                    os.path.join(self.app_root, "VERSION"),
+                    os.path.join(self.app_root, "src", "__init__.py"),
+                    os.path.join(self.app_root, "setup.py"),
+                ]
+
+                for source in version_sources:
+                    if os.path.exists(source):
+                        with open(source, "r") as f:
+                            content = f.read()
+                            # Look for version patterns
+                            import re
+
+                            version_match = re.search(r'version\s*=\s*["\']([^"\']+)["\']', content, re.IGNORECASE)
+                            if version_match:
+                                current_version = version_match.group(1)
+                                break
+                            # Alternative pattern
+                            version_match = re.search(r'__version__\s*=\s*["\']([^"\']+)["\']', content)
+                            if version_match:
+                                current_version = version_match.group(1)
+                                break
+            except:
+                pass
+
+            # Get latest version from checker
+            latest_version = "unknown"
+            update_available = False
+            try:
+                latest_release = self.checker.get_release_info()
+                if latest_release:
+                    latest_version = latest_release.get("version", "unknown")
+                    update_available = latest_version != current_version and latest_version != "unknown"
+            except:
+                pass
+
+            # Get applier state
+            applier_state = self.applier.get_update_state()
+
+            # Get backup info
+            backup_info = []
+            try:
+                backup_info = self.backup_manager.list_backups()
+            except:
+                pass
+
+            return {
+                "current_version": current_version,
+                "latest_version": latest_version,
+                "update_available": update_available,
+                "updating": applier_state.get("updating", False),
+                "backup_created": applier_state.get("backup_created", False),
+                "backup_path": applier_state.get("backup_path"),
+                "rollback_available": applier_state.get("rollback_available", False),
+                "error": applier_state.get("error"),
+                "last_update_log": applier_state.get("update_log", [])[-10:] if applier_state.get("update_log") else [],
+                "available_backups": len(backup_info),
+                "deployment_info": self.deployment_info,
+                "maintenance_active": getattr(self, "maintenance_manager", None)
+                and hasattr(self.maintenance_manager, "is_maintenance_active")
+                and self.maintenance_manager.is_maintenance_active(),
+            }
+
+        except Exception as e:
+            logger.error(f"Failed to get update status: {e}")
+            return {
+                "current_version": "unknown",
+                "latest_version": "unknown",
+                "update_available": False,
+                "updating": False,
+                "error": f"Status check failed: {str(e)}",
+                "deployment_info": self.deployment_info,
+            }
+
     def get_update_log(self) -> List[str]:
         """Get update process log"""
         return self.applier.get_update_log()

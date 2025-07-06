@@ -23,10 +23,17 @@
 - [x] `shopware_update_manager.py` (1001 Zeilen) aufgebrochen in 6 Module:
   - [x] `modules/update/manager.py` (164 lines) - Core orchestration
   - [x] `modules/update/checker.py` (217 lines) - Update checking  
-  - [x] `modules/update/applier.py` (363 lines) - Update application
+  - [x] `modules/update/applier.py` (567 lines) - Update application ✅ **CORE METHODS IMPLEMENTED**
   - [x] `modules/update/backup.py` (234 lines) - Backup management
   - [x] `modules/update/compatibility.py` (87 lines) - Compatibility checking
   - [x] `modules/update/deployment.py` (228 lines) - Deployment detection
+
+### **Phase 1D: Update System Core Implementation** ✅
+- [x] **KRITISCHE KERNMETHODEN implementiert:**
+  - [x] `UpdateApplier._download_update()` - GitHub integration mit Fallback-Strategien
+  - [x] `UpdateApplier._apply_permission_safe_update()` - Sichere Datei-Ersetzung
+  - [x] **Update-Button** erstmals funktionsfähig
+  - [x] **Enterprise Update API** vollständig implementiert
 
 ### **Phase 1D: Enterprise Module Migration** ✅
 - [x] `enterprise_maintenance.py` → `modules/maintenance/manager.py` (225 lines)

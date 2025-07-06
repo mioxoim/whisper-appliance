@@ -249,6 +249,220 @@ class UpdateApplier:
         except Exception as e:
             logger.warning(f"Failed to cleanup temp files: {e}")
 
+    def _download_update(self, target_version: str = "latest") -> bool:
+        """
+        Download update from GitHub with robust fallback strategies
+
+        Args:
+            target_version: Version to download (latest or specific version)
+
+        Returns:
+            bool: True if download successful
+        """
+        try:
+            # Create temporary directory
+            self.update_state["temp_dir"] = tempfile.mkdtemp(prefix="whisper_update_")
+            temp_dir = self.update_state["temp_dir"]
+
+            # GitHub repository info
+            repo_owner = "GaboCapo"
+            repo_name = "whisper-appliance"
+
+            if target_version == "latest":
+                # Get latest release info
+                api_url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/releases/latest"
+                self._log_update(f"🔍 Fetching latest release info from {api_url}")
+
+                try:
+                    with urllib.request.urlopen(api_url, timeout=30) as response:
+                        release_data = json.loads(response.read().decode())
+                        download_url = f"https://github.com/{repo_owner}/{repo_name}/archive/refs/heads/main.zip"
+                        target_version = release_data.get("tag_name", "main")
+                except Exception as e:
+                    # Fallback to main branch
+                    self._log_update(f"⚠️ API request failed, using main branch: {e}")
+                    download_url = f"https://github.com/{repo_owner}/{repo_name}/archive/refs/heads/main.zip"
+                    target_version = "main"
+            else:
+                # Specific version download
+                download_url = f"https://github.com/{repo_owner}/{repo_name}/archive/refs/tags/{target_version}.zip"
+
+            self._log_update(f"⬇️ Downloading from: {download_url}")
+
+            # Download with multiple fallback strategies
+            zip_path = os.path.join(temp_dir, "update.zip")
+
+            # Strategy 1: urllib.request
+            try:
+                urllib.request.urlretrieve(download_url, zip_path)
+                self._log_update("✅ Download successful with urllib")
+            except Exception as e:
+                self._log_update(f"⚠️ urllib download failed: {e}")
+
+                # Strategy 2: curl fallback
+                try:
+                    result = subprocess.run(
+                        ["curl", "-L", "-o", zip_path, download_url, "--max-time", "300"],
+                        capture_output=True,
+                        text=True,
+                        timeout=300,
+                    )
+
+                    if result.returncode != 0:
+                        raise Exception(f"curl failed: {result.stderr}")
+                    self._log_update("✅ Download successful with curl")
+                except Exception as e:
+                    self._log_update(f"⚠️ curl download failed: {e}")
+
+                    # Strategy 3: wget fallback
+                    try:
+                        result = subprocess.run(
+                            ["wget", "-O", zip_path, download_url, "--timeout=300"],
+                            capture_output=True,
+                            text=True,
+                            timeout=300,
+                        )
+
+                        if result.returncode != 0:
+                            raise Exception(f"wget failed: {result.stderr}")
+                        self._log_update("✅ Download successful with wget")
+                    except Exception as e:
+                        self._log_update(f"❌ All download strategies failed: {e}")
+                        return False
+
+            # Verify download
+            if not os.path.exists(zip_path) or os.path.getsize(zip_path) < 1000:
+                self._log_update("❌ Downloaded file is invalid or too small")
+                return False
+
+            # Extract update
+            extract_dir = os.path.join(temp_dir, "extracted")
+            os.makedirs(extract_dir, exist_ok=True)
+
+            self._log_update("📦 Extracting update archive...")
+            with zipfile.ZipFile(zip_path, "r") as zip_ref:
+                zip_ref.extractall(extract_dir)
+
+            # Find the extracted directory (usually whisper-appliance-main or whisper-appliance-version)
+            extracted_dirs = [d for d in os.listdir(extract_dir) if os.path.isdir(os.path.join(extract_dir, d))]
+            if not extracted_dirs:
+                self._log_update("❌ No directories found in extracted archive")
+                return False
+
+            # Use the first (and usually only) extracted directory
+            source_dir = os.path.join(extract_dir, extracted_dirs[0])
+            self.update_state["update_source_dir"] = source_dir
+
+            self._log_update(f"✅ Update extracted to: {source_dir}")
+            return True
+
+        except Exception as e:
+            self._log_update(f"❌ Download failed: {e}")
+            logger.error(f"Update download failed: {e}")
+            return False
+
+    def _apply_permission_safe_update(self) -> bool:
+        """
+        Apply update using permission-safe file replacement strategy
+
+        Returns:
+            bool: True if update applied successfully
+        """
+        try:
+            source_dir = self.update_state.get("update_source_dir")
+            if not source_dir or not os.path.exists(source_dir):
+                self._log_update("❌ No valid source directory for update")
+                return False
+
+            self._log_update(f"🔄 Applying update from: {source_dir}")
+
+            # Define critical files and directories to update
+            update_patterns = [
+                ("src/", "src/"),  # Main application code
+                ("scripts/", "scripts/"),  # Deployment scripts
+                ("requirements.txt", "requirements.txt"),  # Dependencies
+                ("README.md", "README.md"),  # Documentation
+                ("CHANGELOG.md", "CHANGELOG.md"),  # Change log
+            ]
+
+            updated_files = 0
+            failed_files = 0
+
+            for src_pattern, dst_pattern in update_patterns:
+                src_path = os.path.join(source_dir, src_pattern)
+                dst_path = os.path.join(self.app_root, dst_pattern)
+
+                if not os.path.exists(src_path):
+                    self._log_update(f"⚠️ Source not found: {src_pattern}")
+                    continue
+
+                if os.path.isfile(src_path):
+                    # Single file update
+                    if self._replace_file_safely(src_path, dst_path):
+                        updated_files += 1
+                        self._log_update(f"✅ Updated: {dst_pattern}")
+                    else:
+                        failed_files += 1
+                        self._log_update(f"❌ Failed: {dst_pattern}")
+
+                elif os.path.isdir(src_path):
+                    # Directory update
+                    self._log_update(f"📁 Updating directory: {src_pattern}")
+
+                    for root, dirs, files in os.walk(src_path):
+                        for file in files:
+                            # Skip certain files
+                            if file in [".gitignore", ".git", "__pycache__", ".pyc"]:
+                                continue
+
+                            src_file = os.path.join(root, file)
+                            rel_path = os.path.relpath(src_file, src_path)
+                            dst_file = os.path.join(dst_path, rel_path)
+
+                            if self._replace_file_safely(src_file, dst_file):
+                                updated_files += 1
+                            else:
+                                failed_files += 1
+
+            # Update dependencies if requirements.txt changed
+            if os.path.exists(os.path.join(self.app_root, "requirements.txt")):
+                self._log_update("📦 Updating dependencies...")
+                try:
+                    result = subprocess.run(
+                        ["pip3", "install", "-r", os.path.join(self.app_root, "requirements.txt")],
+                        capture_output=True,
+                        text=True,
+                        timeout=120,
+                    )
+
+                    if result.returncode == 0:
+                        self._log_update("✅ Dependencies updated successfully")
+                    else:
+                        self._log_update(f"⚠️ Dependency update warnings: {result.stderr}")
+                except Exception as e:
+                    self._log_update(f"⚠️ Dependency update failed: {e}")
+
+            # Summary
+            total_operations = updated_files + failed_files
+            success_rate = (updated_files / total_operations * 100) if total_operations > 0 else 0
+
+            self._log_update(
+                f"📊 Update summary: {updated_files} updated, {failed_files} failed ({success_rate:.1f}% success)"
+            )
+
+            # Consider update successful if we have at least 80% success rate and core files updated
+            if success_rate >= 80 and updated_files > 0:
+                self._log_update("✅ Permission-safe update completed successfully")
+                return True
+            else:
+                self._log_update("❌ Update failed - insufficient success rate or no files updated")
+                return False
+
+        except Exception as e:
+            self._log_update(f"❌ Permission-safe update failed: {e}")
+            logger.error(f"Update application failed: {e}")
+            return False
+
     def _log_update(self, message: str):
         """Add message to update log"""
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")

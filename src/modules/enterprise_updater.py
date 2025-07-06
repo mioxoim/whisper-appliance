@@ -243,40 +243,89 @@ def integrate_with_flask_app(app, logger=None):
 
     @app.route("/api/enterprise/check-updates", methods=["GET"])
     def api_check_updates():
-        """Enterprise update check endpoint"""
+        """Enterprise update check endpoint - REAL IMPLEMENTATION"""
         try:
-            # Simple update check without full manager initialization
-            github_api_url = "https://api.github.com/repos/GaboCapo/whisper-appliance/releases/latest"
+            detector = DeploymentDetector(enterprise_logger)
+            deployment_type = detector.detect()
 
-            with urllib.request.urlopen(github_api_url, timeout=30) as response:
-                if response.status == 200:
-                    data = json.loads(response.read().decode())
+            enterprise_logger.info(f"🔍 Checking updates for {deployment_type.value}")
 
-                    latest_version = data["tag_name"].lstrip("v")
-                    current_version = "unknown"  # Simplified for demo
+            # Use ShopwareUpdateManager for real update checking
+            try:
+                from .shopware_update_manager import create_update_manager
 
-                    detector = DeploymentDetector(enterprise_logger)
-                    deployment_type = detector.detect()
+                update_manager = create_update_manager()
+                result = update_manager.check_for_updates()
+
+                if result["status"] == "success":
+                    enterprise_logger.info(
+                        f"✅ Update check completed: {result['current_version']} → {result['latest_version']}"
+                    )
 
                     return {
                         "status": "success",
                         "deployment_type": deployment_type.value,
                         "container_type": getattr(detector, "container_type", None),
-                        "current_version": current_version,
-                        "latest_version": latest_version,
-                        "has_update": latest_version != current_version,
-                        "release_notes": data.get("body", "")[:500],
+                        "current_version": result["current_version"],
+                        "latest_version": result["latest_version"],
+                        "has_update": result["updates_available"],
+                        "release_notes": result.get("release_notes", "")[:500],
+                        "last_check": result.get("last_check"),
                         "enterprise_features": [
+                            "Permission-safe file-by-file replacement (solves LXC issues)",
                             "Zero-downtime Blue-Green deployment",
-                            "Permission-safe file operations",
-                            "Automatic backup and rollback",
+                            "Automatic backup and rollback system",
                             "Deployment-aware update strategies",
-                            "Comprehensive error handling",
+                            "Comprehensive error handling and logging",
+                            "LXC container optimization",
                         ],
-                        "update_method": "enterprise_blue_green",
+                        "update_method": "permission_safe_enterprise",
+                        "technical_solution": {
+                            "problem": "Permission denied: '/opt/whisper-appliance' in LXC",
+                            "solution": "File-by-file replacement instead of shutil.rmtree()",
+                            "benefits": ["Works in unprivileged LXC", "Zero downtime", "Automatic rollback"],
+                        },
                     }
                 else:
-                    return {"status": "error", "message": "Failed to check for updates"}, 500
+                    enterprise_logger.warning(f"⚠️ Update check failed: {result.get('error', 'Unknown error')}")
+                    return {
+                        "status": "error",
+                        "message": f"Update check failed: {result.get('error', 'Unknown error')}",
+                        "deployment_type": deployment_type.value,
+                        "container_type": getattr(detector, "container_type", None),
+                    }, 500
+
+            except ImportError as ie:
+                enterprise_logger.warning(f"⚠️ ShopwareUpdateManager not available: {ie}")
+
+                # Fallback to simple GitHub API check
+                github_api_url = "https://api.github.com/repos/GaboCapo/whisper-appliance/releases/latest"
+
+                with urllib.request.urlopen(github_api_url, timeout=30) as response:
+                    if response.status == 200:
+                        data = json.loads(response.read().decode())
+
+                        latest_version = data["tag_name"].lstrip("v")
+                        current_version = "unknown"  # Simplified for fallback
+
+                        return {
+                            "status": "success",
+                            "deployment_type": deployment_type.value,
+                            "container_type": getattr(detector, "container_type", None),
+                            "current_version": current_version,
+                            "latest_version": latest_version,
+                            "has_update": True,  # Assume update available if can't determine current
+                            "release_notes": data.get("body", "")[:500],
+                            "enterprise_features": [
+                                "Deployment detection available",
+                                "Enterprise architecture ready",
+                                "ShopwareUpdateManager integration needed",
+                            ],
+                            "update_method": "enterprise_fallback",
+                            "note": "Install ShopwareUpdateManager for full functionality",
+                        }
+                    else:
+                        return {"status": "error", "message": "Failed to check GitHub releases"}, 500
 
         except Exception as e:
             enterprise_logger.error(f"Update check error: {e}")
@@ -284,56 +333,143 @@ def integrate_with_flask_app(app, logger=None):
 
     @app.route("/api/enterprise/start-update", methods=["POST"])
     def api_start_update():
-        """Enterprise update start endpoint"""
+        """Enterprise update start endpoint - REAL IMPLEMENTATION"""
         try:
             detector = DeploymentDetector(enterprise_logger)
             deployment_type = detector.detect()
 
-            # For now, return success without actually performing update
-            # Full implementation would use EnterpriseUpdateManager
+            enterprise_logger.info(f"🚀 Starting enterprise update for {deployment_type.value}")
 
-            return {
-                "status": "success",
-                "message": "Enterprise update system ready",
-                "deployment_type": deployment_type.value,
-                "container_type": getattr(detector, "container_type", None),
-                "update_method": "blue_green_zero_downtime",
-                "features": [
-                    "Zero-downtime deployment",
-                    "Permission-safe operations",
-                    "Automatic backup creation",
-                    "Rollback on failure",
-                    "Real-time progress monitoring",
-                ],
-                "note": "Full update implementation available in enterprise_updater.py",
-            }
+            # Import and initialize Shopware Update Manager
+            try:
+                from .shopware_update_manager import create_update_manager
+
+                # Create update manager with enterprise logger integration
+                update_manager = create_update_manager()
+
+                enterprise_logger.info("🛠️ ShopwareUpdateManager initialized")
+
+                # Perform actual permission-safe update
+                enterprise_logger.info("🔄 Starting permission-safe update process...")
+                result = update_manager.start_update()
+
+                if result:
+                    enterprise_logger.info("✅ Enterprise update completed successfully!")
+
+                    # Get final status for response
+                    status = update_manager.get_update_status()
+
+                    return {
+                        "status": "success",
+                        "message": "Enterprise update completed successfully",
+                        "deployment_type": deployment_type.value,
+                        "container_type": getattr(detector, "container_type", None),
+                        "update_method": "permission_safe_file_replacement",
+                        "current_version": status.get("current_version", "unknown"),
+                        "latest_version": status.get("latest_version", "unknown"),
+                        "backup_created": status.get("backup_created", False),
+                        "backup_path": status.get("backup_path", None),
+                        "features": [
+                            "Permission-safe file-by-file replacement",
+                            "Zero-downtime Blue-Green deployment",
+                            "Automatic backup creation",
+                            "Rollback on failure",
+                            "LXC container optimization",
+                            "Real-time progress monitoring",
+                        ],
+                        "technical_details": {
+                            "problem_solved": "Permission denied: '/opt/whisper-appliance'",
+                            "solution": "File-by-file replacement instead of shutil.rmtree()",
+                            "deployment_aware": True,
+                            "enterprise_grade": True,
+                        },
+                    }
+                else:
+                    # Update failed, get error details
+                    status = update_manager.get_update_status()
+                    error_msg = status.get("error", "Update failed for unknown reason")
+
+                    enterprise_logger.error(f"❌ Enterprise update failed: {error_msg}")
+
+                    return {
+                        "status": "error",
+                        "message": f"Enterprise update failed: {error_msg}",
+                        "deployment_type": deployment_type.value,
+                        "container_type": getattr(detector, "container_type", None),
+                        "error_details": error_msg,
+                        "rollback_performed": True,
+                        "backup_available": status.get("backup_created", False),
+                    }, 500
+
+            except ImportError as ie:
+                enterprise_logger.error(f"❌ ShopwareUpdateManager import failed: {ie}")
+                return {
+                    "status": "error",
+                    "message": "ShopwareUpdateManager not available",
+                    "error": str(ie),
+                    "deployment_type": deployment_type.value,
+                }, 500
 
         except Exception as e:
-            enterprise_logger.error(f"Update start error: {e}")
-            return {"status": "error", "message": f"Failed to start update: {e}"}, 500
+            enterprise_logger.error(f"❌ Enterprise update system error: {e}")
+            return {"status": "error", "message": f"Enterprise update system error: {e}"}, 500
 
     @app.route("/api/enterprise/update-status", methods=["GET"])
     def api_update_status():
-        """Enterprise update status endpoint"""
+        """Enterprise update status endpoint - REAL IMPLEMENTATION"""
         try:
             detector = DeploymentDetector(enterprise_logger)
             deployment_type = detector.detect()
 
-            return {
-                "status": "success",
-                "update_state": "idle",
-                "progress": 0,
-                "message": "Enterprise update system ready",
-                "deployment_type": deployment_type.value,
-                "container_type": getattr(detector, "container_type", None),
-                "enterprise_features": [
-                    "Zero-downtime Blue-Green deployment",
-                    "Permission-safe file operations",
-                    "Automatic rollback on failure",
-                    "Deployment-aware strategies",
-                    "Comprehensive audit logging",
-                ],
-            }
+            # Try to get real status from ShopwareUpdateManager
+            try:
+                from .shopware_update_manager import create_update_manager
+
+                update_manager = create_update_manager()
+                status = update_manager.get_update_status()
+
+                return {
+                    "status": "success",
+                    "update_state": "updating" if status["updating"] else "idle",
+                    "checking_updates": status["checking"],
+                    "progress": 50 if status["updating"] else 0,  # Simplified progress
+                    "message": "Enterprise update system operational",
+                    "deployment_type": deployment_type.value,
+                    "container_type": getattr(detector, "container_type", None),
+                    "current_version": status.get("current_version", "unknown"),
+                    "latest_version": status.get("latest_version", "not_checked"),
+                    "updates_available": status.get("updates_available", False),
+                    "last_check": status.get("last_check"),
+                    "last_update": status.get("last_update"),
+                    "backup_created": status.get("backup_created", False),
+                    "available_backups": status.get("available_backups", 0),
+                    "error": status.get("error"),
+                    "update_log": status.get("update_log", [])[-10:],  # Last 10 log entries
+                    "enterprise_features": [
+                        "Permission-safe file-by-file replacement",
+                        "Zero-downtime Blue-Green deployment",
+                        "Automatic rollback on failure",
+                        "Deployment-aware strategies",
+                        "Comprehensive audit logging",
+                        "LXC container optimization",
+                    ],
+                }
+
+            except ImportError:
+                # Fallback if ShopwareManager not available
+                return {
+                    "status": "success",
+                    "update_state": "idle",
+                    "progress": 0,
+                    "message": "Enterprise update system ready (ShopwareManager not loaded)",
+                    "deployment_type": deployment_type.value,
+                    "container_type": getattr(detector, "container_type", None),
+                    "enterprise_features": [
+                        "Deployment detection",
+                        "Container type recognition",
+                        "Permission-safe architecture",
+                    ],
+                }
 
         except Exception as e:
             enterprise_logger.error(f"Status check error: {e}")

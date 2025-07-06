@@ -137,13 +137,19 @@ else:
 try:
     model_manager = ModelManager()
     chat_history = ChatHistoryManager()
-    if UPDATE_MANAGER_AVAILABLE:
+
+    # Prioritize Enterprise Update System over Legacy Update Manager
+    if ENTERPRISE_UPDATE_AVAILABLE:
+        logger.info("🏢 Using Enterprise Update System (priority over legacy)")
+        update_manager = None  # Disable legacy update manager
+    elif UPDATE_MANAGER_AVAILABLE:
         update_manager = UpdateManager()
-        logger.info("✅ Model Manager, Chat History, and Update Manager initialized")
+        logger.info("🔄 Using Legacy Update Manager (Enterprise system not available)")
     else:
         update_manager = None
-        logger.warning("⚠️ Update Manager not available (backward compatibility mode)")
-        logger.info("✅ Model Manager and Chat History initialized")
+        logger.warning("⚠️ No Update Manager available (Enterprise or Legacy)")
+
+    logger.info("✅ Model Manager and Chat History initialized")
 except Exception as e:
     logger.error(f"❌ Failed to initialize core components: {e}")
     # Use minimal fallback components

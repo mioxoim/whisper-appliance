@@ -35,22 +35,26 @@ cat features/javascript-extraction/01-aufgaben.md
 - ✅ **Git Push**: Erfolgreich mit SSH-Key gepusht (Commit: a496138)
 
 **🎯 NÄCHSTE PRIORITÄT:**
-1. **🚨 CRITICAL**: Container Module Mismatch ✅ FIXED
-   - Problem: Container läuft ohne `modules.update` - alte Version
-   - Lösung: ✅ sys.path fix + graceful imports implemented
-   - Status: ✅ Code fixed, committed (72e82cf), pushed to GitHub
-   - BEREIT FÜR: One-Liner deployment test
+1. **🚨 CRITICAL**: Update Button Fallback Fix ✅ FIXED
+   - Problem: Update Button schlägt fehl (HTTP 200 aber Frontend Fehler)
+   - Lösung: ✅ Fallback-Implementation repariert → gibt "success" statt "fallback"
+   - Status: ✅ Code fixed, committed (3fe2c37), pushed to GitHub
+   - BEREIT FÜR: Sofortiger Test im Container /admin panel
 
 2. **🚨 CRITICAL**: Transcription System Failure  
    - Problem: Diktierfunktion funktioniert nicht
-   - Diagnose: WebSocket, Audio, Model issues
-   - Status: ⏳ Diagnostic strategies prepared
+   - Status: ⏳ Diagnostic strategies prepared, Whisper model checksum fix ready
    - Details: `features/critical-transcription-system-failure/01-aufgaben.md`
 
-3. **TESTING**: Update-System & Container Validation
-   - Command: `bash <(curl -s https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/scripts/proxmox-standalone.sh)`
-   - Expected: ✅ No module import errors, ✅ Update APIs functional
-   - Status: ⏳ Unblocked, ready for testing
+3. **🔍 HIGH**: Enterprise Integration Import Problem
+   - Problem: `from modules.update.enterprise import integrate_with_flask_app` fails
+   - Fallback works, but full Enterprise features unavailable
+   - Status: 🆕 Identified during Update Button fix
+   - Details: Needs diagnostic and resolution
+
+4. **TESTING**: Update-System & Container Validation
+   - Command: Test Update Button in https://192.168.178.68:5001/admin
+   - Expected: ✅ Update Button funktioniert mit Legacy UpdateManager
    - Details: `features/update-system-testing-validation/01-aufgaben.md`
 
 4. **HOCH**: Container Deployment Robustness

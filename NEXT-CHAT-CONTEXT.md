@@ -19,7 +19,7 @@ cat features/proxmox-deployment-test/01-aufgaben.md
 cat features/javascript-extraction/01-aufgaben.md
 ```
 
-### **🎯 AKTUELLER STATUS (Stand: $(date '+%Y-%m-%d %H:%M')):**
+### **🎯 AKTUELLER STATUS (Stand: 2025-07-06 15:30):**
 
 **✅ ABGESCHLOSSEN:**
 - ✅ **Phase 1 Complete**: Clean Refactor 7+1 Architecture vollständig implementiert
@@ -27,15 +27,25 @@ cat features/javascript-extraction/01-aufgaben.md
 - ✅ **Import-System**: Modernisiert, 100% backward compatibility
 - ✅ **Legacy Cleanup**: enterprise_updater.py & enterprise_maintenance.py entfernt
 - ✅ **Feature-Management-System**: Implementiert für Kontext-Kontinuität
-- ✅ **Git Push**: Erfolgreich mit SSH-Key gepusht (Commit: 3613d95)
+- ✅ **UPDATE-SYSTEM CORE**: Kernmethoden implementiert - Update Button funktionsfähig!
+  - ✅ `_download_update()` mit GitHub API & Fallback-Strategien
+  - ✅ `_apply_permission_safe_update()` mit sicherer Datei-Ersetzung
+  - ✅ `get_update_status()` mit comprehensive Status-Tracking
+  - ✅ VERSION file (0.8.1) für bessere Versionserkennung
+- ✅ **Git Push**: Erfolgreich mit SSH-Key gepusht (Commit: a496138)
 
 **🎯 NÄCHSTE PRIORITÄT:**
-1. **KRITISCH**: Proxmox One-Liner Test
+1. **KRITISCH**: Update-System Testing & Validation
+   - Command: Test API endpoints auf Development System
+   - Ziel: Update-Button funktioniert erstmals vollständig
+   - Details: `features/update-system-testing-validation/01-aufgaben.md`
+
+2. **DANN**: Proxmox One-Liner Test
    - Command: `bash <(curl -s https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/scripts/proxmox-standalone.sh)`
-   - Ziel: Validierung dass Phase 1 Änderungen Container-kompatibel sind
+   - Ziel: Validierung dass Update-System Container-kompatibel ist
    - Details: `features/proxmox-deployment-test/01-aufgaben.md`
 
-2. **HOCH**: JavaScript Extraction (Phase 2)
+3. **ANSCHLIESSEND**: JavaScript Extraction (Phase 2)
    - Ziel: admin_panel.py Zeilen 325-1200+ → separate /static/js/ Dateien
    - Details: `features/javascript-extraction/01-aufgaben.md`
 

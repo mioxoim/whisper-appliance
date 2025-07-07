@@ -161,8 +161,13 @@ if ! id "whisper" &>/dev/null; then
     usermod -aG audio whisper
 fi
 
-print_status "Setting up application directories..."
-mkdir -p /opt/whisper-appliance/{src,templates,static,models,uploads,logs,config}
+print_status "Cloning WhisperS2T repository..."
+cd /opt
+# Clone the repository
+if ! git clone https://github.com/GaboCapo/whisper-appliance.git; then
+    print_error "Failed to clone repository"
+    exit 1
+fi
 chown -R whisper:whisper /opt/whisper-appliance
 
 print_status "Installing Python dependencies..."

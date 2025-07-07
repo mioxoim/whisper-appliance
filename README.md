@@ -25,7 +25,7 @@ Deploy a complete LXC container with web interface in 10-15 minutes:
 
 ```bash
 # Run on Proxmox host as root:
-bash <(curl -s https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/scripts/proxmox-standalone.sh)
+bash <(curl -s https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/scripts/proxmox-standalone-git.sh)
 ```
 
 **What this does:**

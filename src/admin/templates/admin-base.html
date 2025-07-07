@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}WhisperAppliance Admin{% endblock %}</title>
+    
+    <!-- Admin CSS -->
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/admin-theme.css') }}">
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/admin-base.css') }}">
+    <link rel="stylesheet" href="{{ url_for('admin.static', filename='css/admin-components.css') }}">
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <!-- Navigation Header -->
+    <nav class="nav-header">
+        <div class="nav-container">
+            <div class="nav-brand">
+                <div class="nav-logo">🎤</div>
+                <div class="nav-title">WhisperAppliance Admin</div>
+            </div>
+            <div class="nav-links">
+                <a href="/admin" class="nav-link">Dashboard</a>
+                <a href="/admin/models" class="nav-link">Models</a>
+                <a href="/admin/settings" class="nav-link">Settings</a>
+                <a href="/" class="nav-link">Main App</a>
+                <a href="/docs" class="nav-link">API Docs</a>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Main Content -->
+    <main class="main-content">
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- Alert Container -->
+    <div id="alert-container"></div>
+    
+    <!-- Core JavaScript -->
+    <script src="{{ url_for('admin.static', filename='js/admin-core.js') }}"></script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

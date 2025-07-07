@@ -1,0 +1,105 @@
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Format uptime properly
+function formatUptime(seconds) {
+    const days = Math.floor(seconds / 86400);
+    const hours = Math.floor((seconds % 86400) / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = Math.floor(seconds % 60);
+    
+    const parts = [];
+    if (days > 0) parts.push(`${days}d`);
+    if (hours > 0) parts.push(`${hours}h`);
+    if (minutes > 0) parts.push(`${minutes}m`);
+    parts.push(`${secs}s`);
+    
+    return parts.join(' ');
+}
+
+// Update uptime display
+const uptimeElement = document.getElementById('system-uptime');
+if (uptimeElement) {
+    const uptimeSeconds = {{ system_info.uptime }};
+    uptimeElement.textContent = formatUptime(uptimeSeconds);
+}
+
+// Check for updates function
+async function checkForUpdates() {
+    AdminCore.showAlert('Checking for updates...', 'info');
+    
+    try {
+        const response = await fetch('/api/v1/update/check');
+        const data = await response.json();
+        
+        if (data.update_available) {
+            AdminCore.showModal(
+                'Update Available',
+                `<p>A new version is available: <strong>${data.latest_version}</strong></p>
+                 <p>Current version: ${data.current_version}</p>
+                 <p>Would you like to update now?</p>`,
+                [
+                    {
+                        text: 'Later',
+                        type: 'secondary',
+                        onclick: 'document.querySelector(".modal-overlay").remove()'
+                    },
+                    {
+                        text: 'Update Now',
+                        type: 'primary',
+                        onclick: 'performUpdate()'
+                    }
+                ]
+            );
+        } else {
+            AdminCore.showAlert('System is up to date', 'success');
+        }
+    } catch (error) {
+        AdminCore.showAlert('Failed to check for updates', 'danger');
+    }
+}
+
+// View update history
+function viewUpdateHistory() {
+    AdminCore.showModal(
+        'Update History',
+        '<p>Loading update history...</p>',
+        [
+            {
+                text: 'Close',
+                type: 'secondary',
+                onclick: 'document.querySelector(".modal-overlay").remove()'
+            }
+        ]
+    );
+}
+
+// Perform update
+async function performUpdate() {
+    document.querySelector('.modal-overlay').remove();
+    AdminCore.showAlert('Starting update process...', 'info');
+    
+    // Implementation would go here
+}
+
+// Auto-refresh dashboard data
+setInterval(async () => {
+    try {
+        const response = await fetch('/api/v1/system/status');
+        const data = await response.json();
+        
+        // Update uptime
+        const uptimeElement = document.getElementById('system-uptime');
+        if (uptimeElement && data.uptime) {
+            uptimeElement.textContent = formatUptime(data.uptime);
+        }
+    } catch (error) {
+        console.error('Failed to refresh dashboard:', error);
+    }
+}, 30000); // Refresh every 30 seconds
+</script>
+{% endblock %}

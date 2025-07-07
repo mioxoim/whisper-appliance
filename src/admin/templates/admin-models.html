@@ -1,0 +1,172 @@
+{% extends "admin-base.html" %}
+
+{% block title %}Models - WhisperAppliance Admin{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header">
+    <h1 class="page-title">Model Management</h1>
+    <p class="page-subtitle">Download and manage Whisper AI models</p>
+</div>
+
+<!-- Model Overview Cards -->
+<div class="grid grid-cols-3 mb-xl">
+    <!-- Total Models -->
+    <div class="card stat-card">
+        <div class="stat-label">Available Models</div>
+        <div class="stat-value">{{ models|length }}</div>
+        <div class="stat-icon">📦</div>
+    </div>
+    
+    <!-- Downloaded Models -->
+    <div class="card stat-card">
+        <div class="stat-label">Downloaded</div>
+        <div class="stat-value">{{ models|selectattr('is_downloaded')|list|length }}</div>
+        <div class="stat-icon">✅</div>
+    </div>
+    
+    <!-- Current Model -->
+    <div class="card stat-card">
+        <div class="stat-label">Current Model</div>
+        <div class="stat-value">
+            {% for model in models %}
+                {% if model.is_current %}{{ model.name }}{% endif %}
+            {% endfor %}
+            {% if not models|selectattr('is_current')|list %}None{% endif %}
+        </div>
+        <div class="stat-icon">🎯</div>
+    </div>
+</div>
+
+<!-- Models Table -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">Available Models</h3>
+        <button class="btn btn-sm btn-secondary" id="refresh-models" onclick="location.reload()">
+            🔄 Refresh
+        </button>
+    </div>
+    <div class="card-body">
+        <div class="table-container">
+            <table class="table table-striped">
+                <thead>
+                    <tr>
+                        <th>Model</th>
+                        <th>Status</th>
+                        <th>Size</th>
+                        <th>Parameters</th>
+                        <th>Speed</th>
+                        <th>Description</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="model-table-body">
+                    {% for model in models %}
+                    <tr>
+                        <td>
+                            <strong>{{ model.name }}</strong>
+                            {% if model.is_current %}
+                            <span class="status status-online">Current</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if model.is_downloaded %}
+                            <span class="status status-online">
+                                <span class="status-dot"></span> Downloaded
+                            </span>
+                            {% else %}
+                            <span class="status status-pending">
+                                <span class="status-dot"></span> Not Downloaded
+                            </span>
+                            {% endif %}
+                        </td>
+                        <td>{{ model.size }}</td>
+                        <td>{{ model.parameters }}</td>
+                        <td>{{ model.speed }}</td>
+                        <td>{{ model.description }}</td>
+                        <td>
+                            {% if model.is_downloaded %}
+                                {% if not model.is_current %}
+                                <button class="btn btn-sm btn-primary" 
+                                        onclick="switchModel('{{ model.id }}')">
+                                    Use Model
+                                </button>
+                                {% endif %}
+                                <button class="btn btn-sm btn-danger" 
+                                        onclick="deleteModel('{{ model.id }}')">
+                                    Delete
+                                </button>
+                            {% else %}
+                                <button class="btn btn-sm btn-success" 
+                                        onclick="downloadModel('{{ model.id }}')">
+                                    Download
+                                </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Model Information -->
+<div class="grid grid-cols-2 mt-xl">
+    <!-- Model Details -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">📋 Model Information</h3>
+        </div>
+        <div class="card-body">
+            <h4>Model Sizes:</h4>
+            <ul>
+                <li><strong>Tiny:</strong> Fastest but least accurate (39 MB)</li>
+                <li><strong>Base:</strong> Good for English, fast (74 MB)</li>
+                <li><strong>Small:</strong> Balanced performance (244 MB)</li>
+                <li><strong>Medium:</strong> Good accuracy (769 MB)</li>
+                <li><strong>Large:</strong> Best accuracy, slow (1.5 GB)</li>
+            </ul>
+        </div>
+    </div>
+    
+    <!-- Usage Tips -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">💡 Usage Tips</h3>
+        </div>
+        <div class="card-body">
+            <h4>Choosing the Right Model:</h4>
+            <ul>
+                <li>Use <strong>Tiny/Base</strong> for real-time transcription</li>
+                <li>Use <strong>Small</strong> for balanced quality</li>
+                <li>Use <strong>Medium/Large</strong> for highest accuracy</li>
+                <li>Consider your hardware capabilities</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('admin.static', filename='js/admin-models.js') }}"></script>
+<script>
+// Model management functions that integrate with admin-models.js
+
+async function downloadModel(modelId) {
+    if (confirm(`Download model ${modelId}? This may take several minutes.`)) {
+        ModelManager.downloadModel(modelId);
+    }
+}
+
+async function switchModel(modelId) {
+    if (confirm(`Switch to model ${modelId}?`)) {
+        ModelManager.switchModel(modelId);
+    }
+}
+
+async function deleteModel(modelId) {
+    ModelManager.deleteModel(modelId);
+}
+</script>
+{% endblock %}

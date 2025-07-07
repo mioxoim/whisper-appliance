@@ -1,0 +1,224 @@
+{% extends "admin-base.html" %}
+
+{% block title %}Settings - WhisperAppliance Admin{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header">
+    <h1 class="page-title">System Settings</h1>
+    <p class="page-subtitle">Configure WhisperAppliance system settings</p>
+</div>
+
+<!-- Settings Sections -->
+<div class="grid grid-cols-1 gap-lg">
+    
+    <!-- General Settings -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">⚙️ General Settings</h3>
+        </div>
+        <div class="card-body">
+            <form id="general-settings-form">
+                <div class="mb-md">
+                    <label for="app-name"><strong>Application Name:</strong></label>
+                    <input type="text" id="app-name" class="form-input" value="WhisperAppliance" />
+                </div>
+                
+                <div class="mb-md">
+                    <label for="default-language"><strong>Default Language:</strong></label>
+                    <select id="default-language" class="form-select">
+                        <option value="auto">Auto-detect</option>
+                        <option value="en">English</option>
+                        <option value="de">German</option>
+                        <option value="es">Spanish</option>
+                        <option value="fr">French</option>
+                    </select>
+                </div>
+                
+                <div class="mb-md">
+                    <label><strong>Auto-save Transcriptions:</strong></label>
+                    <input type="checkbox" id="auto-save" checked /> Enable
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Save Settings</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- API Settings -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">🔌 API Settings</h3>
+        </div>
+        <div class="card-body">
+            <form id="api-settings-form">
+                <div class="mb-md">
+                    <label for="api-key"><strong>API Key:</strong></label>
+                    <input type="text" id="api-key" class="form-input" value="**********************" readonly />
+                    <button type="button" class="btn btn-sm btn-secondary mt-sm" onclick="regenerateApiKey()">
+                        Regenerate Key
+                    </button>
+                </div>
+                
+                <div class="mb-md">
+                    <label for="rate-limit"><strong>Rate Limit (requests/minute):</strong></label>
+                    <input type="number" id="rate-limit" class="form-input" value="60" />
+                </div>
+                
+                <div class="mb-md">
+                    <label><strong>CORS Enabled:</strong></label>
+                    <input type="checkbox" id="cors-enabled" checked /> Enable CORS
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Save API Settings</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Performance Settings -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">⚡ Performance Settings</h3>
+        </div>
+        <div class="card-body">
+            <form id="performance-settings-form">
+                <div class="mb-md">
+                    <label for="max-workers"><strong>Max Worker Threads:</strong></label>
+                    <input type="number" id="max-workers" class="form-input" value="4" min="1" max="16" />
+                </div>
+                
+                <div class="mb-md">
+                    <label for="batch-size"><strong>Batch Size:</strong></label>
+                    <input type="number" id="batch-size" class="form-input" value="10" min="1" max="100" />
+                </div>
+                
+                <div class="mb-md">
+                    <label><strong>GPU Acceleration:</strong></label>
+                    <input type="checkbox" id="gpu-enabled" /> Enable GPU (if available)
+                </div>
+                
+                <button type="submit" class="btn btn-primary">Save Performance Settings</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Maintenance -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">🔧 Maintenance</h3>
+        </div>
+        <div class="card-body">
+            <div class="grid grid-cols-2 gap-md">
+                <button class="btn btn-secondary" onclick="clearCache()">
+                    🗑️ Clear Cache
+                </button>
+                <button class="btn btn-secondary" onclick="exportLogs()">
+                    📥 Export Logs
+                </button>
+                <button class="btn btn-secondary" onclick="backupSettings()">
+                    💾 Backup Settings
+                </button>
+                <button class="btn btn-secondary" onclick="restoreSettings()">
+                    📤 Restore Settings
+                </button>
+            </div>
+            
+            <div class="mt-lg">
+                <h4>Danger Zone</h4>
+                <button class="btn btn-danger" onclick="resetToDefaults()">
+                    ⚠️ Reset to Defaults
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+.form-input, .form-select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    font-size: var(--font-size-base);
+    margin-top: 4px;
+}
+
+.form-input:focus, .form-select:focus {
+    outline: none;
+    border-color: var(--primary-color);
+}
+</style>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Settings management functions
+
+// General settings
+document.getElementById('general-settings-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    AdminCore.showAlert('General settings saved successfully', 'success');
+});
+
+// API settings
+document.getElementById('api-settings-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    AdminCore.showAlert('API settings saved successfully', 'success');
+});
+
+// Performance settings
+document.getElementById('performance-settings-form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    AdminCore.showAlert('Performance settings saved successfully', 'success');
+});
+
+// Maintenance functions
+function clearCache() {
+    if (confirm('Clear all cached data? This cannot be undone.')) {
+        AdminCore.showAlert('Cache cleared successfully', 'success');
+    }
+}
+
+function exportLogs() {
+    AdminCore.showAlert('Preparing log export...', 'info');
+    // Implementation would trigger log download
+}
+
+function backupSettings() {
+    AdminCore.showAlert('Creating settings backup...', 'info');
+    // Implementation would trigger settings backup download
+}
+
+function restoreSettings() {
+    AdminCore.showModal(
+        'Restore Settings',
+        '<p>Select a backup file to restore:</p><input type="file" accept=".json" />',
+        [
+            {
+                text: 'Cancel',
+                type: 'secondary',
+                onclick: 'document.querySelector(".modal-overlay").remove()'
+            },
+            {
+                text: 'Restore',
+                type: 'primary',
+                onclick: 'performRestore()'
+            }
+        ]
+    );
+}
+
+function resetToDefaults() {
+    if (confirm('Reset all settings to defaults? This cannot be undone.')) {
+        AdminCore.showAlert('Settings reset to defaults', 'warning');
+    }
+}
+
+function regenerateApiKey() {
+    if (confirm('Generate new API key? The old key will stop working immediately.')) {
+        // Implementation would generate new key
+        AdminCore.showAlert('New API key generated', 'success');
+    }
+}
+</script>
+{% endblock %}

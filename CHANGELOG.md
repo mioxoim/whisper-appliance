@@ -95,7 +95,7 @@ This release represents a complete architectural overhaul and project reorganiza
 - **🔄 Release Candidate Versioning**: Proper semantic versioning for testing phase
 
 ### Changed - MAJOR IMPROVEMENTS ⚡
-- **📦 Project Renamed**: "Whisper Appliance Appliance" → "OpenAI Whisper Web Interface"
+- **📦 Project Renamed**: "Whisper Appliance" → "OpenAI Whisper Web Interface"
 - **🏗️ Architecture Simplified**: From FastAPI + multiple backends → Flask + SocketIO
 - **📂 File Organization**: Scripts moved to `scripts/`, docs reorganized
 - **🔄 Development Workflow**: Updated for Flask-based development

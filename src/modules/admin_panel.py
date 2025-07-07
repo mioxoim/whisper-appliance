@@ -193,6 +193,8 @@ class AdminPanel:
     def get_demo_interface(self):
         """Demo interface stub"""
         return "<h1>Demo Interface - Coming Soon</h1>"
+
+    def get_admin_interface(self):
         """Generate admin interface without f-string CSS issues"""
         uptime = (datetime.now() - self.system_stats["uptime_start"]).total_seconds()
         uptime_formatted = f"{int(uptime // 3600)}h {int((uptime % 3600) // 60)}m {int(uptime % 60)}s"

@@ -1,4 +1,4 @@
-# 🎤 Whisper Appliance Appliance v1.1.0
+# 🎤 Whisper Appliance v1.1.0
 
 ## ⚠️ DEVELOPMENT STATUS
 

@@ -1,8 +1,8 @@
-# Whisper Appliance Appliance - Proxmox Container Deployment
+# Whisper Appliance - Proxmox Container Deployment
 
 ## 🎯 Container-First Approach
 
-This repository is optimized for **Proxmox LXC Container** deployment, providing a fast and reliable way to run the Whisper Appliance Appliance.
+This repository is optimized for **Proxmox LXC Container** deployment, providing a fast and reliable way to run the Whisper Appliance.
 
 ## 📋 Prerequisites
 

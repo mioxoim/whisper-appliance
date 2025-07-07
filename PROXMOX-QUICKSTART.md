@@ -1,4 +1,4 @@
-# 🎤 Whisper Appliance Appliance - Proxmox Quick Start
+# 🎤 Whisper Appliance - Proxmox Quick Start
 
 ## 🚀 5-Minuten-Deployment für Proxmox
 

@@ -1,4 +1,4 @@
-# 🎤 Whisper Appliance Appliance - Feature Management System
+# 🎤 Whisper Appliance - Feature Management System
 
 ## 🎯 **Aktive Features & Projekte**
 

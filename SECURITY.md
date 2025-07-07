@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-We actively support the following versions of Whisper Appliance Appliance:
+We actively support the following versions of Whisper Appliance:
 
 | Version | Supported          |
 | ------- | ------------------ |
@@ -12,7 +12,7 @@ We actively support the following versions of Whisper Appliance Appliance:
 
 ## Reporting a Vulnerability
 
-We take security vulnerabilities seriously. If you discover a security vulnerability in Whisper Appliance Appliance, please report it responsibly.
+We take security vulnerabilities seriously. If you discover a security vulnerability in Whisper Appliance, please report it responsibly.
 
 ### How to Report
 

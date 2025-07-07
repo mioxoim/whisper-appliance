@@ -107,6 +107,16 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 logger = logging.getLogger(__name__)
 
+# ==================== EARLY UPDATE SYSTEM INITIALIZATION ====================
+# Initialize Update System immediately after Flask app creation
+if UPDATE_MANAGER_IMPORTED and create_update_endpoints:
+    logger.info("🔄 Initializing Update System (early init)...")
+    create_update_endpoints(app, logger)
+    logger.info("✅ Update System integrated at /api/update/*")
+else:
+    logger.warning("⚠️ No update system available")
+    logger.info("💡 Update functionality disabled")
+
 # System statistics and state
 system_stats = {"uptime_start": datetime.now(), "total_transcriptions": 0, "active_connections": 0}
 connected_clients = []
@@ -1637,18 +1647,6 @@ def enterprise_maintenance_disable():
     except Exception as e:
         logger.error(f"Enterprise maintenance disable failed: {e}")
         return jsonify({"status": "error", "error": str(e)}), 500
-
-
-# ==================== UPDATE SYSTEM INITIALIZATION ====================
-
-# Initialize Update System (must be before __main__ to ensure endpoints are registered)
-if UPDATE_MANAGER_IMPORTED and create_update_endpoints:
-    logger.info("🔄 Initializing Update System...")
-    create_update_endpoints(app, logger)
-    logger.info("✅ Update System integrated at /api/update/*")
-else:
-    logger.warning("⚠️ No update system available")
-    logger.info("💡 Update functionality disabled")
 
 
 # ==================== MAIN STARTUP ====================

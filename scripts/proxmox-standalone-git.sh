@@ -138,6 +138,8 @@ fi
 print_status "Cloning WhisperS2T repository..."
 cd /opt
 git clone https://github.com/GaboCapo/whisper-appliance.git
+# Add /opt/whisper-appliance to safe directories
+git config --global --add safe.directory /opt/whisper-appliance
 chown -R whisper:whisper /opt/whisper-appliance
 
 print_status "Installing Python dependencies..."

@@ -490,19 +490,6 @@ class AdminPanel:
 '''
         
         return html_template
-            bg_style = 'background: #e8f5e8;' if is_current else ''
-            current_indicator = ' ✅' if is_current else ''
-            
-            rows_html += f'''
-            <tr style="{bg_style}">
-                <td style="padding: 8px; border: 1px solid #ddd;"><strong>{model_info["name"]}</strong>{current_indicator}</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">{model_info.get("size", "Unknown")}</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">{model_info.get("speed", "Unknown")}</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">{model_info.get("quality", "Unknown")}</td>
-                <td style="padding: 8px; border: 1px solid #ddd;">{model_info.get("description", "No description")}</td>
-            </tr>'''
-        
-        return rows_html
 
     def _get_model_download_status_rows(self):
         """Generate HTML table rows for model download status"""

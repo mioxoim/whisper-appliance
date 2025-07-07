@@ -1,13 +1,13 @@
-# 🔄 WhisperS2T Update Management
+# 🔄 Whisper Appliance Update Management
 
 ## 📋 Overview
 
-WhisperS2T v0.6.0 includes comprehensive update management that allows you to automatically receive bug fixes, new features, and security updates directly from GitHub.
+Whisper Appliance v0.6.0 includes comprehensive update management that allows you to automatically receive bug fixes, new features, and security updates directly from GitHub.
 
 ## 🎯 Update Methods
 
 ### 1. Web Interface (Recommended)
-- Access your WhisperS2T web interface
+- Access your Whisper Appliance web interface
 - Click on the **"Updates"** tab
 - Click **"Check for Updates"** 
 - If updates are available, click **"Install Updates"**

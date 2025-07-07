@@ -1,4 +1,4 @@
-# 🔑 SSH Deploy Key Setup for WhisperS2T Appliance
+# 🔑 SSH Deploy Key Setup for Whisper Appliance
 
 ## 📋 Generated Deploy Key Information
 
@@ -20,7 +20,7 @@ ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAINF1fn8l/ZsQuWEmlx4qfSVL9ykCovOcpdCbxnvKYrsP
 2. **Navigate to:** Settings → Deploy keys
 3. **Click:** "Add deploy key"
 4. **Configure:**
-   - **Title:** `WhisperS2T Appliance Deploy Key - 2025-06-28`
+   - **Title:** `Whisper Appliance Deploy Key - 2025-06-28`
    - **Key:** Copy the public key above
    - **Allow write access:** ✅ Check if you need push access
    - **Click:** "Add key"

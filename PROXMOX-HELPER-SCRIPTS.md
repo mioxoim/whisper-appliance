@@ -2,7 +2,7 @@
 
 ## 📋 Overview
 
-WhisperS2T includes a **Proxmox VE Helper Script** inspired by the popular [community-scripts/ProxmoxVE](https://github.com/community-scripts/ProxmoxVE) project. This script enables **one-command deployment** of WhisperS2T in LXC containers.
+Whisper Appliance includes a **Proxmox VE Helper Script** inspired by the popular [community-scripts/ProxmoxVE](https://github.com/community-scripts/ProxmoxVE) project. This script enables **one-command deployment** of Whisper Appliance in LXC containers.
 
 ## ⚡ One-Liner Installation
 
@@ -22,7 +22,7 @@ bash <(curl -s https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main
 **That's it!** This single command will:
 - ✅ Create a new LXC container automatically
 - ✅ Download Ubuntu 22.04 template if needed
-- ✅ Install WhisperS2T with all dependencies
+- ✅ Install Whisper Appliance with all dependencies
 - ✅ Configure web interface and services
 - ✅ Setup update management system
 - ✅ Provide you with the web interface URL
@@ -38,10 +38,10 @@ bash <(curl -s https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main
 - **Network**: DHCP configuration with bridge
 - **Features**: Nesting and keyctl enabled for Docker support
 
-### **WhisperS2T Installation**
+### **Whisper Appliance Installation**
 - **System Updates**: Updates container to latest packages
 - **Dependencies**: Installs Python, FFmpeg, audio libraries
-- **Application**: Clones and installs WhisperS2T
+- **Application**: Clones and installs Whisper Appliance
 - **Services**: Configures systemd and nginx
 - **Updates**: Sets up GitHub-based update system
 
@@ -59,7 +59,7 @@ bash <(curl -s https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main
 - **Purpose**: Complete automated deployment with fallback mechanisms
 - **Features**: Robust downloads, template management, container creation, installation
 - **Usage**: Perfect for all deployment scenarios
-- **Output**: Ready-to-use WhisperS2T container
+- **Output**: Ready-to-use Whisper Appliance container
 - **Reliability**: Self-contained with robust error handling
 
 **This is the only script you need!** All other scripts were consolidated into this robust solution.
@@ -137,7 +137,7 @@ pct status <CTID>
 # Get container IP
 pct exec <CTID> -- hostname -I
 
-# Check WhisperS2T service
+# Check Whisper Appliance service
 pct exec <CTID> -- systemctl status whisper-appliance
 
 # Access container console
@@ -160,7 +160,7 @@ pct stop <CTID>      # Stop container
 pct restart <CTID>   # Restart container
 pct destroy <CTID>   # Delete container
 
-# WhisperS2T management (inside container)
+# Whisper Appliance management (inside container)
 pct exec <CTID> -- systemctl restart whisper-appliance
 pct exec <CTID> -- journalctl -u whisper-appliance -f
 pct exec <CTID> -- /opt/whisper-appliance/auto-update.sh status
@@ -168,7 +168,7 @@ pct exec <CTID> -- /opt/whisper-appliance/auto-update.sh status
 
 ## 🔄 Updates and Maintenance
 
-### **Update WhisperS2T**
+### **Update Whisper Appliance**
 ```bash
 # Via web interface (recommended)
 # Go to http://<container-ip>:5000 → Updates tab → Install Updates
@@ -312,4 +312,4 @@ bash <(curl -s https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main
 - **Monitor resources**: Check container resource usage
 - **Update regularly**: Use web interface Updates tab
 
-**🚀 Ready to deploy? Copy the one-liner and get WhisperS2T running in minutes!**
+**🚀 Ready to deploy? Copy the one-liner and get Whisper Appliance running in minutes!**

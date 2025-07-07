@@ -1,6 +1,6 @@
-# Contributing to WhisperS2T Appliance
+# Contributing to Whisper Appliance
 
-We welcome contributions to the WhisperS2T Appliance project! This document provides guidelines for contributing.
+We welcome contributions to the Whisper Appliance project! This document provides guidelines for contributing.
 
 ## 🎯 How to Contribute
 
@@ -147,4 +147,4 @@ cd whisper-appliance
 
 ---
 
-Thank you for contributing to WhisperS2T Appliance! 🎤
+Thank you for contributing to Whisper Appliance! 🎤

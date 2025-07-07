@@ -5,7 +5,7 @@
 ### **🔄 KONTEXT WIEDERHERSTELLEN (COPY & PASTE):**
 
 ```bash
-# 1. In WhisperS2T Projekt wechseln
+# 1. In Whisper Appliance Projekt wechseln
 cd /home/commander/Code/whisper-appliance
 
 # 2. Feature-Status anzeigen
@@ -63,13 +63,13 @@ cat features/javascript-extraction/01-aufgaben.md
    - Status: 🆕 Neu identifiziert während Implementation
    - Details: `features/container-deployment-robustness/01-aufgaben.md`
 
-5. **HOCH**: Performance Benchmark vs Original WhisperS2T
+5. **HOCH**: Performance Benchmark vs Original Whisper Appliance
    - Ziel: Validierung dass unsere Performance mindestens so gut ist wie Original
    - Referenz: https://github.com/shashikg/WhisperS2T
    - Details: `features/performance-benchmark-whispers2t/01-aufgaben.md`
 
-6. **HOCH**: Branding Update WhisperS2T → WhisperAppliance  
-   - Ziel: Alle WhisperS2T Referenzen ersetzen + Credits an Original
+6. **HOCH**: Branding Update Whisper Appliance → WhisperAppliance
+   - Ziel: Alle Whisper Appliance Referenzen ersetzen + Credits an Original
    - Umfang: README, Source Code, UI, API, Documentation
    - Details: `features/branding-whispers2t-to-whisperappliance/01-aufgaben.md`
 
@@ -106,8 +106,8 @@ from modules.update.enterprise import integrate_with_flask_app
 - **Feature Management**: CLI-Tool + strukturierte Dokumentation (11 Features aktiv)
 - **Update System**: ✅ Kernmethoden implementiert + Container-kompatibel
 - **Critical Fixes**: ✅ Container Module Mismatch behoben (sys.path + graceful imports)
-- **Performance**: Benchmark-Framework geplant gegen Original WhisperS2T
-- **Branding**: Comprehensive WhisperS2T → WhisperAppliance Transformation geplant
+- **Performance**: Benchmark-Framework geplant gegen Original Whisper Appliance
+- **Branding**: Comprehensive Whisper Appliance → WhisperAppliance Transformation geplant
 
 ### **🚨 WICHTIGE ERINNERUNGEN:**
 

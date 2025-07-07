@@ -1,4 +1,4 @@
-# 🚀 Schnellstart-Anleitung - Enhanced WhisperS2T v0.4.0
+# 🚀 Schnellstart-Anleitung - Whisper Appliance v0.4.0
 
 ## ⚡ 5-Minuten Setup
 

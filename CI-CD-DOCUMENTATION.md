@@ -2,9 +2,9 @@
 
 ## 📋 Overview
 
-WhisperS2T uses **GitHub Actions** for Continuous Integration and Continuous Deployment (CI/CD) to maintain high code quality and ensure reliable deployments.
+Whisper Appliance uses **GitHub Actions** for Continuous Integration and Continuous Deployment (CI/CD) to maintain high code quality and ensure reliable deployments.
 
-## 🎯 Why CI/CD for WhisperS2T?
+## 🎯 Why CI/CD for Whisper Appliance?
 
 ### **Primary Goals**
 1. **🛡️ Prevent Breaking Changes** - Catch issues before they reach users
@@ -13,7 +13,7 @@ WhisperS2T uses **GitHub Actions** for Continuous Integration and Continuous Dep
 4. **🔒 Maintain Security Standards** - Scan for potential vulnerabilities
 5. **📚 Keep Documentation Current** - Ensure docs match code changes
 
-### **WhisperS2T-Specific Benefits**
+### **Whisper Appliance-Specific Benefits**
 - **Container Deployments**: Installation scripts tested on every change
 - **Update System**: Verify update mechanisms work correctly
 - **Cross-Platform**: Ensure compatibility across different environments
@@ -32,7 +32,7 @@ WhisperS2T uses **GitHub Actions** for Continuous Integration and Continuous Dep
 - **Style Compliance**: Runs flake8 for PEP 8 compliance
 - **Dependency Installation**: Tests requirements.txt installation
 
-**Why important for WhisperS2T:**
+**Why important for Whisper Appliance:**
 - **Update System**: Python update scripts must be error-free
 - **Web Interface**: Flask application code quality
 - **Maintenance**: Easier to debug and extend clean code
@@ -46,7 +46,7 @@ WhisperS2T uses **GitHub Actions** for Continuous Integration and Continuous Dep
 - **Security**: Identifies potential security issues in scripts
 - **Portability**: Ensures scripts work across different shells
 
-**Why critical for WhisperS2T:**
+**Why critical for Whisper Appliance:**
 - **Installation Scripts**: `install-container.sh` must be bulletproof
 - **Update System**: `auto-update.sh` and `dev.sh` reliability
 - **Build Scripts**: ISO and container build script validation
@@ -61,7 +61,7 @@ WhisperS2T uses **GitHub Actions** for Continuous Integration and Continuous Dep
 - **Requirements**: Validates dependency files
 - **Permissions**: Checks file permissions and executability
 
-**Why essential for WhisperS2T:**
+**Why essential for Whisper Appliance:**
 - **10-Minute Deployment**: Installation must work reliably
 - **Container Creation**: Validate Proxmox LXC setup
 - **Update Mechanism**: Ensure update scripts are functional
@@ -76,7 +76,7 @@ WhisperS2T uses **GitHub Actions** for Continuous Integration and Continuous Dep
 - **Link Validation**: Ensures internal links work
 - **Format Checking**: Validates markdown syntax
 
-**Why important for WhisperS2T:**
+**Why important for Whisper Appliance:**
 - **User Onboarding**: Clear installation instructions
 - **Update Documentation**: Keep guides current with features
 - **Community Support**: Enable users to self-serve
@@ -91,7 +91,7 @@ WhisperS2T uses **GitHub Actions** for Continuous Integration and Continuous Dep
 - **Dependencies**: Checks for known vulnerable packages
 - **Configuration**: Reviews security-related settings
 
-**Why critical for WhisperS2T:**
+**Why critical for Whisper Appliance:**
 - **SSH Keys**: Deploy keys must not be exposed
 - **Container Security**: Secure deployment configurations
 - **Update Security**: Safe update mechanisms
@@ -260,4 +260,4 @@ pip install black isort flake8
 3. **Clear Commits**: Help reviewers understand changes
 4. **Fix CI First**: Address failing builds immediately
 
-**🎯 The CI/CD pipeline ensures WhisperS2T remains reliable, secure, and professional - giving you confidence in every deployment!**
+**🎯 The CI/CD pipeline ensures Whisper Appliance remains reliable, secure, and professional - giving you confidence in every deployment!**

@@ -49,6 +49,6 @@ Claude documents results in `/Tests/TestResults/YYYY-MM-DD-[Feature].md`
 
 ## Deployment Targets
 
-- **Primary**: Proxmox LXC → Docker → Whisper-Appliance
+- **Primary**: Proxmox LXC → Docker → Whisper Appliance
 - **Secondary**: Pure Docker for local development
 - **Fallback**: Direct installation without containers

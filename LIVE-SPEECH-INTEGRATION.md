@@ -1,8 +1,8 @@
-# WhisperS2T v0.6.0 - Live Speech Integration
+# Whisper Appliance v0.6.0 - Live Speech Integration
 
 ## 🎙️ **NEW: Live Speech Recognition**
 
-WhisperS2T v0.6.0 now includes **real-time speech recognition** alongside the existing file upload functionality!
+Whisper Appliance v0.6.0 now includes **real-time speech recognition** alongside the existing file upload functionality!
 
 ### ✨ **Dual Interface Features:**
 
@@ -130,7 +130,7 @@ GET /health
 
 ### 🎉 **Ready to Use!**
 
-The enhanced WhisperS2T with live speech recognition is production-ready and deployed automatically with the one-liner installation.
+The enhanced Whisper Appliance with live speech recognition is production-ready and deployed automatically with the one-liner installation.
 
 **Access your appliance**: `http://your-container-ip:5000`
 
@@ -138,4 +138,4 @@ The enhanced WhisperS2T with live speech recognition is production-ready and dep
 
 ---
 
-*WhisperS2T v0.6.0 - Enterprise-ready speech recognition with live microphone input and file upload capabilities.*
+*Whisper Appliance v0.6.0 - Enterprise-ready speech recognition with live microphone input and file upload capabilities.*

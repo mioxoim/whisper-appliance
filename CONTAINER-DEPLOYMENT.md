@@ -1,8 +1,8 @@
-# WhisperS2T Appliance - Proxmox Container Deployment
+# Whisper Appliance Appliance - Proxmox Container Deployment
 
 ## 🎯 Container-First Approach
 
-This repository is optimized for **Proxmox LXC Container** deployment, providing a fast and reliable way to run the WhisperS2T Appliance.
+This repository is optimized for **Proxmox LXC Container** deployment, providing a fast and reliable way to run the Whisper Appliance Appliance.
 
 ## 📋 Prerequisites
 
@@ -35,7 +35,7 @@ This repository is optimized for **Proxmox LXC Container** deployment, providing
 #    - Enable SSH
 ```
 
-### Step 2: Deploy WhisperS2T
+### Step 2: Deploy Whisper Appliance
 
 ```bash
 # SSH into the container

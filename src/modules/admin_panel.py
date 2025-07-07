@@ -671,29 +671,39 @@ class AdminPanel:
                 </div>
                 
                 <div class="update-controls" style="margin: 15px 0;">
-                    <button id="simple-update-btn" onclick="performUpdate()" 
-                            style="margin-right: 10px; padding: 12px 20px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 16px; font-weight: bold;">
-                        &#x1F504; Update Now
-                    </button>
-                    <button id="check-updates-btn" onclick="checkUpdates()" 
+                    <button id="check-updates-btn" onclick="checkForUpdates()" 
                             style="margin-right: 10px; padding: 12px 20px; background: #17a2b8; color: white; border: none; border-radius: 6px; cursor: pointer;">
-                        &#x1F50D; Check Updates
+                        &#x1F50D; Check for Updates
                     </button>
-                    <button id="restart-service-btn" onclick="restartService()" 
-                            style="padding: 12px 20px; background: #ffc107; color: black; border: none; border-radius: 6px; cursor: pointer;">
-                        &#x1F504; Restart Service
+                    <button id="apply-updates-btn" onclick="applyUpdates()" 
+                            style="margin-right: 10px; padding: 12px 20px; background: #28a745; color: white; border: none; border-radius: 6px; cursor: pointer;" 
+                            disabled>
+                        &#x2B07; Install Updates
+                    </button>
+                    <button id="rollback-btn" onclick="rollbackUpdate()" 
+                            style="padding: 12px 20px; background: #dc3545; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                        &#x21A9; Rollback
                     </button>
                 </div>
                 
-                <div id="update-progress-container" style="margin: 15px 0; display: none;">
-                    <div style="background: #f8f9fa; padding: 15px; border-radius: 6px; border: 1px solid #dee2e6;">
-                        <h4 style="margin-bottom: 10px;">Update Progress:</h4>
-                        <div id="update-progress-bar-container" style="background: #e9ecef; border-radius: 4px; height: 20px; margin: 10px 0;">
-                            <div id="update-progress-bar" style="background: #007bff; height: 100%; border-radius: 4px; width: 0%; transition: width 0.3s;"></div>
-                        </div>
-                        <div id="update-status-text" style="font-size: 14px; color: #495057;">Ready to update...</div>
-                        <div id="update-log-container" style="margin-top: 10px; max-height: 200px; overflow-y: auto; background: #2d3748; color: #e2e8f0; padding: 10px; border-radius: 4px; font-family: monospace; font-size: 12px; display: none;">
-                        </div>
+                <div id="update-status" style="margin: 15px 0;">
+                    <span id="update-status-text">Click "Check for Updates" to see if updates are available</span>
+                </div>
+                
+                <div id="update-progress" style="margin-top: 15px; display: none;">
+                    <div style="background: #f0f0f0; border-radius: 4px; padding: 2px;">
+                        <div id="update-progress-bar" style="background: #007bff; height: 20px; border-radius: 2px; width: 0%; transition: width 0.3s;"></div>
+                    </div>
+                </div>
+                
+                <div id="update-details" style="margin-top: 15px; display: none;">
+                    <h4>Update Information:</h4>
+                    <div id="update-info-content"></div>
+                </div>
+                
+                <div id="update-log" style="margin-top: 15px; display: none;">
+                    <h4>Update Log:</h4>
+                    <div id="update-log-content" style="max-height: 200px; overflow-y: auto; background: #f8f9fa; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 0.9em;">
                     </div>
                 </div>
                 

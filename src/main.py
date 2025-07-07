@@ -1639,16 +1639,19 @@ def enterprise_maintenance_disable():
         return jsonify({"status": "error", "error": str(e)}), 500
 
 
-# ==================== STARTUP ====================
+# ==================== UPDATE SYSTEM INITIALIZATION ====================
 
-# Initialize Update System
+# Initialize Update System (must be before __main__ to ensure endpoints are registered)
 if UPDATE_MANAGER_IMPORTED and create_update_endpoints:
     logger.info("🔄 Initializing Update System...")
     create_update_endpoints(app, logger)
-    logger.info("✅ Update System integrated")
+    logger.info("✅ Update System integrated at /api/update/*")
 else:
     logger.warning("⚠️ No update system available")
     logger.info("💡 Update functionality disabled")
+
+
+# ==================== MAIN STARTUP ====================
 
 if __name__ == "__main__":
     logger.info("🎤 Starting Enhanced WhisperS2T Appliance v1.1.0...")

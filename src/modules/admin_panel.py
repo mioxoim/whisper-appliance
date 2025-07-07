@@ -649,24 +649,6 @@ class AdminPanel:
         </body>
         </html>
         """
--log" style="margin-top: 15px; display: none;">
-                    <h4>Update Log:</h4>
-                    <div id="update-log-content" style="max-height: 200px; overflow-y: auto; background: #f8f9fa; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 0.9em;">
-                    </div>
-                </div>
-                
-                <div class="update-info" style="margin-top: 15px; padding: 12px; background: #e8f5e8; border-radius: 4px; font-size: 14px;">
-                    <strong>🔄 Update System:</strong><br>
-                    • Git-based updates with automatic detection<br>
-                    • Backup and rollback support<br>
-                    • Version tracking and commit history<br>
-                    • Production-ready deployment<br>
-                    • Automatic service restart<br>
-                    • Modular architecture
-                </div>
-            </div>
-        </div>
-        '''
 
     def _get_chat_history_stats_html(self):
         """Generate HTML for chat history statistics"""

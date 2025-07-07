@@ -1,4 +1,4 @@
-# 🎤 Enhanced WhisperS2T Appliance v1.0.0
+# 🎤 Enhanced WhisperS2T Appliance v1.1.0
 
 ## ⚠️ DEVELOPMENT STATUS
 

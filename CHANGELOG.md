@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2025-07-07
+
+### 🔄 Changed - UNIFIED UPDATE SYSTEM
+- **🏗️ Complete Update System Rewrite**: Replaced multiple update implementations with single unified system
+- **📁 Modular Architecture**: Clean separation in `modules/update/` directory:
+  - `manager.py` - Central update management
+  - `git_monitor.py` - Git-based update detection
+  - `installer.py` - Update installation with backup
+  - `rollback.py` - Rollback functionality
+  - `api.py` - REST API endpoints
+- **🎯 Simplified Naming**: Removed confusing prefixes (enterprise, simple, shopware)
+- **🔧 Git-Based Updates**: Direct integration with GitHub repository
+- **📊 Enhanced Status Tracking**: Real-time commit history and update status
+
+### 🗑️ Removed - LEGACY SYSTEMS
+- Removed `simple_updater.py` - replaced by unified system
+- Removed `shopware_update_manager.py` - replaced by unified system
+- Removed enterprise update subsystem - functionality merged into main system
+- Removed multiple fallback mechanisms - single robust implementation
+
+### ✨ Improved - UPDATE FEATURES
+- **🔒 Automatic Backups**: Before each update with configurable retention
+- **↩️ Smart Rollback**: List and restore from any backup point
+- **📝 Commit History**: View last 20 commits from GitHub
+- **🔄 Service Management**: Automatic restart detection and handling
+- **📊 Progress Tracking**: Real-time update progress with detailed logging
+
 ## [0.10.0] - 2025-07-03
 
 ### 🆕 Added - WEB-BASED UPDATE SYSTEM

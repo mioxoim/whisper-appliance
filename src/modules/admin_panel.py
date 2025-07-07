@@ -24,6 +24,33 @@ class AdminPanel:
         self.update_manager = update_manager
         self.update_available = update_manager is not None
 
+    def _safe_get_current_model(self):
+        """Safely get current model name with fallback"""
+        if self.model_manager:
+            try:
+                return self.model_manager.get_current_model_name()
+            except Exception:
+                return "Error loading model"
+        return "Model Manager unavailable"
+
+    def _safe_get_available_models(self):
+        """Safely get available models with fallback"""
+        if self.model_manager:
+            try:
+                return self.model_manager.get_available_models()
+            except Exception:
+                return {}
+        return {}
+
+    def _safe_is_loading(self):
+        """Safely check if model is loading"""
+        if self.model_manager:
+            try:
+                return self.model_manager.is_model_loading()
+            except Exception:
+                return False
+        return False
+
     def get_admin_interface(self):
         """Enhanced Admin Panel with Navigation - Preserving original + adding navigation"""
         uptime = (datetime.now() - self.system_stats["uptime_start"]).total_seconds()
@@ -216,16 +243,16 @@ class AdminPanel:
                     <div class="model-management">
                         <div class="current-model">
                             <strong>Current Model:</strong> 
-                            <span id="current-model-name">{self.model_manager.get_current_model_name()}</span>
+                            <span id="current-model-name">{self._safe_get_current_model()}</span>
                             <span id="model-loading-indicator" style="color: #007bff; font-style: italic;">
-                                {"(Loading...)" if self.model_manager.is_model_loading() else ""}
+                                {("(Loading...)" if self._safe_is_loading() else "")}
                             </span>
                         </div>
                         
                         <div class="model-selector" style="margin: 15px 0;">
                             <label for="admin-model-select"><strong>Switch Model:</strong></label>
                             <select id="admin-model-select" style="margin-left: 10px; padding: 5px;">
-                                {"".join([f'<option value="{model_id}" {"selected" if model_id == self.model_manager.get_current_model_name() else ""}>{model_info["name"]} - {model_info["description"]}</option>' for model_id, model_info in self.model_manager.get_available_models().items()])}
+                                {"".join([f'<option value="{model_id}" {"selected" if model_id == self._safe_get_current_model() else ""}>{model_info["name"]} - {model_info["description"]}</option>' for model_id, model_info in self._safe_get_available_models().items()]) if self._safe_get_available_models() else '<option>No models available</option>'}
                             </select>
                             <button onclick="switchAdminModel()" style="margin-left: 10px; padding: 5px 10px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer;">
                                 Switch Model
@@ -245,13 +272,13 @@ class AdminPanel:
                                     <th style="padding: 8px; border: 1px solid #ddd; text-align: left;">Description</th>
                                 </tr>
                                 {"".join([f'''
-                                <tr style="{'background: #e8f5e8;' if model_id == self.model_manager.get_current_model_name() else ''}">
-                                    <td style="padding: 8px; border: 1px solid #ddd;"><strong>{model_info["name"]}</strong> {"✅" if model_id == self.model_manager.get_current_model_name() else ""}</td>
-                                    <td style="padding: 8px; border: 1px solid #ddd;">{model_info["size"]}</td>
-                                    <td style="padding: 8px; border: 1px solid #ddd;">{model_info["speed"]}</td>
-                                    <td style="padding: 8px; border: 1px solid #ddd;">{model_info["quality"]}</td>
-                                    <td style="padding: 8px; border: 1px solid #ddd;">{model_info["description"]}</td>
-                                </tr>''' for model_id, model_info in self.model_manager.get_available_models().items()])}
+                                <tr style="{'background: #e8f5e8;' if model_id == self._safe_get_current_model() else ''}">
+                                    <td style="padding: 8px; border: 1px solid #ddd;"><strong>{model_info["name"]}</strong> {"✅" if model_id == self._safe_get_current_model() else ""}</td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">{model_info.get("size", "Unknown")}</td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">{model_info.get("speed", "Unknown")}</td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">{model_info.get("quality", "Unknown")}</td>
+                                    <td style="padding: 8px; border: 1px solid #ddd;">{model_info.get("description", "No description")}</td>
+                                </tr>''' for model_id, model_info in self._safe_get_available_models().items()]) if self._safe_get_available_models() else '<tr><td colspan="5" style="padding: 8px; border: 1px solid #ddd; text-align: center;">No models available</td></tr>'}
                             </table>
                         </div>
                     </div>
@@ -463,16 +490,175 @@ class AdminPanel:
             </script>
         """
 
-        # Insert JavaScript before closing body tag
-        admin_html = admin_html.replace("</body>", js_script + "</body>")
+        # JavaScript for update management
+        update_js = """
+        <script>
+        let currentUpdateInfo = null;
+        
+        async function checkForUpdates() {
+            const checkBtn = document.getElementById('check-updates-btn');
+            const statusText = document.getElementById('update-status-text');
+            const applyBtn = document.getElementById('apply-updates-btn');
+            
+            try {
+                checkBtn.disabled = true;
+                checkBtn.innerHTML = '&#x1F504; Checking...';
+                statusText.innerHTML = 'Checking for updates...';
+                
+                const response = await fetch('/api/update/check');
+                const data = await response.json();
+                
+                if (data.update_available) {
+                    statusText.innerHTML = '✅ Update available!';
+                    currentUpdateInfo = data;
+                    applyBtn.disabled = false;
+                    
+                    // Show update details
+                    const detailsDiv = document.getElementById('update-details');
+                    const infoContent = document.getElementById('update-info-content');
+                    detailsDiv.style.display = 'block';
+                    
+                    infoContent.innerHTML = `
+                        <p><strong>Current:</strong> ${data.current_version.substring(0, 7)}</p>
+                        <p><strong>Latest:</strong> ${data.latest_version.substring(0, 7)}</p>
+                        <p><strong>Message:</strong> ${data.update_info.message}</p>
+                        <p><strong>Author:</strong> ${data.update_info.author}</p>
+                        <p><strong>Date:</strong> ${new Date(data.update_info.date).toLocaleString()}</p>
+                    `;
+                } else {
+                    statusText.innerHTML = '✓ System is up to date';
+                    applyBtn.disabled = true;
+                }
+                
+                // Update version display
+                document.getElementById('current-version-display').innerHTML = 
+                    `${data.current_version.substring(0, 7)}`;
+                
+            } catch (error) {
+                statusText.innerHTML = '❌ Check failed: ' + error.message;
+            } finally {
+                checkBtn.disabled = false;
+                checkBtn.innerHTML = '&#x1F50D; Check for Updates';
+            }
+        }
+        
+        async function applyUpdates() {
+            if (!currentUpdateInfo || !currentUpdateInfo.update_available) {
+                alert('No updates available');
+                return;
+            }
+            
+            if (!confirm('Apply update now?\\n\\nThis will:\\n• Create a backup\\n• Install the update\\n• Restart the service if needed\\n\\nContinue?')) {
+                return;
+            }
+            
+            const applyBtn = document.getElementById('apply-updates-btn');
+            const statusText = document.getElementById('update-status-text');
+            const progressDiv = document.getElementById('update-progress');
+            const progressBar = document.getElementById('update-progress-bar');
+            const logDiv = document.getElementById('update-log');
+            const logContent = document.getElementById('update-log-content');
+            
+            try {
+                applyBtn.disabled = true;
+                applyBtn.innerHTML = '&#x1F504; Installing...';
+                progressDiv.style.display = 'block';
+                logDiv.style.display = 'block';
+                
+                progressBar.style.width = '20%';
+                statusText.innerHTML = 'Creating backup...';
+                logContent.innerHTML += '[' + new Date().toLocaleTimeString() + '] Starting update process...\\n';
+                
+                const response = await fetch('/api/update/install', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                progressBar.style.width = '60%';
+                statusText.innerHTML = 'Installing update...';
+                logContent.innerHTML += '[' + new Date().toLocaleTimeString() + '] Installing updates...\\n';
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    progressBar.style.width = '100%';
+                    statusText.innerHTML = '✅ Update installed successfully!';
+                    logContent.innerHTML += '[' + new Date().toLocaleTimeString() + '] ' + data.message + '\\n';
+                    
+                    if (data.restart_required) {
+                        logContent.innerHTML += '[' + new Date().toLocaleTimeString() + '] Service restart required\\n';
+                        setTimeout(() => {
+                            alert('Update completed! The service will restart now.');
+                            location.reload();
+                        }, 2000);
+                    }
+                } else {
+                    throw new Error(data.message || 'Update failed');
+                }
+                
+            } catch (error) {
+                progressBar.style.width = '0%';
+                statusText.innerHTML = '❌ Update failed: ' + error.message;
+                logContent.innerHTML += '[' + new Date().toLocaleTimeString() + '] ERROR: ' + error.message + '\\n';
+                alert('Update failed: ' + error.message);
+            } finally {
+                applyBtn.disabled = false;
+                applyBtn.innerHTML = '&#x2B07; Install Updates';
+            }
+        }
+        
+        async function rollbackUpdate() {
+            const response = await fetch('/api/update/backups');
+            const data = await response.json();
+            
+            if (!data.backups || data.backups.length === 0) {
+                alert('No backups available');
+                return;
+            }
+            
+            const backup = prompt('Enter backup name to rollback to:\\n\\n' + 
+                data.backups.map(b => b.name + ' (' + new Date(b.date).toLocaleString() + ')').join('\\n'));
+            
+            if (!backup) return;
+            
+            if (!confirm('Rollback to ' + backup + '?\\n\\nThis will restore the previous version.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/update/rollback', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ backup_name: backup })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    alert('Rollback successful! The page will reload.');
+                    location.reload();
+                } else {
+                    throw new Error(data.message);
+                }
+            } catch (error) {
+                alert('Rollback failed: ' + error.message);
+            }
+        }
+        
+        // Auto-check for updates on page load
+        window.addEventListener('load', () => {
+            setTimeout(checkForUpdates, 1000);
+        });
+        </script>
+        """
+
+        # Insert both JavaScript blocks before closing body tag
+        admin_html = admin_html.replace("</body>", js_script + update_js + "</body>")
 
         return admin_html
 
     def _get_update_management_html(self):
-        """Generate HTML for update management section"""
-        # Always show update section with simple update button
-        update_available_class = "available" if self.update_available else "legacy"
-
+        """Generate HTML for update management section - supports both SimpleUpdater and Legacy systems"""
         return f"""
         <!-- Update Management Section -->
         <div class="stat-card">
@@ -480,10 +666,7 @@ class AdminPanel:
             <div class="update-management">
                 <div class="current-version" style="margin-bottom: 15px;">
                     <strong>Current Version:</strong> 
-                    <span id="current-version-display">
-                        {self.update_manager.get_current_version() if self.update_available else "file-based"}
-                    </span>
-                    <br><small><strong>Deployment:</strong> <span id="deployment-type">{"git_based" if self.update_available else "file_download_based"}</span></small>
+                    <span id="current-version-display">v1.0.0</span>
                     <span id="update-status-indicator" style="margin-left: 10px; font-style: italic; color: #666;"></span>
                 </div>
                 
@@ -516,218 +699,18 @@ class AdminPanel:
                 
                 <div class="update-info" style="margin-top: 15px; padding: 12px; background: #e8f5e8; border-radius: 4px; font-size: 14px;">
                     <strong>🔄 Simple Update System:</strong><br>
-                    &bull; Git-based updates with webhook support<br>
+                    &bull; Git-based updates with automatic detection<br>
+                    &bull; Backup and rollback support<br>
+                    &bull; Version tracking and commit history<br>
+                    &bull; Production-ready deployment<br>
                     &bull; Automatic service restart<br>
-                    &bull; Version tracking and history<br>
-                    &bull; Production-ready error handling<br>
-                    &bull; Deployment environment detection<br>
-                    &bull; Lightweight and reliable operation
-                </div>
-            </div>
-        </div>
-        
-        <script>
-        let updateInProgress = false;
-        
-        async function performUpdate() {{
-            if (updateInProgress) {{
-                alert('Update already in progress...');
-                return;
-            }}
-            
-            if (!confirm('🚀 Start Git Update now?\\n\\nThis will:\\n• Pull latest changes from git repository\\n• Update version tracking\\n• Restart the service\\n• Take 1-2 minutes\\n\\nContinue?')) {{
-                return;
-            }}
-            
-            updateInProgress = true;
-            const updateBtn = document.getElementById('simple-update-btn');
-            const progressContainer = document.getElementById('update-progress-container');
-            const progressBar = document.getElementById('update-progress-bar');
-            const statusText = document.getElementById('update-status-text');
-            const logContainer = document.getElementById('update-log-container');
-            
-            try {{
-                // Show progress
-                updateBtn.disabled = true;
-                updateBtn.innerHTML = '&#x1F504; Updating...';
-                progressContainer.style.display = 'block';
-                progressBar.style.width = '10%';
-                statusText.innerHTML = '🔄 Starting update process...';
-                
-                // Call Simple update endpoint
-                const response = await fetch('/api/updates/apply', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' }
-                });
-                
-                progressBar.style.width = '50%';
-                statusText.innerHTML = '⬇️ Downloading updates...';
-                
-                const data = await response.json();
-                
-                if (data.status === 'success') {{
-                    progressBar.style.width = '90%';
-                    statusText.innerHTML = `🔄 Git Update: ${{data.message}}`;
-                    
-                    // Show update features
-                    const features = ['Git-based updates', 'Version tracking', 'Service restart'];
-                    statusText.innerHTML += `<br>📋 Features: ${{features.join(', ')}}`;
-                    
-                    // Wait a moment for update process
-                    setTimeout(() => {{
-                        progressBar.style.width = '100%';
-                        statusText.innerHTML = '✅ Update completed successfully!';
-                        
-                        setTimeout(() => {{
-                            alert(`✅ Update completed!\\n\\n${{data.message}}\\n\\nThe page will reload to show the updated version.`);
-                            location.reload();
-                        }}, 2000);
-                    }}, 3000);
-                    
-                }} else {{
-                    throw new Error(data.error || 'Update failed');
-                }}
-                
-            }} catch (error) {{
-                console.error('Update failed:', error);
-                progressBar.style.width = '0%';
-                statusText.innerHTML = '❌ Update failed: ' + error.message;
-                updateBtn.disabled = false;
-                updateBtn.innerHTML = '&#x1F504; Update Now';
-                alert('❌ Update failed: ' + error.message);
-            }} finally {{
-                updateInProgress = false;
-            }}
-        }}
-        
-        async function checkUpdates() {{
-            const statusIndicator = document.getElementById('update-status-indicator');
-            try {{
-                statusIndicator.innerHTML = '(Checking...)';
-                const response = await fetch('/api/updates/check');
-                const data = await response.json();
-                
-                if (data.status === 'error') {{
-                    statusIndicator.innerHTML = '<span style="color: #dc3545;">(Check failed: ' + data.message + ')</span>';
-                    console.error('Update check failed:', data);
-                    return;
-                }}
-                
-                // Show deployment info
-                if (data.deployment_type) {{
-                    console.log('🔄 Update System: ' + data.deployment_type);
-                }}
-                
-                if (data.update_available) {{
-                    statusIndicator.innerHTML = `
-                        <span style="color: #ffc107;">
-                            (Update available: ${{data.commits_behind}} commits behind)
-                            <br><small style="font-size: 0.8em;">
-                                Current: ${{data.current_version}}
-                                <br>System: ${{data.deployment_type}}
-                            </small>
-                        </span>
-                    `;
-                }} else {{
-                    statusIndicator.innerHTML = `
-                        <span style="color: #28a745;">(Up to date)</span>
-                        <br><small style="font-size: 0.8em;">
-                            Version: ${{data.current_version || 'Unknown'}} | System: ${{data.deployment_type}}
-                        </small>
-                    `;
-                }}
-            }} catch (error) {{
-                statusIndicator.innerHTML = '<span style="color: #dc3545;">(Network error: ' + error.message + ')</span>';
-                console.error('Update check network error:', error);
-            }}
-        }}
-        
-        async function restartService() {{
-            if (!confirm('🔄 Restart the WhisperS2T service?\\n\\nThis will temporarily interrupt the service.')) {{
-                return;
-            }}
-            
-            try {{
-                const response = await fetch('/api/restart-service', {{ method: 'POST' }});
-                const data = await response.json();
-                
-                if (data.status === 'success') {{
-                    alert('✅ Service restart initiated!\\n\\nThe page will reload in a few seconds.');
-                    setTimeout(() => location.reload(), 3000);
-                }} else {{
-                    alert('❌ Failed to restart service: ' + data.error);
-                }}
-            }} catch (error) {{
-                alert('❌ Network error: ' + error.message);
-            }}
-        }}
-        
-        // Auto-check for updates on page load
-        setTimeout(checkUpdates, 1000);
-        </script>
-        """
-
-        if not self.update_available:
-            return update_html
-
-        return f"""
-        <!-- Update Management Section -->
-        <div class="stat-card">
-            <h3>&#x1F504; System Updates</h3>
-            <div class="update-management">
-                <div class="current-version">
-                    <strong>Current Version:</strong> 
-                    <span id="current-version">{current_version}</span>
-                </div>
-                
-                <div class="update-status" style="margin: 15px 0;">
-                    <div id="update-status-display">
-                        <span id="update-status-text">Click "Check for Updates" to see if updates are available</span>
-                        <div id="update-progress" style="margin-top: 10px; display: none;">
-                            <div style="background: #f0f0f0; border-radius: 4px; padding: 2px;">
-                                <div id="update-progress-bar" style="background: #007bff; height: 20px; border-radius: 2px; width: 0%; transition: width 0.3s;"></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="update-controls" style="margin: 15px 0;">
-                    <button id="check-updates-btn" onclick="checkForUpdates()" 
-                            style="margin-right: 10px; padding: 8px 15px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                        &#x1F50D; Check for Updates
-                    </button>
-                    <button id="apply-updates-btn" onclick="applyUpdates()" 
-                            style="margin-right: 10px; padding: 8px 15px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;" 
-                            disabled>
-                        &#x2B07; Install Updates
-                    </button>
-                    <button id="rollback-btn" onclick="rollbackUpdate()" 
-                            style="padding: 8px 15px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer;">
-                        &#x21A9; Rollback
-                    </button>
-                </div>
-                
-                <div id="update-details" style="margin-top: 15px; display: none;">
-                    <h4>Update Information:</h4>
-                    <div id="update-info-content"></div>
-                </div>
-                
-                <div id="update-log" style="margin-top: 15px; display: none;">
-                    <h4>Update Log:</h4>
-                    <div id="update-log-content" style="max-height: 200px; overflow-y: auto; background: #f8f9fa; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 0.9em;">
-                    </div>
-                </div>
-                
-                <div class="update-info" style="margin-top: 15px; padding: 10px; background: #e9ecef; border-radius: 4px; font-size: 0.9em;">
-                    <strong>Update Features:</strong><br>
-                    &bull; Automatic backup before updates<br>
-                    &bull; Rollback capability to previous version<br>
-                    &bull; Safe update process with service restart<br>
-                    &bull; GitHub-based updates with SSL verification
+                    &bull; Modular architecture
                 </div>
             </div>
         </div>
         """
+
+        return update_html
 
     def _get_chat_history_stats_html(self):
         """Generate HTML for chat history statistics"""

@@ -22,14 +22,14 @@ from .live_speech import LiveSpeechHandler
 from .model_manager import ModelManager
 from .upload_handler import UploadHandler
 
-# Modular Update System
+# Update System
 try:
-    from .update import UpdateManager, create_update_manager
+    from .update import UpdateManager, create_update_endpoints
 
     UPDATE_MANAGER_AVAILABLE = True
 except ImportError:
     UpdateManager = None
-    create_update_manager = None
+    create_update_endpoints = None
     UPDATE_MANAGER_AVAILABLE = False
 
 # Maintenance System
@@ -42,14 +42,7 @@ except ImportError:
     EnterpriseMaintenanceManager = None
     MAINTENANCE_MANAGER_AVAILABLE = False
 
-# Enterprise Update System Integration
-try:
-    from .update.enterprise import integrate_with_flask_app
-
-    ENTERPRISE_UPDATE_AVAILABLE = True
-except ImportError:
-    integrate_with_flask_app = None
-    ENTERPRISE_UPDATE_AVAILABLE = False
+# Enterprise Update System Integration (REMOVED - now using single update system)
 
 # Legacy compatibility imports (DEPRECATED - use new modular imports)
 try:
@@ -69,17 +62,14 @@ __all__ = [
     "APIDocs",
     "ModelManager",
     "ChatHistoryManager",
-    # Modular Update System
+    # Update System
     "UpdateManager",
-    "create_update_manager",
+    "create_update_endpoints",
     "UPDATE_MANAGER_AVAILABLE",
     # Maintenance System
     "MaintenanceManager",
     "EnterpriseMaintenanceManager",  # Backward compatibility alias
     "MAINTENANCE_MANAGER_AVAILABLE",
-    # Enterprise Integration
-    "integrate_with_flask_app",
-    "ENTERPRISE_UPDATE_AVAILABLE",
     # Legacy compatibility (DEPRECATED)
     "UpdateConfig",
     "LEGACY_UPDATE_CONFIG_AVAILABLE",

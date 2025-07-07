@@ -57,12 +57,13 @@ except ImportError as e:
 
 # Import UpdateManager with graceful fallback
 try:
-    from modules import UpdateManager
+    from modules import UpdateManager, create_update_endpoints
 
     UPDATE_MANAGER_IMPORTED = True
     print("✅ UpdateManager imported successfully")
 except ImportError as e:
     UpdateManager = None
+    create_update_endpoints = None
     UPDATE_MANAGER_IMPORTED = False
     print(f"⚠️ UpdateManager not available: {e}")
 
@@ -87,22 +88,6 @@ except ImportError as e:
     MaintenanceManager = None
     MAINTENANCE_MANAGER_IMPORTED = False
     print(f"⚠️ MaintenanceManager not available: {e}")
-
-# ==================== SIMPLE UPDATE SYSTEM ====================
-# Modern, simple git-based update system replacing complex legacy systems
-try:
-    from modules.simple_updater import integrate_simple_updater
-
-    SIMPLE_UPDATER_AVAILABLE = True
-    print("✅ SimpleUpdater loaded successfully")
-except ImportError as e:
-    SIMPLE_UPDATER_AVAILABLE = False
-    print(f"⚠️ SimpleUpdater not available: {e}")
-    print("💡 No update system will be available")
-
-# ==================== NO UPDATE SYSTEM FALLBACK NEEDED ====================
-# SimpleUpdater replaces all complex enterprise/legacy fallback systems
-# All update endpoints are handled by SimpleUpdater when available
 
 
 # Enterprise Maintenance System (additive)
@@ -144,16 +129,13 @@ try:
     model_manager = ModelManager()
     chat_history = ChatHistoryManager()
 
-    # Prioritize Enterprise Update System over Legacy Update Manager
-    if ENTERPRISE_UPDATE_AVAILABLE:
-        logger.info("🏢 Using Enterprise Update System (priority over legacy)")
-        update_manager = None  # Disable legacy update manager
-    elif UPDATE_MANAGER_IMPORTED and UpdateManager is not None:
+    # Initialize Update Manager if available
+    if UPDATE_MANAGER_IMPORTED and UpdateManager is not None:
         update_manager = UpdateManager()
-        logger.info("🔄 Using Legacy Update Manager (Enterprise system not available)")
+        logger.info("🔄 Update Manager initialized")
     else:
         update_manager = None
-        logger.warning("⚠️ No Update Manager available (Enterprise or Legacy)")
+        logger.warning("⚠️ No Update Manager available")
 
     logger.info("✅ Model Manager and Chat History initialized")
 except Exception as e:
@@ -1659,22 +1641,22 @@ def enterprise_maintenance_disable():
 
 # ==================== STARTUP ====================
 
-# Initialize Simple Update System
-if SIMPLE_UPDATER_AVAILABLE:
-    logger.info("🔄 Initializing Simple Update System...")
-    integrate_simple_updater(app, logger)
-    logger.info("✅ Simple Update System integrated")
+# Initialize Update System
+if UPDATE_MANAGER_IMPORTED and create_update_endpoints:
+    logger.info("🔄 Initializing Update System...")
+    create_update_endpoints(app, logger)
+    logger.info("✅ Update System integrated")
 else:
     logger.warning("⚠️ No update system available")
     logger.info("💡 Update functionality disabled")
 
 if __name__ == "__main__":
-    logger.info("🎤 Starting Enhanced WhisperS2T Appliance v1.0.0...")
-    logger.info("🔄 SIMPLIFIED: Single, robust update system replacing complex legacy systems")
+    logger.info("🎤 Starting Enhanced WhisperS2T Appliance v1.1.0...")
+    logger.info("🔄 Update System: Git-based with automatic detection")
     logger.info("🌐 SSL: Intelligent network certificate with SAN support")
 
-    if SIMPLE_UPDATER_AVAILABLE:
-        logger.info("🔄 Simple Update System: Git-based updates with webhook support")
+    if UPDATE_MANAGER_IMPORTED:
+        logger.info("🔄 Update System: Ready for Git-based updates")
     else:
         logger.info("⚠️ Update System: Disabled (no update functionality available)")
 

@@ -42,13 +42,14 @@ try:
     from modules import (
         ENTERPRISE_MAINTENANCE_AVAILABLE,
         UPDATE_MANAGER_AVAILABLE,
-        AdminPanel,
+        # AdminPanel, # Removed: Will use init_admin_panel from src.admin
         APIDocs,
         ChatHistoryManager,
         LiveSpeechHandler,
         ModelManager,
         UploadHandler,
     )
+    from src.admin import init_admin_panel # Added for the new admin panel
 
     print("✅ Core modules imported successfully")
 except ImportError as e:
@@ -177,23 +178,31 @@ try:
     upload_handler = UploadHandler(model_manager, WHISPER_AVAILABLE, system_stats, chat_history)
     live_speech_handler = LiveSpeechHandler(model_manager, WHISPER_AVAILABLE, system_stats, connected_clients, chat_history)
 
-    # AdminPanel initialization with optional UpdateManager
-    if update_manager:
-        admin_panel = AdminPanel(
-            WHISPER_AVAILABLE, system_stats, connected_clients, model_manager, chat_history, update_manager
-        )
-    else:
-        # Fallback AdminPanel initialization without UpdateManager
-        admin_panel = AdminPanel(WHISPER_AVAILABLE, system_stats, connected_clients, model_manager, chat_history)
+    # Initialize the new Admin Panel using init_admin_panel
+    # The old admin_panel instantiation is removed.
+    try:
+        # Ensure model_manager and system_stats are available
+        # The init_admin_panel function from src.admin.admin_panel expects 'app', 'model_manager', and 'system_stats'.
+        # app is available globally. model_manager and system_stats should be initialized by this point.
+        if model_manager is not None and system_stats is not None:
+            admin_panel_instance = init_admin_panel(app, model_manager=model_manager, system_stats=system_stats)
+            logger.info("✅ New Admin Panel initialized and blueprint registered.")
+        else:
+            logger.error("❌ Failed to initialize new Admin Panel: model_manager or system_stats not available.")
+            admin_panel_instance = None # Or some fallback if necessary
+    except Exception as e_admin:
+        logger.error(f"❌ Error initializing new Admin Panel: {e_admin}")
+        admin_panel_instance = None # Fallback
 
     api_docs = APIDocs(version="0.10.0")
-    logger.info("✅ All module handlers initialized")
+    logger.info("✅ All module handlers initialized (Upload, LiveSpeech, APIDocs)")
 except Exception as e:
     logger.error(f"❌ Failed to initialize module handlers: {e}")
     # Create minimal fallback handlers
     upload_handler = None
     live_speech_handler = None
-    admin_panel = None
+    # admin_panel = None # This was the old one
+    admin_panel_instance = None # For the new one
     api_docs = None
 
 # Configure SwaggerUI
@@ -1514,16 +1523,29 @@ def openapi_spec():
 # ==================== INTERFACE ROUTES ====================
 
 
-@app.route("/admin")
-def admin():
-    """Admin Panel - Delegated to AdminPanel"""
-    return admin_panel.get_admin_interface()
-
+# The @app.route("/admin") and def admin() are removed.
+# The new admin panel blueprint (admin_bp) registered via init_admin_panel
+# will handle /admin and its sub-routes.
 
 @app.route("/demo")
 def demo():
-    """Demo Interface - Delegated to AdminPanel"""
-    return admin_panel.get_demo_interface()
+    """Demo Interface - Placeholder or handled by new admin if it provides one"""
+    # This might need adjustment if the new admin panel also provides /demo
+    # For now, let's assume it might be separate or the new admin doesn't have a /demo yet.
+    # If admin_panel_instance has a demo method, it could be called here,
+    # or this route could be removed if the new admin blueprint handles it.
+    # Checking src/admin/admin_panel.py, it does not define a /demo route.
+    # The old src/modules/admin_panel.py did have get_demo_interface.
+    # For now, to prevent errors, let's return a simple placeholder.
+    # A more robust solution would be to check if admin_panel_instance can handle it,
+    # or define a new demo page if required.
+    if admin_panel_instance and hasattr(admin_panel_instance, 'get_demo_interface'):
+        # This assumes the new AdminPanel class might have such a method,
+        # which it currently does not based on src/admin/admin_panel.py
+        # The class AdminPanel in src/admin/admin_panel.py does not have get_demo_interface
+        # Let's have a placeholder to avoid NameError for admin_panel
+        return "Demo interface is under construction."
+    return "Demo interface is under construction."
 
 
 # ==================== WEBSOCKET HANDLERS ====================

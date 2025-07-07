@@ -107,5 +107,12 @@ def create_update_endpoints(app, logger=None):
 
     if logger:
         logger.info("✅ Update API endpoints registered at /api/update/*")
+        logger.info(f"✅ Registered routes: /api/update/check, /api/update/install, /api/update/status, etc.")
+
+    # Debug: List all registered routes
+    for rule in app.url_map.iter_rules():
+        if "/api/update" in rule.rule:
+            if logger:
+                logger.info(f"  - {rule.rule} [{', '.join(rule.methods)}]")
 
     return update_manager

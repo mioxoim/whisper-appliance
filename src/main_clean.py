@@ -237,7 +237,7 @@ def index():
         <html><body style="font-family: Arial; text-align: center; padding: 50px;">
         <h1>🎤 WhisperS2T Appliance</h1>
         <p>Status: {status_text}</p>
-        <p><a href="/admin">Admin Panel</a> | <a href="/docs">API Docs</a> | <a href="/demo">Demo</a></p>
+        <p><a href="/admin">Admin Panel</a> | <a href="/docs">API Docs</a></p>
         </body></html>
         """
 

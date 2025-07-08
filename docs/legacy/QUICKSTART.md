@@ -41,9 +41,7 @@ python enhanced_final_working.py
 ### **5. Demo testen**
 ```bash
 # Browser öffnen:
-http://localhost:5000/demo
-
-# Oder Hauptseite:
+# Hauptseite:
 http://localhost:5000
 ```
 
@@ -53,10 +51,10 @@ http://localhost:5000
 
 ### **Echtes Mikrofon verwenden:**
 
-1. **Demo öffnen** → http://localhost:5000/demo
+1. **Haupt-Interface öffnen** → http://localhost:5000
 2. **Mikrofon-Berechtigung geben** (Browser fragt)
-3. **"🔌 Connect WebSocket"** klicken
-4. **Test Mode auf "Disabled"** setzen
+3. **"🔌 Connect WebSocket"** klicken (falls separate Verbindung nötig)
+4. **Test Mode auf "Disabled"** setzen (falls vorhanden)
 5. **Sprache wählen** (z.B. "German")
 6. **"🎙️ START RECORDING"** → **Sprechen!**
 

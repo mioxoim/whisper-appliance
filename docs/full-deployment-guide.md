@@ -81,7 +81,6 @@ Nach dem Reboot zeigt die Konsole:
 ✅ System ready!
 🌐 Web Interface: http://192.168.1.100:5000
 🔧 Admin Panel: http://192.168.1.100:5000/admin
-🎤 Demo Interface: http://192.168.1.100:5000/demo
 
 📋 System Status:
 • Hostname: whisper-appliance

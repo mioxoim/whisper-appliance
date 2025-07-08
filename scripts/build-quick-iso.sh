@@ -155,7 +155,6 @@ cd src/webgui/backend
 echo "🎤 Starting Enhanced WhisperS2T Appliance v0.5.0"
 echo "🌐 Web Interface: http://localhost:5000"
 echo "🔧 Admin Panel: http://localhost:5000/admin"
-echo "🎙️ Demo Interface: http://localhost:5000/demo"
 echo ""
 echo "Press Ctrl+C to stop the appliance"
 python start_appliance.py
@@ -172,7 +171,6 @@ echo ""
 echo "🌐 Web Interfaces:"
 echo "   Main:  http://localhost:5000"
 echo "   Admin: http://localhost:5000/admin"
-echo "   Demo:  http://localhost:5000/demo"
 echo ""
 echo "📚 Documentation:"
 echo "   README.md - User guide"
@@ -326,7 +324,6 @@ Features:
 ✅ Web-based interface
 ✅ Real-time speech recognition
 ✅ Admin dashboard
-✅ Demo interface
 ✅ GDPR-compliant local processing
 
 System Requirements:

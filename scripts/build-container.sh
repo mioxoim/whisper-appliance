@@ -191,7 +191,6 @@ fi
 echo "🚀 Starting WhisperS2T Appliance container..."
 echo "🌐 Web Interface will be available at: http://localhost:5000"
 echo "🔧 Admin Interface: http://localhost:5000/admin"
-echo "🎙️ Demo Interface: http://localhost:5000/demo"
 echo ""
 echo "Press Ctrl+C to stop the appliance"
 
@@ -278,7 +277,6 @@ podman run -d \
 
 - **Web Interface:** http://localhost:5000
 - **Admin Dashboard:** http://localhost:5000/admin  
-- **Demo Interface:** http://localhost:5000/demo
 - **API Documentation:** http://localhost:5000/docs
 - **Health Check:** http://localhost:5000/health
 

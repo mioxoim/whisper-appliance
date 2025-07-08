@@ -191,10 +191,6 @@ class AdminPanel:
                 return False
         return False
 
-    def get_demo_interface(self):
-        """Demo interface stub"""
-        return "<h1>Demo Interface - Coming Soon</h1>"
-
     def get_admin_interface(self):
         """Generate admin interface without f-string CSS issues"""
         uptime = (datetime.now() - self.system_stats["uptime_start"]).total_seconds()
@@ -219,7 +215,6 @@ class AdminPanel:
                 <a href="/" title="Main Interface">🏠 Home</a>
                 <a href="/admin" class="active" title="Admin Panel">⚙️ Admin</a>
                 <a href="/docs" title="API Documentation">📚 API Docs</a>
-                <a href="/demo" title="Demo Interface">🎯 Demo</a>
             </div>
         </div>
     </nav>
@@ -611,45 +606,6 @@ class AdminPanel:
         except Exception as e:
             return f"<p>Error loading statistics: {e}</p>"
 
-    def get_demo_interface(self):
-        """Demo interface - placeholder for now"""
-        return """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>WhisperS2T Demo Interface</title>
-            <meta charset="utf-8">
-            <style>
-                body { font-family: Arial, sans-serif; padding: 40px; text-align: center; }
-                .container { max-width: 600px; margin: 0 auto; }
-                h1 { color: #667eea; }
-                .nav-links { margin: 20px 0; }
-                .nav-links a { 
-                    margin: 0 10px; 
-                    padding: 10px 20px; 
-                    background: #667eea; 
-                    color: white; 
-                    text-decoration: none; 
-                    border-radius: 5px;
-                }
-                .nav-links a:hover { background: #5a67d8; }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1>🎯 WhisperS2T Demo Interface</h1>
-                <p>Demo interface is coming soon!</p>
-                <div class="nav-links">
-                    <a href="/">🏠 Home</a>
-                    <a href="/admin">⚙️ Admin</a>
-                    <a href="/docs">📚 API Docs</a>
-                    <a href="/health">🏥 Health</a>
-                </div>
-            </div>
-        </body>
-        </html>
-        """
-
     def _get_chat_history_stats_html(self):
         """Generate HTML for chat history statistics"""
         try:
@@ -709,7 +665,6 @@ class AdminPanel:
                 <a href="/" class="nav-link">🏠 Home</a>
                 <a href="/admin" class="nav-link active">⚙️ Admin</a>
                 <a href="/docs" class="nav-link">📚 API Docs</a>
-                <a href="/demo" class="nav-link">🎯 Demo</a>
                 <a href="/health" class="nav-link">🏥 Health</a>
             </div>
         </div>
@@ -728,7 +683,6 @@ class AdminPanel:
                 <a href="/health" class="btn btn-success">🏥 Health Check</a>
                 <a href="/api/status" class="btn btn-info">📊 API Status</a>
                 <a href="/docs" class="btn btn-primary">📚 API Documentation</a>
-                <a href="/demo" class="btn btn-warning">🎯 Test Interface</a>
             </div>
         </div>
         
@@ -1148,42 +1102,3 @@ class AdminPanel:
 '''
         
         return html_template
-
-    def get_demo_interface(self):
-        """Demo interface - placeholder for now"""
-        return """
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>WhisperS2T Demo Interface</title>
-            <meta charset="utf-8">
-            <style>
-                body { font-family: Arial, sans-serif; padding: 40px; text-align: center; }
-                .container { max-width: 600px; margin: 0 auto; }
-                h1 { color: #667eea; }
-                .nav-links { margin: 20px 0; }
-                .nav-links a { 
-                    margin: 0 10px; 
-                    padding: 10px 20px; 
-                    background: #667eea; 
-                    color: white; 
-                    text-decoration: none; 
-                    border-radius: 5px;
-                }
-                .nav-links a:hover { background: #5a67d8; }
-            </style>
-        </head>
-        <body>
-            <div class="container">
-                <h1>🎯 WhisperS2T Demo Interface</h1>
-                <p>Demo interface is coming soon!</p>
-                <div class="nav-links">
-                    <a href="/">🏠 Home</a>
-                    <a href="/admin">⚙️ Admin</a>
-                    <a href="/docs">📚 API Docs</a>
-                    <a href="/health">🏥 Health</a>
-                </div>
-            </div>
-        </body>
-        </html>
-        """

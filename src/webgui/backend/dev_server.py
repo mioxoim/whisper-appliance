@@ -40,7 +40,7 @@ try:
 
     # Navigation template
     def get_nav_html(current_page=""):
-        nav_items = [("Home", "/", "🏠"), ("Demo", "/demo", "🎤"), ("Admin", "/admin", "🔧"), ("API Docs", "/docs", "📚")]
+        nav_items = [("Home", "/", "🏠"), ("Admin", "/admin", "🔧"), ("API Docs", "/docs", "📚")]
 
         nav_html = "<nav style='background: #343a40; padding: 15px; margin-bottom: 20px; border-radius: 5px;'>"
         nav_html += "<div style='display: flex; gap: 15px; align-items: center;'>"
@@ -138,7 +138,6 @@ try:
                 
                 <div class="card">
                     <h3>🎯 Quick Navigation</h3>
-                    <a href="/demo" class="button">🎤 Try Speech Recognition</a>
                     <a href="/admin" class="button button-warning">🔧 System Administration</a>
                     <a href="/docs" class="button button-success">📚 API Documentation</a>
                 </div>
@@ -183,81 +182,6 @@ try:
         """
 
         return get_base_html("Enhanced WhisperS2T Appliance - Home", content, "home")
-
-    # Demo page - Speech recognition interface
-    @app.get("/demo", response_class=HTMLResponse)
-    async def demo_page():
-        content = """
-        <div class="card">
-            <h1>🎤 Speech Recognition Demo</h1>
-            <p>Interactive demonstration of the Enhanced WhisperS2T Appliance capabilities</p>
-            
-            <div class="demo-area">
-                <h3>🎙️ Audio Upload Demo</h3>
-                <p>In full mode, you would drag & drop audio files here for transcription</p>
-                <div style="margin: 20px 0;">
-                    <input type="file" accept="audio/*" disabled style="margin: 10px;">
-                    <button class="button" disabled>Upload Audio File</button>
-                </div>
-                <small>Feature disabled in development mode</small>
-            </div>
-            
-            <div class="grid">
-                <div class="card">
-                    <h3>🌍 Language Selection</h3>
-                    <select class="button" style="width: 100%; padding: 10px;">
-                        <option>Auto-detect</option>
-                        <option>English</option>
-                        <option>German</option>
-                        <option>French</option>
-                        <option>Spanish</option>
-                        <option>Italian</option>
-                        <option>Portuguese</option>
-                    </select>
-                </div>
-                
-                <div class="card">
-                    <h3>🧠 Model Selection</h3>
-                    <select class="button" style="width: 100%; padding: 10px;">
-                        <option selected>Development Mode</option>
-                        <option disabled>tiny (fast, lower quality)</option>
-                        <option disabled>base (balanced)</option>
-                        <option disabled>small (better quality)</option>
-                        <option disabled>medium (high quality)</option>
-                        <option disabled>large (best quality)</option>
-                    </select>
-                    <small>Full models available in container mode</small>
-                </div>
-            </div>
-            
-            <div class="card">
-                <h3>📝 Transcription Result</h3>
-                <textarea style="width: 100%; height: 150px; padding: 10px; border: 1px solid #ddd; border-radius: 5px;" 
-                         placeholder="Transcribed text will appear here..." readonly></textarea>
-                <div style="margin-top: 10px;">
-                    <button class="button" disabled>🎤 Start Recording</button>
-                    <button class="button button-success" disabled>▶️ Process Audio</button>
-                    <button class="button button-warning" disabled>📋 Copy Text</button>
-                </div>
-            </div>
-            
-            <div class="warning-box">
-                <strong>🔧 Development Mode Limitations</strong><br>
-                • Audio processing disabled<br>
-                • ML models not loaded<br>
-                • Real-time transcription unavailable<br>
-                • Use container mode for full functionality: <code>./dev.sh container start</code>
-            </div>
-            
-            <div class="info-box">
-                <strong>🔄 Test API Endpoints</strong><br>
-                <a href="/health" class="button">Health Check</a>
-                <a href="/admin/system/info" class="button">System Info</a>
-            </div>
-        </div>
-        """
-
-        return get_base_html("Speech Recognition Demo", content, "demo")
 
     # Admin page - System administration
     @app.get("/admin", response_class=HTMLResponse)
@@ -425,7 +349,6 @@ try:
         logger.info("📍 Running in development mode")
         logger.info(f"🌐 Starting web server on http://localhost:{port}")
         logger.info(f"🏠 Home page: http://localhost:{port}/")
-        logger.info(f"🎤 Demo interface: http://localhost:{port}/demo")
         logger.info(f"🔧 Admin panel: http://localhost:{port}/admin")
         logger.info(f"📚 API docs: http://localhost:{port}/docs")
         logger.info("🛑 Press Ctrl+C to stop")

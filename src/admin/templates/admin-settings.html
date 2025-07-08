@@ -150,7 +150,7 @@
             <button class="btn btn-warning" id="restartAppButton" onclick="restartApplication()" style="display: none;">
                 Restart Application
             </button>
-            <div id="update-output" class="mt-md" style="font-family: monospace; white-space: pre-wrap; background-color: #f0f0f0; padding: 10px; border-radius: 5px; max-height: 300px; overflow-y: auto; display: none;"></div>
+            <div id="update-output" class="mt-md" style="font-family: monospace; white-space: pre-wrap; background-color: #000000; padding: 10px; border-radius: 5px; max-height: 300px; overflow-y: auto; display: none;"></div>
         </div>
     </div>
 </div>
@@ -287,7 +287,7 @@ async function checkSystemUpdates() {
                 showUpdateOutput('System is up to date.');
             }
             // Ensure text is dark for readability
-            updateStatusArea.innerHTML = `<span style="color: #333;">${statusMessage}</span>`;
+            updateStatusArea.innerHTML = `<span style="color: #FFFFF;">${statusMessage}</span>`;
         } else {
             const errorMsg = `Error checking updates: ${data.error || response.statusText}`;
             AdminCore.showAlert(errorMsg, 'error');

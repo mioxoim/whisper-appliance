@@ -131,6 +131,28 @@
             </div>
         </div>
     </div>
+
+    <!-- System Update -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">🔄 System Update</h3>
+        </div>
+        <div class="card-body">
+            <div id="update-status-area" class="mb-md">
+                <p>Click "Check for Updates" to see the current system status.</p>
+            </div>
+            <button class="btn btn-primary mr-sm" onclick="checkSystemUpdates()">
+                Check for Updates
+            </button>
+            <button class="btn btn-secondary mr-sm" id="installUpdateButton" onclick="installSystemUpdate()" style="display: none;">
+                Install Update
+            </button>
+            <button class="btn btn-warning" id="restartAppButton" onclick="restartApplication()" style="display: none;">
+                Restart Application
+            </button>
+            <div id="update-output" class="mt-md" style="font-family: monospace; white-space: pre-wrap; background-color: #f0f0f0; padding: 10px; border-radius: 5px; max-height: 300px; overflow-y: auto; display: none;"></div>
+        </div>
+    </div>
 </div>
 
 <style>
@@ -220,5 +242,138 @@ function regenerateApiKey() {
         AdminCore.showAlert('New API key generated', 'success');
     }
 }
+
+// System Update Functions
+const updateStatusArea = document.getElementById('update-status-area');
+const installButton = document.getElementById('installUpdateButton');
+const restartButton = document.getElementById('restartAppButton');
+const updateOutput = document.getElementById('update-output');
+
+function showUpdateOutput(message, isError = false) {
+    updateOutput.style.display = 'block';
+    const timestamp = new Date().toLocaleTimeString();
+    const logEntry = document.createElement('div');
+    logEntry.textContent = `[${timestamp}] ${message}`;
+    if (isError) {
+        logEntry.style.color = 'red';
+    }
+    updateOutput.appendChild(logEntry);
+    updateOutput.scrollTop = updateOutput.scrollHeight; // Scroll to bottom
+}
+
+async function checkSystemUpdates() {
+    AdminCore.showAlert('Checking for updates...', 'info');
+    showUpdateOutput('Checking for updates...');
+    installButton.style.display = 'none';
+    restartButton.style.display = 'none';
+
+    try {
+        const response = await fetch('/api/update/check');
+        const data = await response.json();
+
+        if (response.ok) {
+            let statusMessage = `Current Version: ${data.current_version || 'N/A'}<br>`;
+            if (data.update_available) {
+                statusMessage += `Latest Version: ${data.latest_version || 'N/A'} - Update Available!`;
+                installButton.style.display = 'inline-block';
+                AdminCore.showAlert('Update available: Version ' + (data.latest_version || 'Unknown'), 'warning');
+                showUpdateOutput(`Update available. Current: ${data.current_version}, Latest: ${data.latest_version}`);
+                if(data.update_info && data.update_info.message) {
+                    showUpdateOutput(`Details: ${data.update_info.message}`);
+                }
+            } else {
+                statusMessage += 'System is up to date.';
+                AdminCore.showAlert('System is up to date.', 'success');
+                showUpdateOutput('System is up to date.');
+            }
+            // Ensure text is dark for readability
+            updateStatusArea.innerHTML = `<span style="color: #333;">${statusMessage}</span>`;
+        } else {
+            const errorMsg = `Error checking updates: ${data.error || response.statusText}`;
+            AdminCore.showAlert(errorMsg, 'error');
+            updateStatusArea.innerHTML = `<p style="color: red;">${errorMsg}</p>`; // Errors are already red
+            showUpdateOutput(errorMsg, true);
+        }
+    } catch (error) {
+        const errorMsg = `Network error checking updates: ${error.message}`;
+        AdminCore.showAlert(errorMsg, 'error');
+        updateStatusArea.innerHTML = `<p style="color: red;">${errorMsg}</p>`; // Errors are already red
+        showUpdateOutput(errorMsg, true);
+    }
+}
+
+async function installSystemUpdate() {
+    if (!confirm('Are you sure you want to install the update? The system may restart.')) {
+        return;
+    }
+    AdminCore.showAlert('Installing update... Please wait.', 'info');
+    showUpdateOutput('Starting update installation...');
+    installButton.disabled = true;
+
+    try {
+        const response = await fetch('/api/update/install', { method: 'POST' });
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            AdminCore.showAlert(`Update installed: ${data.message}`, 'success');
+            showUpdateOutput(`Update installed successfully: ${data.message}`);
+            installButton.style.display = 'none';
+            if (data.restart_required) {
+                AdminCore.showAlert('Restart required to apply changes.', 'warning');
+                showUpdateOutput('Restart is required to apply changes.');
+                restartButton.style.display = 'inline-block';
+            }
+            // Re-check status
+            await checkSystemUpdates();
+        } else {
+            const errorMsg = `Error installing update: ${data.message || data.error || response.statusText}`;
+            AdminCore.showAlert(errorMsg, 'error');
+            showUpdateOutput(errorMsg, true);
+        }
+    } catch (error) {
+        const errorMsg = `Network error installing update: ${error.message}`;
+        AdminCore.showAlert(errorMsg, 'error');
+        showUpdateOutput(errorMsg, true);
+    } finally {
+        installButton.disabled = false;
+    }
+}
+
+async function restartApplication() {
+    if (!confirm('Are you sure you want to restart the application?')) {
+        return;
+    }
+    AdminCore.showAlert('Restarting application...', 'info');
+    showUpdateOutput('Attempting to restart the application...');
+    restartButton.disabled = true;
+
+    try {
+        const response = await fetch('/api/update/restart', { method: 'POST' });
+        const data = await response.json();
+
+        if (response.ok && data.success) {
+            AdminCore.showAlert('Application restart initiated. Please wait a moment and refresh the page.', 'success');
+            showUpdateOutput('Application restart command sent successfully. The page might become unresponsive. Please refresh manually after a minute.');
+            // UI might become unresponsive, user needs to refresh manually
+        } else {
+            const errorMsg = `Error restarting application: ${data.message || data.error || response.statusText}`;
+            AdminCore.showAlert(errorMsg, 'error');
+            showUpdateOutput(errorMsg, true);
+        }
+    } catch (error) {
+        const errorMsg = `Network error restarting application: ${error.message}`;
+        AdminCore.showAlert(errorMsg, 'error');
+        showUpdateOutput(errorMsg, true);
+    } finally {
+        restartButton.disabled = false;
+        restartButton.style.display = 'none'; // Hide after attempt
+    }
+}
+
+// Initial status check on page load (optional)
+// document.addEventListener('DOMContentLoaded', () => {
+//     checkSystemUpdates();
+// });
+
 </script>
 {% endblock %}

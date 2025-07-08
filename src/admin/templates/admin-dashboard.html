@@ -3,6 +3,39 @@
 {% block content %}
         </div>
     </div>
+
+    <!-- Communication Logs -->
+    <div class="card full-width">
+        <div class="card-header">
+            <h3>Communication Logs</h3>
+        </div>
+        <div class="card-body">
+            {% if communication_logs %}
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Timestamp</th>
+                            <th>User Input</th>
+                            <th>Model Used</th>
+                            <th>Response</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in communication_logs %}
+                            <tr>
+                                <td>{{ log.timestamp }}</td>
+                                <td>{{ log.user_input }}</td>
+                                <td>{{ log.model }}</td>
+                                <td>{{ log.response }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>No communication logs available.</p>
+            {% endif %}
+        </div>
+    </div>
 </div>
 {% endblock %}
 

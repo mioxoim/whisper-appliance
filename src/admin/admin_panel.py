@@ -12,71 +12,83 @@ from flask import Blueprint, jsonify, render_template, send_from_directory
 
 from .model_status import ModelStatusManager
 from .system_monitor import SystemMonitor
+from .communication_log import CommunicationLog # Added import
 
 logger = logging.getLogger(__name__)
 
-# Create admin blueprint
-admin_bp = Blueprint('admin', __name__, 
-                    template_folder='templates',
-                    static_folder='static',
-                    static_url_path='/admin/static')
+# Function to create the admin blueprint
+def create_admin_blueprint():
+    return Blueprint('admin', __name__,
+                     template_folder='templates',
+                     static_folder='static',
+                     static_url_path='/admin/static')
+
+# Global admin_bp for non-test scenarios, or tests that don't need isolation.
+# For isolated tests, a new blueprint will be created and passed.
+admin_bp = create_admin_blueprint()
 
 
 class AdminPanel:
     """Enhanced Admin Panel with modular architecture"""
-    
-    def __init__(self, app, model_manager=None, system_stats=None):
+
+    def __init__(self, app, blueprint, model_manager=None, system_stats=None): # Added blueprint parameter
         self.app = app
+        self.blueprint = blueprint # Store the blueprint
         self.model_manager = model_manager
         self.system_stats = system_stats or {
             "uptime_start": datetime.now(),
             "total_transcriptions": 0,
             "transcriptions_by_source": {"live": 0, "upload": 0, "api": 0}
         }
-        
+
         # Initialize sub-modules
         self.model_status = ModelStatusManager(model_manager)
         self.system_monitor = SystemMonitor(self.system_stats)
-        
-        # Register routes
-        self._register_routes()
-        
-        logger.info("WhisperAppliance Admin Panel initialized")
-    
-    def _register_routes(self):
-        """Register admin routes"""
+        self.communication_log = CommunicationLog()
+
+        # Register routes on the provided blueprint
+        self._register_routes(self.blueprint)
+
+        logger.info("WhisperAppliance Admin Panel initialized with blueprint: %s", blueprint.name)
+
+    def _register_routes(self, bp): # Takes blueprint as parameter
+        """Register admin routes on the given blueprint"""
         # Main admin page
-        @admin_bp.route('/admin')
+        @bp.route('/admin')
         def admin_dashboard():
+            # Ensure self.system_monitor and other necessary components are available
+            # This might require passing them or ensuring AdminPanel has them correctly initialized
             return render_template('admin-dashboard.html',
                                  system_info=self.system_monitor.get_system_info(),
-                                 model_info=self.model_status.get_model_info())
-        
+                                 model_info=self.model_status.get_model_info(),
+                                 communication_logs=self.communication_log.get_logs())
+
         # Model management page
-        @admin_bp.route('/admin/models')
+        @bp.route('/admin/models')
         def admin_models():
             return render_template('admin-models.html',
                                  models=self.model_status.get_detailed_model_info())
-        
+
         # Settings page
-        @admin_bp.route('/admin/settings')
+        @bp.route('/admin/settings')
         def admin_settings():
             return render_template('admin-settings.html')
-        
+
         # API endpoints
-        @admin_bp.route('/api/v1/system/status')
+        @bp.route('/api/v1/system/status')
         def api_system_status():
             return jsonify(self.system_monitor.get_system_status())
-        
-        @admin_bp.route('/api/v1/models/status')
+
+        @bp.route('/api/v1/models/status')
         def api_model_status():
             return jsonify(self.model_status.get_model_status())
-        
+
         # Static file serving for admin assets
-        @admin_bp.route('/admin/static/<path:filename>')
+        @bp.route('/admin/static/<path:filename>')
         def admin_static(filename):
-            return send_from_directory(admin_bp.static_folder, filename)
-    
+            # Use the blueprint's static folder
+            return send_from_directory(bp.static_folder, filename)
+
     def get_uptime_formatted(self):
         """Get formatted uptime string"""
         if self.system_stats and "uptime_start" in self.system_stats:
@@ -108,8 +120,8 @@ class AdminPanel:
                 self.system_stats["transcriptions_by_source"][source] += 1
 
 
-def init_admin_panel(app, model_manager=None, system_stats=None):
+def init_admin_panel(app, blueprint, model_manager=None, system_stats=None): # Added blueprint parameter
     """Initialize admin panel and register blueprint"""
-    admin = AdminPanel(app, model_manager, system_stats)
-    app.register_blueprint(admin_bp)
+    admin = AdminPanel(app, blueprint, model_manager, system_stats) # Pass blueprint to AdminPanel
+    app.register_blueprint(blueprint) # Register the passed blueprint
     return admin

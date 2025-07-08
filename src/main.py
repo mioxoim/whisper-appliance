@@ -49,7 +49,7 @@ try:
         ModelManager,
         UploadHandler,
     )
-    from src.admin import init_admin_panel # Added for the new admin panel
+    from admin import init_admin_panel # Added for the new admin panel
 
     print("✅ Core modules imported successfully")
 except ImportError as e:

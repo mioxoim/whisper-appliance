@@ -329,6 +329,76 @@ def get_model_download_status():
         }
     )
 
+# ==================== MODEL DOWNLOAD CONTROL ROUTES (API v1 for Admin Panel) ====================
+
+@app.route("/api/v1/models/download/<model_id>", methods=["POST"])
+def admin_download_model(model_id: str):
+    """Initiates download of a specific model via ModelManager."""
+    if not model_manager:
+        return jsonify({"status": "error", "message": "ModelManager not available"}), 503
+
+    if model_id not in model_manager.AVAILABLE_MODELS:
+        return jsonify({"status": "error", "message": f"Model {model_id} not found"}), 404
+
+    success = model_manager.start_download_model(model_id)
+    if success:
+        # Check initial status quickly
+        progress = model_manager.get_download_progress(model_id)
+        if progress and progress.get("status") == "completed":
+             return jsonify({"status": "success", "message": f"Model {model_id} is already downloaded."})
+        elif progress and progress.get("status") == "downloading":
+             return jsonify({"status": "success", "message": f"Download for model {model_id} already in progress."})
+        return jsonify({"status": "success", "message": f"Download initiated for model {model_id}."})
+    else:
+        # This case might be redundant if start_download_model always initializes progress
+        return jsonify({"status": "error", "message": f"Could not start download for model {model_id}. It might be an invalid model ID or already downloading."}), 400
+
+@app.route("/api/v1/models/download/<model_id>/progress", methods=["GET"])
+def admin_get_model_download_progress(model_id: str):
+    """Gets the download progress of a specific model."""
+    if not model_manager:
+        return jsonify({"status": "error", "message": "ModelManager not available"}), 503
+
+    progress_data = model_manager.get_download_progress(model_id)
+    if not progress_data:
+        # Check if the model is actually downloaded (for cases where download finished before first progress check)
+        if model_manager.is_model_downloaded(model_id):
+            # Try to get file size for consistency
+            try:
+                model_path = os.path.join(model_manager._get_model_cache_dir(), f"{model_id}.pt")
+                file_size = os.path.getsize(model_path) if os.path.exists(model_path) else 0
+                progress_data = {
+                    "status": "completed",
+                    "progress": 100,
+                    "downloaded_size": file_size,
+                    "total_size": file_size,
+                    "error_message": ""
+                }
+            except Exception: # Fallback if size check fails
+                 progress_data = {"status": "completed", "progress": 100, "downloaded_size": 0, "total_size": 0, "error_message": ""}
+        else:
+            return jsonify({"status": "error", "message": f"No download progress found for model {model_id}. Not downloaded or download not started."}), 404
+
+    # Calculate remaining_size
+    if "total_size" in progress_data and "downloaded_size" in progress_data:
+        progress_data["remaining_size"] = progress_data["total_size"] - progress_data["downloaded_size"]
+    else:
+        progress_data["remaining_size"] = 0
+
+    return jsonify({"status": "success", "data": progress_data})
+
+@app.route("/api/v1/models/download/<model_id>/cancel", methods=["POST"])
+def admin_cancel_model_download(model_id: str):
+    """Cancels an ongoing download for a specific model."""
+    if not model_manager:
+        return jsonify({"status": "error", "message": "ModelManager not available"}), 503
+
+    success = model_manager.cancel_download_model(model_id)
+    if success:
+        return jsonify({"status": "success", "message": f"Cancellation requested for model {model_id} download."})
+    else:
+        return jsonify({"status": "error", "message": f"Could not cancel download for model {model_id}. No active download or not in cancellable state."}), 400
+
 
 # ==================== CHAT HISTORY ROUTES ====================
 

@@ -60,8 +60,17 @@ class UpdateInstaller:
 
         try:
             # Pull latest changes
+            # Ensure a writable HOME directory for git, using the repo_path itself.
+            git_env = os.environ.copy()
+            git_env["HOME"] = self.repo_path
+
             pull_result = subprocess.run(
-                ["git", "pull", "origin", "main"], cwd=self.repo_path, capture_output=True, text=True, timeout=60
+                ["git", "pull", "origin", "main"],
+                cwd=self.repo_path,
+                capture_output=True,
+                text=True,
+                timeout=60,
+                env=git_env
             )
 
             if pull_result.returncode != 0:

@@ -49,7 +49,7 @@ try:
         ModelManager,
         UploadHandler,
     )
-    from admin import init_admin_panel # Added for the new admin panel
+    from admin import init_admin_panel, admin_bp # Added for the new admin panel
 
     print("✅ Core modules imported successfully")
 except ImportError as e:
@@ -185,7 +185,8 @@ try:
         # The init_admin_panel function from src.admin.admin_panel expects 'app', 'model_manager', and 'system_stats'.
         # app is available globally. model_manager and system_stats should be initialized by this point.
         if model_manager is not None and system_stats is not None:
-            admin_panel_instance = init_admin_panel(app, model_manager=model_manager, system_stats=system_stats)
+            # Pass the imported admin_bp to init_admin_panel
+            admin_panel_instance = init_admin_panel(app, admin_bp, model_manager=model_manager, system_stats=system_stats)
             logger.info("✅ New Admin Panel initialized and blueprint registered.")
         else:
             logger.error("❌ Failed to initialize new Admin Panel: model_manager or system_stats not available.")

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-# WhisperS2T Proxmox Standalone Installer - Git-based Version
-# Installs WhisperS2T as a Git repository for update support
+# Whisper Appliance Proxmox Standalone Installer - Git-based Version
+# Installs Whisper Appliance as a Git repository for update support
 
 set -e
 
@@ -27,8 +27,8 @@ cat <<"EOF"
                      |_|                  |_|   |_|                             
 
 
-WhisperS2T Proxmox LXC Container Creator (Git-based)
-===================================================
+Whisper Appliance Proxmox LXC Container Creator (Git-based)
+=========================================================
 EOF
 
 # Check if running on Proxmox
@@ -54,7 +54,7 @@ MEMORY="4096"
 DISK_SIZE="20"
 TEMPLATE="ubuntu-22.04-standard_22.04-1_amd64.tar.zst"
 
-msg_info "Creating WhisperS2T LXC Container"
+msg_info "Creating Whisper Appliance LXC Container"
 msg_info "  ID: $CTID"
 msg_info "  Hostname: $HOSTNAME"
 msg_info "  CPU: $CORES cores"
@@ -90,8 +90,8 @@ pct start $CTID
 sleep 10
 msg_ok "Container started"
 
-# Install WhisperS2T
-msg_info "Installing WhisperS2T (this will take 10-15 minutes)..."
+# Install Whisper Appliance
+msg_info "Installing Whisper Appliance (this will take 10-15 minutes)..."
 
 # Create installation script inside container
 cat > /tmp/install-whisper.sh << 'INSTALL_EOF'
@@ -135,7 +135,7 @@ if ! id "whisper" &>/dev/null; then
     usermod -aG audio whisper
 fi
 
-print_status "Cloning WhisperS2T repository..."
+print_status "Cloning Whisper Appliance repository..."
 cd /opt
 git clone https://github.com/GaboCapo/whisper-appliance.git
 # Add /opt/whisper-appliance to safe directories
@@ -153,14 +153,14 @@ cd /opt/whisper-appliance/ssl
 openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
     -keyout whisper-appliance.key \
     -out whisper-appliance.crt \
-    -subj "/C=US/ST=State/L=City/O=WhisperS2T/CN=localhost" \
+    -subj "/C=US/ST=State/L=City/O=Whisper Appliance/CN=localhost" \
     -addext "subjectAltName=DNS:localhost,IP:127.0.0.1" >/dev/null 2>&1
 chown -R whisper:whisper /opt/whisper-appliance/ssl
 
 print_status "Creating systemd service..."
 cat > /etc/systemd/system/whisper-appliance.service << 'SERVICE_EOF'
 [Unit]
-Description=WhisperS2T Speech-to-Text Service
+Description=Whisper Appliance Speech-to-Text Service
 After=network.target
 
 [Service]
@@ -186,7 +186,7 @@ print_status "Waiting for service to start..."
 sleep 10
 
 if systemctl is-active --quiet whisper-appliance.service; then
-    print_status "✅ WhisperS2T installed successfully!"
+    print_status "✅ Whisper Appliance installed successfully!"
     echo ""
     echo "Service Status:"
     systemctl status whisper-appliance.service --no-pager | head -10
@@ -194,7 +194,7 @@ if systemctl is-active --quiet whisper-appliance.service; then
     
     # Get container IP
     IP=$(hostname -I | awk '{print $1}')
-    echo "Access WhisperS2T at:"
+    echo "Access Whisper Appliance at:"
     echo "  🌐 Main Interface: https://$IP:5001"
     echo "  ⚙️ Admin Panel: https://$IP:5001/admin"
     echo "  📚 API Docs: https://$IP:5001/docs"
@@ -214,7 +214,7 @@ pct exec $CTID -- /tmp/install-whisper.sh
 # Get container IP
 CONTAINER_IP=$(pct exec $CTID -- hostname -I | awk '{print $1}')
 
-msg_ok "WhisperS2T installation complete!"
+msg_ok "Whisper Appliance installation complete!"
 echo ""
 msg_info "Container Details:"
 msg_info "  ID: $CTID"
@@ -223,8 +223,8 @@ msg_info "  Main Interface: https://$CONTAINER_IP:5001"
 msg_info "  Admin Panel: https://$CONTAINER_IP:5001/admin"
 msg_info "  API Docs: https://$CONTAINER_IP:5001/docs"
 echo ""
-msg_info "To update WhisperS2T in the future:"
+msg_info "To update Whisper Appliance in the future:"
 msg_info "  1. Enter container: pct enter $CTID"
 msg_info "  2. Run: cd /opt/whisper-appliance && git pull && systemctl restart whisper-appliance"
 echo ""
-msg_ok "Enjoy WhisperS2T!"
+msg_ok "Enjoy Whisper Appliance!"

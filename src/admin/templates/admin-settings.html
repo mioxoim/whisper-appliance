@@ -131,6 +131,18 @@
             </div>
         </div>
     </div>
+
+    <!-- Git Update -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">🔄 Git Update</h3>
+        </div>
+        <div class="card-body">
+            <button class="btn btn-primary" onclick="checkForUpdates()">
+                Check for Updates
+            </button>
+        </div>
+    </div>
 </div>
 
 <style>
@@ -218,6 +230,29 @@ function regenerateApiKey() {
     if (confirm('Generate new API key? The old key will stop working immediately.')) {
         // Implementation would generate new key
         AdminCore.showAlert('New API key generated', 'success');
+    }
+}
+
+function checkForUpdates() {
+    if (confirm('Check for updates and pull changes from the Git repository?')) {
+        AdminCore.showAlert('Checking for updates...', 'info');
+        // This will call the function to handle the API call
+        updateGitRepository();
+    }
+}
+
+async function updateGitRepository() {
+    try {
+        const response = await fetch('/api/admin/update-git', { method: 'POST' });
+        const result = await response.json();
+
+        if (response.ok && result.success) {
+            AdminCore.showAlert('Git repository updated successfully: ' + result.message, 'success');
+        } else {
+            AdminCore.showAlert('Error updating Git repository: ' + (result.message || 'Unknown error'), 'error');
+        }
+    } catch (error) {
+        AdminCore.showAlert('Failed to send update request: ' + error.message, 'error');
     }
 }
 </script>

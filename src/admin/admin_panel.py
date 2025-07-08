@@ -89,6 +89,27 @@ class AdminPanel:
             # Use the blueprint's static folder
             return send_from_directory(bp.static_folder, filename)
 
+        @bp.route('/api/admin/update-git', methods=['POST'])
+        def update_git_repository():
+            try:
+                # Perform git pull operation
+                # Ensure this runs in the correct directory and handles errors
+                # This is a simplified example; real implementation needs error handling,
+                # security considerations, and potentially asynchronous execution.
+                import subprocess
+                project_root = Path(__file__).resolve().parent.parent.parent # Adjust if necessary
+                result = subprocess.run(['git', 'pull'], cwd=project_root, capture_output=True, text=True, check=False)
+
+                if result.returncode == 0:
+                    logger.info("Git repository updated successfully: %s", result.stdout)
+                    return jsonify({"success": True, "message": "Repository updated successfully."})
+                else:
+                    logger.error("Git update failed: %s", result.stderr)
+                    return jsonify({"success": False, "message": f"Git update failed: {result.stderr}"}), 500
+            except Exception as e:
+                logger.exception("Error during Git update:")
+                return jsonify({"success": False, "message": str(e)}), 500
+
     def get_uptime_formatted(self):
         """Get formatted uptime string"""
         if self.system_stats and "uptime_start" in self.system_stats:

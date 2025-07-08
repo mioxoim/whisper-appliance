@@ -92,23 +92,37 @@ class AdminPanel:
         @bp.route('/api/admin/update-git', methods=['POST'])
         def update_git_repository():
             try:
-                # Perform git pull operation
-                # Ensure this runs in the correct directory and handles errors
-                # This is a simplified example; real implementation needs error handling,
-                # security considerations, and potentially asynchronous execution.
                 import subprocess
-                project_root = Path(__file__).resolve().parent.parent.parent # Adjust if necessary
-                result = subprocess.run(['git', 'pull'], cwd=project_root, capture_output=True, text=True, check=False)
+                # project_root should point to /opt/whisper-appliance
+                # Assuming this script file (admin_panel.py) is within a structure like /opt/whisper-appliance/src/admin/admin_panel.py
+                project_root = Path(__file__).resolve().parent.parent.parent
+                script_path = project_root / "scripts" / "perform-git-update.sh"
+
+                if not script_path.exists():
+                    logger.error(f"Update script not found at {script_path}")
+                    return jsonify({"success": False, "message": "Update script not found."}), 500
+
+                # Command to execute: sudo /path/to/scripts/perform-git-update.sh
+                # It's crucial that the web server user has passwordless sudo rights for this specific script.
+                command = ['sudo', str(script_path)]
+
+                logger.info(f"Attempting to run Git update script: {' '.join(command)}")
+
+                # Using Popen for better control over stdout/stderr if needed, but run is simpler for now
+                result = subprocess.run(command, capture_output=True, text=True, check=False)
 
                 if result.returncode == 0:
-                    logger.info("Git repository updated successfully: %s", result.stdout)
-                    return jsonify({"success": True, "message": "Repository updated successfully."})
+                    # The script perform-git-update.sh now outputs a status message on success
+                    logger.info("Git update script executed successfully: %s", result.stdout.strip())
+                    return jsonify({"success": True, "message": result.stdout.strip()})
                 else:
-                    logger.error("Git update failed: %s", result.stderr)
-                    return jsonify({"success": False, "message": f"Git update failed: {result.stderr}"}), 500
+                    # The script perform-git-update.sh outputs error details to stdout/stderr on failure
+                    error_message = result.stderr.strip() if result.stderr.strip() else result.stdout.strip()
+                    logger.error("Git update script failed with code %s: %s", result.returncode, error_message)
+                    return jsonify({"success": False, "message": f"Update script failed: {error_message}"}), 500
             except Exception as e:
-                logger.exception("Error during Git update:")
-                return jsonify({"success": False, "message": str(e)}), 500
+                logger.exception("Exception during Git update process:")
+                return jsonify({"success": False, "message": f"An internal error occurred: {str(e)}"}), 500
 
     def get_uptime_formatted(self):
         """Get formatted uptime string"""

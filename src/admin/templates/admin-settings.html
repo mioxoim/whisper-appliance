@@ -286,28 +286,18 @@ async function checkSystemUpdates() {
                 AdminCore.showAlert('System is up to date.', 'success');
                 showUpdateOutput('System is up to date.');
             }
-feature/git-update-button
             // Ensure text is dark for readability
             updateStatusArea.innerHTML = `<span style="color: #333;">${statusMessage}</span>`;
         } else {
             const errorMsg = `Error checking updates: ${data.error || response.statusText}`;
             AdminCore.showAlert(errorMsg, 'error');
-            updateStatusArea.innerHTML = `<p style="color: red;">${errorMsg}</p>`; 
-            updateStatusArea.innerHTML = statusMessage;
-        } else {
-            const errorMsg = `Error checking updates: ${data.error || response.statusText}`;
-            AdminCore.showAlert(errorMsg, 'error');
             updateStatusArea.innerHTML = `<p style="color: red;">${errorMsg}</p>`;
-main
             showUpdateOutput(errorMsg, true);
         }
     } catch (error) {
         const errorMsg = `Network error checking updates: ${error.message}`;
         AdminCore.showAlert(errorMsg, 'error');
-feature/git-update-button
-        updateStatusArea.innerHTML = `<p style="color: red;">${errorMsg}</p>`; // Errors are already red
         updateStatusArea.innerHTML = `<p style="color: red;">${errorMsg}</p>`;
-main
         showUpdateOutput(errorMsg, true);
     }
 }

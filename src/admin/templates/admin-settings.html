@@ -286,14 +286,12 @@ async function checkSystemUpdates() {
                 AdminCore.showAlert('System is up to date.', 'success');
                 showUpdateOutput('System is up to date.');
             }
-feature/git-update-button
             // Ensure text is dark for readability
             updateStatusArea.innerHTML = `<span style="color: #333;">${statusMessage}</span>`;
         } else {
             const errorMsg = `Error checking updates: ${data.error || response.statusText}`;
             AdminCore.showAlert(errorMsg, 'error');
             updateStatusArea.innerHTML = `<p style="color: red;">${errorMsg}</p>`;
-main
             showUpdateOutput(errorMsg, true);
         }
     } catch (error) {

@@ -132,13 +132,11 @@ curl -fsSL https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/ins
 
 ### Added
 - **📚 Professional SwaggerUI**: Replaced custom API documentation with industry-standard SwaggerUI
-- **🎙️ Live Speech Demo**: Complete microphone recording demo in /demo interface
 - **🔄 Dynamic Base URL**: API documentation automatically detects current server URL
 - **📱 Interactive API Testing**: "Try it out" functionality directly in SwaggerUI
 
 ### Changed
 - **🎯 API Documentation**: Migrated from custom HTML to OpenAPI 3.0 specification
-- **🌐 Demo Interface**: Enhanced with real-time speech recording and testing
 - **📊 Professional Standards**: Industry-standard API documentation interface
 
 ### Fixed
@@ -148,7 +146,6 @@ curl -fsSL https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/ins
 ### Technical Details
 - **SwaggerUI Integration**: OpenAPI 3.0 with complete endpoint documentation
 - **Live Speech Demo**: Start/stop recording, language selection, visual feedback
-- **WebSocket Integration**: Real-time audio processing in demo interface
 - **Dynamic Configuration**: Server URL automatically detected from request headers
 
 ## [0.7.0] - 2025-06-29
@@ -158,7 +155,6 @@ curl -fsSL https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/ins
 - **🎙️ Real Live Speech**: Implemented genuine WebSocket audio processing (replaced simulated connection)
 - **⚙️ Admin Panel with Navigation**: Comprehensive admin dashboard with inter-interface navigation
 - **📚 Enhanced API Documentation**: Swagger-like interface with interactive "Try it out" functionality
-- **🎯 Enhanced Demo Interface**: Interactive testing interface with WebSocket testing
 - **🔄 Real-time Audio Processing**: MediaRecorder API integration with base64 audio streaming
 - **📱 Responsive Navigation**: Unified navigation header across all interfaces
 
@@ -173,14 +169,13 @@ curl -fsSL https://raw.githubusercontent.com/GaboCapo/whisper-appliance/main/ins
 - **🔧 File Structure**: Resolved corrupted enhanced_app.py with clean modular implementation
 - **📝 Feature Preservation**: Maintained all original functionality while enhancing architecture
 - **⚡ Performance**: Optimized file sizes according to MainPrompt.md guidelines (≤400 lines)
-- **🔗 Navigation**: Added seamless navigation between main interface, admin, docs, and demo
 
 ### Technical Details
 - **Framework**: Flask + SocketIO with modular handlers
 - **Modules**: live_speech.py, upload_handler.py, admin_panel.py, api_docs.py
 - **Templates**: Separated HTML templates in dedicated templates/ directory
 - **Features**: Purple Gradient UI + Real WebSocket + Upload + Full Navigation
-- **Endpoints**: /, /admin, /docs, /demo, /health, /transcribe, /api/transcribe-live, /api/status
+- **Endpoints**: /, /admin, /docs, /health, /transcribe, /api/transcribe-live, /api/status
 
 ## [0.6.3] - 2025-06-29
 

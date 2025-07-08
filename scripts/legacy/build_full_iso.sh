@@ -122,7 +122,6 @@ echo ""
 echo "✅ System ready!"
 echo "🌐 Web Interface: http://$IP:5000"
 echo "🔧 Admin Panel: http://$IP:5000/admin"
-echo "🎤 Demo Interface: http://$IP:5000/demo"
 echo ""
 echo "📋 System Status:"
 echo "• Installation: $INSTALL_DIR"
@@ -176,7 +175,6 @@ This ISO contains a complete installation package for the Enhanced WhisperS2T Ap
 ### After Installation
 - **Web Interface:** http://[IP]:5000
 - **Admin Panel:** http://[IP]:5000/admin
-- **Demo Interface:** http://[IP]:5000/demo
 
 ### Service Management
 \`\`\`bash

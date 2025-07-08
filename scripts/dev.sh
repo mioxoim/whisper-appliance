@@ -426,7 +426,6 @@ container_start() {
         print_success "Container started successfully!"
         print_info "Web Interface: http://localhost:5000"
         print_info "Admin Panel: http://localhost:5000/admin"
-        print_info "Demo Interface: http://localhost:5000/demo"
         print_info "Container Name: whisper-appliance"
     else
         print_error "Failed to start container"
@@ -633,7 +632,6 @@ echo ""
 echo "✅ System ready!"
 echo "🌐 Web Interface: http://$IP:5000"
 echo "🔧 Admin Panel: http://$IP:5000/admin"
-echo "🎤 Demo Interface: http://$IP:5000/demo"
 echo ""
 echo "📋 System Status:"
 echo "• Installation: $INSTALL_DIR"
@@ -671,7 +669,6 @@ EOF
 ### After Installation
 - Web Interface: http://[IP]:5000
 - Admin Panel: http://[IP]:5000/admin
-- Demo Interface: http://[IP]:5000/demo
 
 ### Service Management
 \`\`\`bash

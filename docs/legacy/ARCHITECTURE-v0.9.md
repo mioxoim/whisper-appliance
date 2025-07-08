@@ -267,7 +267,6 @@ async def websocket_endpoint(websocket)    # WebSocket handler
 
 # 4. HTTP Routes
 @app.get("/")                              # Landing page
-@app.get("/demo")                          # Interactive demo
 @app.get("/api/status")                    # System status
 @app.post("/api/load-model")               # HTTP model loading
 

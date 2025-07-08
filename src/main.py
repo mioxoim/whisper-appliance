@@ -243,7 +243,7 @@ def index():
         <html><body style="font-family: Arial; text-align: center; padding: 50px;">
         <h1>🎤 WhisperS2T Appliance</h1>
         <p>Status: {status_text}</p>
-        <p><a href="/admin">Admin Panel</a> | <a href="/docs">API Docs</a> | <a href="/demo">Demo</a></p>
+        <p><a href="/admin">Admin Panel</a> | <a href="/docs">API Docs</a></p>
         </body></html>
         """
 
@@ -1503,7 +1503,6 @@ def api_status():
                 "live_transcription": "/api/transcribe-live",
                 "api_documentation": "/docs",
                 "admin_panel": "/admin",
-                "demo_interface": "/demo",
             },
             "architecture": {
                 "framework": "Flask + SocketIO",
@@ -1527,27 +1526,6 @@ def openapi_spec():
 # The @app.route("/admin") and def admin() are removed.
 # The new admin panel blueprint (admin_bp) registered via init_admin_panel
 # will handle /admin and its sub-routes.
-
-@app.route("/demo")
-def demo():
-    """Demo Interface - Placeholder or handled by new admin if it provides one"""
-    # This might need adjustment if the new admin panel also provides /demo
-    # For now, let's assume it might be separate or the new admin doesn't have a /demo yet.
-    # If admin_panel_instance has a demo method, it could be called here,
-    # or this route could be removed if the new admin blueprint handles it.
-    # Checking src/admin/admin_panel.py, it does not define a /demo route.
-    # The old src/modules/admin_panel.py did have get_demo_interface.
-    # For now, to prevent errors, let's return a simple placeholder.
-    # A more robust solution would be to check if admin_panel_instance can handle it,
-    # or define a new demo page if required.
-    if admin_panel_instance and hasattr(admin_panel_instance, 'get_demo_interface'):
-        # This assumes the new AdminPanel class might have such a method,
-        # which it currently does not based on src/admin/admin_panel.py
-        # The class AdminPanel in src/admin/admin_panel.py does not have get_demo_interface
-        # Let's have a placeholder to avoid NameError for admin_panel
-        return "Demo interface is under construction."
-    return "Demo interface is under construction."
-
 
 # ==================== WEBSOCKET HANDLERS ====================
 
@@ -1709,7 +1687,6 @@ if __name__ == "__main__":
         logger.info("🌐 Main Interface: https://localhost:5001")
         logger.info("⚙️ Admin Panel: https://localhost:5001/admin")
         logger.info("📚 API Docs: https://localhost:5001/docs")
-        logger.info("🎯 Demo Interface: https://localhost:5001/demo")
         logger.info("🏥 Health Check: https://localhost:5001/health")
         logger.info("🎙️ Microphone Access: ✅ Enabled via HTTPS")
         logger.info("⚠️  Browser Security Warning: Click 'Advanced' → 'Continue to localhost'")
@@ -1725,7 +1702,6 @@ if __name__ == "__main__":
         logger.info("🌐 Main Interface: http://0.0.0.0:5001")
         logger.info("⚙️ Admin Panel: http://0.0.0.0:5001/admin")
         logger.info("📚 API Docs: http://0.0.0.0:5001/docs")
-        logger.info("🎯 Demo Interface: http://0.0.0.0:5001/demo")
         logger.info("🏥 Health Check: http://0.0.0.0:5001/health")
 
         # Run without SSL

@@ -36,6 +36,28 @@
             {% endif %}
         </div>
     </div>
+
+    <!-- Chat History Import -->
+    <div class="card full-width">
+        <div class="card-header">
+            <h3>Import Chat History</h3>
+        </div>
+        <div class="card-body">
+            <p>Import chat history from a JSON or CSV file. Ensure the file follows the correct format. You can download a template using the links below.</p>
+            <div>
+                <a href="/api/chat-history/import/template/json" class="btn btn-secondary btn-sm" download>Download JSON Template</a>
+                <a href="/api/chat-history/import/template/csv" class="btn btn-secondary btn-sm" download>Download CSV Template</a>
+            </div>
+            <hr>
+            <div class="form-group">
+                <label for="chat-history-file">Select File (.json or .csv):</label>
+                <input type="file" id="chat-history-file" name="chat-history-file" accept=".json,.csv" class="form-control-file">
+            </div>
+            <button id="import-chat-history-btn" class="btn btn-primary">Import History</button>
+            <div id="import-chat-history-message" class="mt-3" style="display: none;"></div>
+        </div>
+    </div>
+
 </div>
 {% endblock %}
 
@@ -137,5 +159,84 @@ setInterval(async () => {
         console.error('Failed to refresh dashboard:', error);
     }
 }, 30000); // Refresh every 30 seconds
+
+// Chat History Import Logic
+const importButton = document.getElementById('import-chat-history-btn');
+const fileInput = document.getElementById('chat-history-file');
+const importMessageDiv = document.getElementById('import-chat-history-message');
+
+if (importButton && fileInput && importMessageDiv) {
+    importButton.addEventListener('click', async () => {
+        const file = fileInput.files[0];
+        importMessageDiv.style.display = 'none';
+        importMessageDiv.className = 'mt-3'; // Reset classes
+
+        if (!file) {
+            showMessage('Please select a file to import.', 'warning');
+            return;
+        }
+
+        const allowedExtensions = /(\.json|\.csv)$/i;
+        if (!allowedExtensions.exec(file.name)) {
+            showMessage('Invalid file type. Please select a JSON or CSV file.', 'danger');
+            fileInput.value = ''; // Reset file input
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        // Show loading state
+        importButton.disabled = true;
+        importButton.textContent = 'Importing...';
+        showMessage('Importing chat history...', 'info', false);
+
+
+        try {
+            const response = await fetch('/api/chat-history/import', {
+                method: 'POST',
+                body: formData,
+            });
+
+            const result = await response.json();
+
+            if (response.ok || response.status === 206) { // 206 Partial Content for partial success
+                let message = result.message || `Successfully imported ${result.imported_count} entries.`;
+                if (result.status === "partial_success" && result.errors && result.errors.length > 0) {
+                    message += ` However, there were ${result.errors.length} errors. Check console for details.`;
+                    console.warn("Import errors:", result.errors);
+                }
+                showMessage(message, 'success');
+                fileInput.value = ''; // Clear the file input on success
+            } else {
+                const errorMsg = result.error || 'An unknown error occurred during import.';
+                showMessage(`Error: ${errorMsg}`, 'danger');
+                if (result.errors) {
+                    console.error("Detailed import errors:", result.errors);
+                }
+            }
+        } catch (error) {
+            console.error('Import API call failed:', error);
+            showMessage('An unexpected error occurred. Check the console for more details.', 'danger');
+        } finally {
+            importButton.disabled = false;
+            importButton.textContent = 'Import History';
+        }
+    });
+}
+
+function showMessage(message, type = 'info', autoDismiss = true) {
+    if (importMessageDiv) {
+        importMessageDiv.textContent = message;
+        importMessageDiv.className = `alert alert-${type} mt-3`; // Using Bootstrap alert styles
+        importMessageDiv.style.display = 'block';
+
+        if (autoDismiss) {
+            setTimeout(() => {
+                importMessageDiv.style.display = 'none';
+            }, 5000); // Hide after 5 seconds
+        }
+    }
+}
 </script>
 {% endblock %}

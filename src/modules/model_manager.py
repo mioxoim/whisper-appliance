@@ -201,15 +201,15 @@ class ModelManager:
         return self.current_model
 
     def get_status(self) -> Dict:
-        """Get current model manager status"""
+        """Get current model manager status, including detailed available models."""
+        # This structure is more aligned with what admin-models.js expects for availableModels
         return {
             "whisper_available": self.whisper_available,
-            "current_model": self.current_model_name,
+            "current_model_name": self.get_current_model_name(), # Changed from current_model to current_model_name for clarity
             "model_loaded": self.current_model is not None,
             "model_loading": self.model_loading,
-            "available_models": list(self.AVAILABLE_MODELS.keys()),
-            "downloaded_models": list(self.downloaded_models),
-            "models_needing_download": [m for m in self.AVAILABLE_MODELS.keys() if m not in self.downloaded_models],
+            "available_models_info": self.get_available_models(), # Provides full details
+            "downloaded_model_ids": list(self.downloaded_models), # List of IDs
         }
 
     def is_model_downloaded(self, model_name: str) -> bool:
@@ -379,3 +379,51 @@ class ModelManager:
             return True
         logger.warning(f"No active download to cancel for model {model_id} or download not in cancellable state.")
         return False
+
+    def delete_model_file(self, model_id: str) -> bool:
+        """Deletes the model file from the cache and updates internal state."""
+        if model_id not in self.AVAILABLE_MODELS:
+            logger.error(f"Attempted to delete unknown model: {model_id}")
+            return False
+
+        if not self.is_model_downloaded(model_id):
+            logger.info(f"Model {model_id} is not downloaded, nothing to delete.")
+            # Consider if this should return True or False. True if "delete succeeded" means "it's not there".
+            return True
+
+        model_cache_dir = self._get_model_cache_dir()
+        model_filename = f"{model_id}.pt" # Assuming .pt extension, align with _perform_download
+        model_path = os.path.join(model_cache_dir, model_filename)
+
+        try:
+            if os.path.exists(model_path):
+                os.remove(model_path)
+                logger.info(f"Successfully deleted model file: {model_path}")
+            else:
+                logger.warning(f"Model file not found at {model_path}, though it was marked as downloaded.")
+
+            # Update internal state
+            if model_id in self.downloaded_models:
+                self.downloaded_models.remove(model_id)
+
+            # Clean up progress state if any
+            if model_id in self.download_progress:
+                self.download_progress[model_id]["status"] = "deleted" # Or remove entry: del self.download_progress[model_id]
+                # If keeping the entry, ensure progress reflects deletion
+                self.download_progress[model_id]["progress"] = 0
+                self.download_progress[model_id]["downloaded_size"] = 0
+
+
+            # If the deleted model was the current model, unload it
+            if self.current_model_name == model_id:
+                self.current_model = None
+                self.current_model_name = None # Or set to a default like "base" if one must always be "current"
+                logger.info(f"Unloaded model {model_id} as it was deleted.")
+
+            return True
+        except OSError as e:
+            logger.error(f"Error deleting model file {model_path}: {e}")
+            return False
+        except Exception as e:
+            logger.error(f"Unexpected error deleting model {model_id}: {e}")
+            return False

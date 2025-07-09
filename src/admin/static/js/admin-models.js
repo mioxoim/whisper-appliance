@@ -74,7 +74,7 @@ const ModelManager = {
                     ${isCurrent ? '<span class="status status-online">Current</span>' : ''}
                 </td>
                 <td>
-                    ${progressData && (progressData.status === 'downloading' || progressData.status === 'pending' || progressData.status === 'failed' || progressData.status === 'cancelled')
+                    ${progressData && (progressData.status === 'downloading' || progressData.status === 'pending' || progressData.status === 'failed' || progressData.status === 'cancelled' || progressData.status === 'not_downloaded')
                         ? this.getProgressHtml(progressData)
                         : isDownloaded
                             ? (this.downloadProgress[modelId] && this.downloadProgress[modelId].status === 'completed'
@@ -145,9 +145,14 @@ const ModelManager = {
             progressText = `Failed. ${progressData.error_message || ''}`;
         } else if (progressData.status === 'cancelled') {
             progressText = `Cancelled.`;
+        } else if (progressData.status === 'not_downloaded') {
+            // This status might come from the progress endpoint if no download has started
+            // or if the model was deleted and progress reflects that state.
+            return '<span class="status status-pending"><span class="status-dot"></span> Not Downloaded</span>';
         }
         
-        const progressBarClass = (progressData.status === 'failed' || progressData.status === 'cancelled') ? 'progress-bar-danger' : 'progress-bar';
+        const progressBarClass = (progressData.status === 'failed' || progressData.status === 'cancelled') ? 'progress-bar-danger' :
+                                 (progressData.status === 'completed') ? 'progress-bar-success' : 'progress-bar';
 
         return `
             <div class="progress" style="width: 100%; margin-bottom: 0.25rem;">

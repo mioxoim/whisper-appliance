@@ -155,18 +155,46 @@
 
 async function downloadModel(modelId) {
     if (confirm(`Download model ${modelId}? This may take several minutes.`)) {
-        ModelManager.downloadModel(modelId);
+        if (window.ModelManager && typeof window.ModelManager.downloadModel === 'function') {
+            window.ModelManager.downloadModel(modelId);
+        } else {
+            console.error("ModelManager or ModelManager.downloadModel not initialized yet.");
+            if (window.AdminCore && typeof window.AdminCore.showAlert === 'function') {
+                window.AdminCore.showAlert("Error: Model management is not ready. Please try again shortly.", "danger");
+            } else {
+                alert("Error: Model management is not ready. Please try again shortly.");
+            }
+        }
     }
 }
 
 async function switchModel(modelId) {
     if (confirm(`Switch to model ${modelId}?`)) {
-        ModelManager.switchModel(modelId);
+        if (window.ModelManager && typeof window.ModelManager.switchModel === 'function') {
+            window.ModelManager.switchModel(modelId);
+        } else {
+            console.error("ModelManager or ModelManager.switchModel not initialized yet.");
+            if (window.AdminCore && typeof window.AdminCore.showAlert === 'function') {
+                window.AdminCore.showAlert("Error: Model management is not ready. Please try again shortly.", "danger");
+            } else {
+                alert("Error: Model management is not ready. Please try again shortly.");
+            }
+        }
     }
 }
 
 async function deleteModel(modelId) {
-    ModelManager.deleteModel(modelId);
+    // No confirmation here, as ModelManager.deleteModel itself shows a modal
+    if (window.ModelManager && typeof window.ModelManager.deleteModel === 'function') {
+        window.ModelManager.deleteModel(modelId);
+    } else {
+        console.error("ModelManager or ModelManager.deleteModel not initialized yet.");
+        if (window.AdminCore && typeof window.AdminCore.showAlert === 'function') {
+            window.AdminCore.showAlert("Error: Model management is not ready. Please try again shortly.", "danger");
+        } else {
+            alert("Error: Model management is not ready. Please try again shortly.");
+        }
+    }
 }
 </script>
 {% endblock %}

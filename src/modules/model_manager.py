@@ -7,6 +7,8 @@ Provides model switching functionality for Live Speech and Admin Panel
 import logging
 import os
 import threading
+import hashlib # Added for SHA256 checksum
+import requests # Added for downloading files
 from typing import Dict, List, Optional
 
 logger = logging.getLogger(__name__)
@@ -22,6 +24,8 @@ class ModelManager:
             "speed": "Fast",
             "quality": "Basic",
             "description": "Fastest processing, good for testing",
+            "url": "https://openaipublic.azureedge.net/main/whisper/models/65147644a518d12f04e32d6f3b26facc3f8dd46e5390956a9424a650c0ce22b9/tiny.pt",
+            "sha256": "65147644a518d12f04e32d6f3b26facc3f8dd46e5390956a9424a650c0ce22b9"
         },
         "base": {
             "name": "Base",
@@ -29,6 +33,8 @@ class ModelManager:
             "speed": "Fast",
             "quality": "Good",
             "description": "Balanced speed and accuracy (recommended)",
+            "url": "https://openaipublic.azureedge.net/main/whisper/models/ed3a0b6b1c0edf879ad9b11b1af5a0e6ab5db9205f891f668f8b0e6c6326e34e/base.pt",
+            "sha256": "ed3a0b6b1c0edf879ad9b11b1af5a0e6ab5db9205f891f668f8b0e6c6326e34e"
         },
         "small": {
             "name": "Small",
@@ -36,6 +42,8 @@ class ModelManager:
             "speed": "Medium",
             "quality": "Better",
             "description": "Better accuracy, moderate speed",
+            "url": "https://openaipublic.azureedge.net/main/whisper/models/9ecf779972d90ba49c06d968637d720dd632c55bbf19d441fb42bf17a411e794/small.pt",
+            "sha256": "9ecf779972d90ba49c06d968637d720dd632c55bbf19d441fb42bf17a411e794"
         },
         "medium": {
             "name": "Medium",
@@ -43,14 +51,37 @@ class ModelManager:
             "speed": "Slow",
             "quality": "High",
             "description": "High accuracy, slower processing",
+            "url": "https://openaipublic.azureedge.net/main/whisper/models/345ae4da62f9b3d59415adc60127b97c714f32e89e936602e85993674d08dcb1/medium.pt",
+            "sha256": "345ae4da62f9b3d59415adc60127b97c714f32e89e936602e85993674d08dcb1"
         },
-        "large": {
+        "large": { # This corresponds to large-v3 in openai-whisper
             "name": "Large",
             "size": "~1550 MB",
             "speed": "Very Slow",
             "quality": "Excellent",
-            "description": "Best accuracy, slowest processing",
+            "description": "Best accuracy, slowest processing (uses large-v3)",
+            "url": "https://openaipublic.azureedge.net/main/whisper/models/e5b1a55b89c1367dacf97e3e19bfd829a01529dbfdeefa8caeb59b3f1b81dadb/large-v3.pt",
+            "sha256": "e5b1a55b89c1367dacf97e3e19bfd829a01529dbfdeefa8caeb59b3f1b81dadb"
         },
+        # TODO: Consider adding large-v1 and large-v2 if differentiation is needed
+        # "large-v1": {
+        #     "name": "Large v1",
+        #     "size": "~1550 MB",
+        #     "speed": "Very Slow",
+        #     "quality": "Excellent",
+        #     "description": "Original large model",
+        #     "url": "https://openaipublic.azureedge.net/main/whisper/models/e4b87e7e0bf463eb8e6956e646f1e277e901512310def2c24bf0e11bd3c28e9a/large-v1.pt",
+        #     "sha256": "e4b87e7e0bf463eb8e6956e646f1e277e901512310def2c24bf0e11bd3c28e9a"
+        # },
+        # "large-v2": {
+        #     "name": "Large v2",
+        #     "size": "~1550 MB",
+        #     "speed": "Very Slow",
+        #     "quality": "Excellent",
+        #     "description": "Improved large model",
+        #     "url": "https://openaipublic.azureedge.net/main/whisper/models/81f7c96c852ee8fc832187b0132e569d6c3065a3252ed18e56effd0b6a73e524/large-v2.pt",
+        #     "sha256": "81f7c96c852ee8fc832187b0132e569d6c3065a3252ed18e56effd0b6a73e524"
+        # }
     }
 
     def __init__(self):
@@ -60,6 +91,7 @@ class ModelManager:
         self.model_load_lock = threading.Lock()
         self.whisper_available = False
         self.downloaded_models = set()  # Track which models are actually downloaded
+        self.download_progress = {}  # Stores progress of ongoing downloads
 
         # Try to import whisper
         try:
@@ -194,3 +226,156 @@ class ModelManager:
                 "status": "Downloaded" if model_name in self.downloaded_models else "Needs Download",
             }
         return status
+
+    def _get_model_cache_dir(self):
+        """Gets the Whisper model cache directory."""
+        return os.path.join(os.path.expanduser("~"), ".cache", "whisper")
+
+    def _perform_download(self, model_id: str):
+        """Performs the actual download of a model file."""
+        if model_id not in self.AVAILABLE_MODELS:
+            logger.error(f"Attempted to download unknown model: {model_id}")
+            self.download_progress[model_id] = {
+                "status": "failed",
+                "error_message": "Unknown model ID",
+                "progress": 0,
+                "downloaded_size": 0,
+                "total_size": 0,
+                "cancel_requested": False,
+            }
+            return
+
+        model_info = self.AVAILABLE_MODELS[model_id]
+        url = model_info["url"]
+        expected_sha256 = model_info["sha256"]
+
+        models_dir = self._get_model_cache_dir()
+        os.makedirs(models_dir, exist_ok=True)
+
+        # Use a temporary filename during download
+        base_filename = f"{model_id}.pt"
+        download_target_path = os.path.join(models_dir, base_filename)
+        temp_download_path = download_target_path + ".tmp"
+
+        self.download_progress[model_id] = {
+            "status": "downloading",
+            "error_message": "",
+            "progress": 0,
+            "downloaded_size": 0,
+            "total_size": 0, # Will be updated once headers are received
+            "cancel_requested": False,
+        }
+
+        try:
+            logger.info(f"Starting download for model {model_id} from {url}")
+            response = requests.get(url, stream=True, timeout=30) # Increased timeout
+            response.raise_for_status()
+
+            total_size = int(response.headers.get('content-length', 0))
+            self.download_progress[model_id]["total_size"] = total_size
+            downloaded_size = 0
+
+            hasher = hashlib.sha256()
+
+            with open(temp_download_path, 'wb') as f:
+                for chunk in response.iter_content(chunk_size=8192):
+                    if self.download_progress[model_id].get("cancel_requested", False):
+                        logger.info(f"Download cancelled for model {model_id}")
+                        self.download_progress[model_id]["status"] = "cancelled"
+                        if os.path.exists(temp_download_path):
+                            os.remove(temp_download_path)
+                        return
+
+                    f.write(chunk)
+                    hasher.update(chunk)
+                    downloaded_size += len(chunk)
+                    self.download_progress[model_id]["downloaded_size"] = downloaded_size
+                    if total_size > 0:
+                        self.download_progress[model_id]["progress"] = int((downloaded_size / total_size) * 100)
+
+            calculated_sha256 = hasher.hexdigest()
+            if calculated_sha256 != expected_sha256:
+                self.download_progress[model_id]["status"] = "failed"
+                self.download_progress[model_id]["error_message"] = f"SHA256 checksum mismatch. Expected {expected_sha256}, got {calculated_sha256}"
+                logger.error(self.download_progress[model_id]["error_message"])
+                if os.path.exists(temp_download_path):
+                    os.remove(temp_download_path)
+                return
+
+            # Download successful and checksum matches, move temp file to final destination
+            os.rename(temp_download_path, download_target_path)
+            self.download_progress[model_id]["status"] = "completed"
+            self.download_progress[model_id]["progress"] = 100
+            self.downloaded_models.add(model_id)
+            logger.info(f"Model {model_id} downloaded and verified successfully.")
+
+        except requests.exceptions.RequestException as e:
+            error_msg = f"Download failed for model {model_id}: {str(e)}"
+            logger.error(error_msg)
+            self.download_progress[model_id]["status"] = "failed"
+            self.download_progress[model_id]["error_message"] = str(e)
+            if os.path.exists(temp_download_path):
+                os.remove(temp_download_path)
+        except Exception as e:
+            error_msg = f"An unexpected error occurred during download of {model_id}: {str(e)}"
+            logger.error(error_msg, exc_info=True)
+            self.download_progress[model_id]["status"] = "failed"
+            self.download_progress[model_id]["error_message"] = "An unexpected error occurred."
+            if os.path.exists(temp_download_path):
+                os.remove(temp_download_path)
+        finally:
+            # If download was successful, the entry in download_progress will be 'completed'.
+            # If failed or cancelled, it will reflect that.
+            # We might want to remove completed/failed entries after some time or leave them for history.
+            pass
+
+
+    def start_download_model(self, model_id: str) -> bool:
+        """Initiates download of a model in a background thread."""
+        if model_id not in self.AVAILABLE_MODELS:
+            logger.error(f"Attempted to download unknown model: {model_id}")
+            return False
+
+        if self.is_model_downloaded(model_id):
+            logger.info(f"Model {model_id} is already downloaded.")
+            # Optionally update progress to completed if it's not already reflected
+            self.download_progress[model_id] = {
+                "status": "completed", "progress": 100,
+                "downloaded_size": os.path.getsize(os.path.join(self._get_model_cache_dir(), f"{model_id}.pt")) if os.path.exists(os.path.join(self._get_model_cache_dir(), f"{model_id}.pt")) else 0,
+                "total_size": os.path.getsize(os.path.join(self._get_model_cache_dir(), f"{model_id}.pt")) if os.path.exists(os.path.join(self._get_model_cache_dir(), f"{model_id}.pt")) else 0,
+                "error_message": "", "cancel_requested": False
+            }
+            return True
+
+        if model_id in self.download_progress and self.download_progress[model_id]["status"] == "downloading":
+            logger.warning(f"Download for model {model_id} is already in progress.")
+            return True # Indicate that the process is active
+
+        # Initialize or reset progress for a new download
+        self.download_progress[model_id] = {
+            "status": "pending",
+            "progress": 0,
+            "downloaded_size": 0,
+            "total_size": 0,
+            "error_message": "",
+            "cancel_requested": False
+        }
+
+        logger.info(f"Queuing download for model {model_id}")
+        download_thread = threading.Thread(target=self._perform_download, args=(model_id,))
+        download_thread.daemon = True  # Allow main program to exit even if threads are running
+        download_thread.start()
+        return True
+
+    def get_download_progress(self, model_id: str) -> Optional[Dict]:
+        """Returns the download progress for a given model_id."""
+        return self.download_progress.get(model_id)
+
+    def cancel_download_model(self, model_id: str) -> bool:
+        """Requests cancellation of an ongoing download for model_id."""
+        if model_id in self.download_progress and self.download_progress[model_id]["status"] == "downloading":
+            self.download_progress[model_id]["cancel_requested"] = True
+            logger.info(f"Cancellation requested for model {model_id} download.")
+            return True
+        logger.warning(f"No active download to cancel for model {model_id} or download not in cancellable state.")
+        return False

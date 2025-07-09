@@ -8,7 +8,7 @@ import os
 from datetime import datetime
 from pathlib import Path
 
-from flask import Blueprint, jsonify, render_template, send_from_directory
+from flask import Blueprint, jsonify, render_template, send_from_directory, request
 
 from .model_status import ModelStatusManager
 from .system_monitor import SystemMonitor
@@ -81,7 +81,153 @@ class AdminPanel:
 
         @bp.route('/api/v1/models/status')
         def api_model_status():
-            return jsonify(self.model_status.get_model_status())
+            if not self.model_manager:
+                return jsonify({"error": "ModelManager not initialized"}), 500
+
+            status_data = self.model_manager.get_status()
+            # Adapt to the structure expected by admin-models.js
+            # admin-models.js expects:
+            # data.available -> dict of model_id: {name, size, ...}
+            # data.downloaded -> list of model_id strings
+            # data.current -> string model_id
+            js_expected_status = {
+                "available": status_data.get("available_models_info", {}),
+                "downloaded": status_data.get("downloaded_model_ids", []),
+                "current": status_data.get("current_model_name", None)
+                # We can include other info if needed, but these are primary for current JS
+            }
+            return jsonify(js_expected_status)
+
+        @bp.route('/api/v1/models/download/<string:model_id>', methods=['POST'])
+        def api_start_model_download(model_id):
+            if not self.model_manager:
+                return jsonify({"status": "error", "message": "ModelManager not initialized"}), 500
+            if model_id not in self.model_manager.get_available_models():
+                return jsonify({"status": "error", "message": "Invalid model ID"}), 404
+
+            success = self.model_manager.start_download_model(model_id)
+            if success:
+                # Check if already downloaded or already in progress to provide specific message
+                if self.model_manager.is_model_downloaded(model_id):
+                     # Check progress to see if it was just marked as completed by start_download_model
+                    progress = self.model_manager.get_download_progress(model_id)
+                    if progress and progress.get("status") == "completed":
+                        return jsonify({"status": "success", "message": f"Model {model_id} is already downloaded."})
+
+                progress = self.model_manager.get_download_progress(model_id)
+                if progress and progress.get("status") == "downloading":
+                    return jsonify({"status": "success", "message": f"Download for model {model_id} is already in progress."})
+
+                return jsonify({"status": "success", "message": f"Download started for model {model_id}."})
+            else:
+                # Attempt to get a more specific error if available
+                progress = self.model_manager.get_download_progress(model_id)
+                error_message = "Failed to start download."
+                if progress and progress.get("error_message"):
+                    error_message = progress.get("error_message")
+                elif not self.model_manager.whisper_available:
+                    error_message = "Whisper library not available to initiate download."
+                return jsonify({"status": "error", "message": error_message}), 500
+
+        @bp.route('/api/v1/models/download/<string:model_id>/progress', methods=['GET'])
+        def api_get_model_download_progress(model_id):
+            if not self.model_manager:
+                return jsonify({"status": "error", "message": "ModelManager not initialized"}), 500
+            if model_id not in self.model_manager.get_available_models(): # Also check against available models
+                # If not an available model, it might be a custom one, or an old entry.
+                # However, progress is typically for known models.
+                # For now, let's assume we only query progress for models listed in AVAILABLE_MODELS.
+                # If model_id is not in download_progress, get_download_progress returns None.
+                 pass # Allow querying progress for any model_id that might be in download_progress
+
+            progress_data = self.model_manager.get_download_progress(model_id)
+            if progress_data is None:
+                # If not actively downloading and not downloaded, it might just not have a progress entry
+                if self.model_manager.is_model_downloaded(model_id):
+                    # Construct a "completed" status if it's downloaded but not in download_progress dict
+                    # This can happen if app restarts and download_progress is in-memory
+                    model_info = self.model_manager.get_model_info(model_id)
+                    file_path = os.path.join(self.model_manager._get_model_cache_dir(), f"{model_id}.pt")
+                    size_bytes = 0
+                    if os.path.exists(file_path):
+                        size_bytes = os.path.getsize(file_path)
+
+                    progress_data = {
+                        "status": "completed", "progress": 100,
+                        "downloaded_size": size_bytes,
+                        "total_size": size_bytes, # Assuming total size is same as downloaded for completed
+                        "error_message": "", "cancel_requested": False
+                    }
+                    return jsonify({"status": "success", "data": progress_data})
+                else:
+                    # Not downloaded and no active/failed progress entry
+                    return jsonify({"status": "success", "data": {
+                        "status": "not_downloaded", "progress": 0,
+                        "downloaded_size":0, "total_size":0,
+                        "error_message": "", "cancel_requested": False
+                    }})
+            return jsonify({"status": "success", "data": progress_data})
+
+        @bp.route('/api/v1/models/download/<string:model_id>/cancel', methods=['POST'])
+        def api_cancel_model_download(model_id):
+            if not self.model_manager:
+                return jsonify({"status": "error", "message": "ModelManager not initialized"}), 500
+            # No need to check if model_id is in available_models, cancel works on current downloads
+
+            success = self.model_manager.cancel_download_model(model_id)
+            if success:
+                return jsonify({"status": "success", "message": f"Cancellation requested for model {model_id}."})
+            else:
+                # More specific message if possible
+                prog = self.model_manager.get_download_progress(model_id)
+                if not prog or prog.get("status") != "downloading":
+                    return jsonify({"status": "error", "message": f"No active download to cancel for model {model_id}."}), 400
+                return jsonify({"status": "error", "message": f"Failed to request cancellation for model {model_id}."}), 500
+
+        @bp.route('/api/v1/models/switch', methods=['POST'])
+        def api_switch_model():
+            if not self.model_manager:
+                return jsonify({"status": "error", "message": "ModelManager not initialized"}), 500
+
+            data = request.get_json()
+            if not data or 'model' not in data:
+                return jsonify({"status": "error", "message": "Missing 'model' in request body"}), 400
+
+            model_id = data['model']
+            if model_id not in self.model_manager.get_available_models():
+                return jsonify({"status": "error", "message": f"Invalid model ID: {model_id}"}), 404
+            if not self.model_manager.is_model_downloaded(model_id):
+                return jsonify({"status": "error", "message": f"Model {model_id} is not downloaded."}), 400
+
+            success = self.model_manager.load_model(model_id)
+            if success:
+                return jsonify({"status": "success", "message": f"Successfully switched to model {model_id}."})
+            else:
+                return jsonify({"status": "error", "message": f"Failed to switch to model {model_id}."}), 500
+
+        @bp.route('/api/v1/models/<string:model_id>', methods=['DELETE'])
+        def api_delete_model(model_id):
+            if not self.model_manager:
+                return jsonify({"status": "error", "message": "ModelManager not initialized"}), 500
+            if model_id not in self.model_manager.get_available_models():
+                # Allow deleting models not in the "available" list if they somehow exist?
+                # For now, let's stick to known models. User could manually add files.
+                # However, model_manager.delete_model_file also checks AVAILABLE_MODELS.
+                pass # model_manager.delete_model_file will handle unknown model_id
+
+            success = self.model_manager.delete_model_file(model_id)
+            if success:
+                return jsonify({"status": "success", "message": f"Model {model_id} deleted successfully."})
+            else:
+                # Check if it was not downloaded in the first place
+                if not self.model_manager.is_model_downloaded(model_id) and \
+                   not os.path.exists(os.path.join(self.model_manager._get_model_cache_dir(), f"{model_id}.pt")):
+                     # If delete_model_file returned false because it wasn't there to begin with.
+                     # This case should ideally be handled by delete_model_file returning True if not found.
+                     # Re-checking the logic in delete_model_file, it returns True if not downloaded.
+                     # So this path might indicate another error.
+                     return jsonify({"status": "error", "message": f"Failed to delete model {model_id}. It might not have been downloaded or another error occurred."}), 500
+                return jsonify({"status": "error", "message": f"Failed to delete model {model_id}."}), 500
 
         # Static file serving for admin assets
         @bp.route('/admin/static/<path:filename>')

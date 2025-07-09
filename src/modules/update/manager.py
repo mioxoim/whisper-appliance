@@ -87,6 +87,18 @@ class UpdateManager:
             # Clean up old backups
             self.rollback.cleanup_old_backups()
 
+            if result.get("restart_required", False):
+                restart_success = self.restart_application()
+                result["restart_attempted"] = True
+                result["restart_success"] = restart_success
+                if restart_success:
+                    result["message"] += " Service restart initiated."
+                else:
+                    result["message"] += " Service restart failed. Please restart manually."
+            else:
+                result["restart_attempted"] = False
+                result["restart_success"] = None # Or False, depending on desired representation
+
         return result
 
     def get_status(self) -> Dict[str, any]:

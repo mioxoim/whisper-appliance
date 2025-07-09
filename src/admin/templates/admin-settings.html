@@ -147,6 +147,13 @@
             <button class="btn btn-secondary mr-sm" id="installUpdateButton" onclick="installSystemUpdate()" style="display: none;">
                 Install Update
             </button>
+            <div class="mt-sm">
+                <small class="text-muted">
+                    To update Whisper Appliance in the future:<br>
+                    1. Enter container: <code>pct enter $CTID</code><br>
+                    2. Run: <code>cd /opt/whisper-appliance && git pull && systemctl restart whisper-appliance</code>
+                </small>
+            </div>
             <button class="btn btn-warning" id="restartAppButton" onclick="restartApplication()" style="display: none;">
                 Restart Application
             </button>

@@ -135,8 +135,29 @@ class ModelStatusManager:
     
     def get_model_status(self):
         """Get model status for API"""
+        current_model_name = None
+        if self.model_manager:
+            # Check if get_current_model_name method exists, otherwise fallback or log
+            if hasattr(self.model_manager, 'get_current_model_name'):
+                current_model_name = self.model_manager.get_current_model_name()
+            elif hasattr(self.model_manager, 'current_model_name'): # Fallback to attribute if method not found
+                current_model_name = self.model_manager.current_model_name
+            else: # Further fallback if direct attribute also not found
+                logger.warning("ModelManager does not have get_current_model_name method or current_model_name attribute.")
+
+
+        # Ensure AVAILABLE_MODELS in ModelStatusManager is consistent with ModelManager's definition
+        # For now, we use ModelStatusManager's own list for "available".
+        # Ideally, this should also come from ModelManager to ensure single source of truth.
+        available_models_from_model_manager = {}
+        if self.model_manager and hasattr(self.model_manager, 'get_available_models'):
+            available_models_from_model_manager = self.model_manager.get_available_models()
+        else:
+            logger.warning("ModelManager not available or does not have get_available_models method for ModelStatusManager.")
+            available_models_from_model_manager = self.AVAILABLE_MODELS # Fallback to local copy
+
         return {
-            "available": self.AVAILABLE_MODELS,
-            "downloaded": self.get_downloaded_models(),
-            "current": self.model_manager.current_model if self.model_manager else None
+            "available": available_models_from_model_manager, # Use models from ModelManager
+            "downloaded": self.get_downloaded_models(), # This method seems to use its own logic/list
+            "current": current_model_name
         }

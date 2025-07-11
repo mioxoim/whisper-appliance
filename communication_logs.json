@@ -1,0 +1,8 @@
+[
+    {
+        "timestamp": "2023-10-27T10:00:00.000000",
+        "user_input": "Test user input",
+        "model": "test_model",
+        "response": "Test model response"
+    }
+]

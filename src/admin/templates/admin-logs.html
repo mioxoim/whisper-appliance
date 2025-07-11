@@ -1,0 +1,56 @@
+{% extends "admin-base.html" %}
+
+{% block title %}Logs - WhisperAppliance Admin{% endblock %}
+
+{% block content %}
+<!-- Page Header -->
+<div class="page-header">
+    <h1 class="page-title">System Logs</h1>
+    <p class="page-subtitle">View system communication logs</p>
+</div>
+
+<!-- Logs Display -->
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">📄 Communication Log Entries</h3>
+        <div class="card-actions">
+            <a href="{{ url_for('admin.api_download_logs') }}" class="btn btn-primary" download="communication_logs.json">
+                Download Logs (JSON)
+            </a>
+        </div>
+    </div>
+    <div class="card-body">
+        {% if logs %}
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Timestamp</th>
+                        <th>User Input</th>
+                        <th>Model</th>
+                        <th>Response</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log_entry in logs %}
+                        <tr>
+                            <td>{{ log_entry.timestamp }}</td>
+                            <td>{{ log_entry.user_input }}</td>
+                            <td>{{ log_entry.model }}</td>
+                            <td>{{ log_entry.response }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>No log entries found.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Any specific JS for the logs page can go here.
+// For now, the download is a direct link, so no JS is strictly needed for that.
+</script>
+{% endblock %}

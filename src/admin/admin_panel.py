@@ -74,7 +74,18 @@ class AdminPanel:
         def admin_settings():
             return render_template('admin-settings.html')
 
+        # Logs page
+        @bp.route('/admin/logs')
+        def admin_logs():
+            logs = self.communication_log.get_logs()
+            return render_template('admin-logs.html', logs=logs)
+
         # API endpoints
+        @bp.route('/api/v1/logs/download')
+        def api_download_logs():
+            logs = self.communication_log.get_logs()
+            return jsonify(logs)
+
         @bp.route('/api/v1/system/status')
         def api_system_status():
             return jsonify(self.system_monitor.get_system_status())

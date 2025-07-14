@@ -17,6 +17,9 @@
 [![Proxmox Ready](https://img.shields.io/badge/proxmox-ready-green)](https://www.proxmox.com/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
+<img width="1016" height="839" alt="Image" src="https://github.com/user-attachments/assets/1a0af379-106f-4cd3-9fdf-78fc9c0474e0" />
+
+
 ## ⚡ Quick Start
 
 ### 🚀 One-Line Proxmox Deployment (Recommended)
